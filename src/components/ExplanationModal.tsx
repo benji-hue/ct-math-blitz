@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { ArrowRight, Check, Lightbulb, Timer, TriangleAlert } from 'lucide-react'
 import type { RuntimeQuestion } from '../types'
 import { Tex } from './Tex'
+import { WorkedExample } from './WorkedExample'
 
 /**
  * «Разбей ловушку» — the active-recall overlay. It freezes the round, names
@@ -101,6 +102,8 @@ export function ExplanationModal({
             </p>
           </div>
         )}
+
+        <WorkedExample example={item.q.example} defaultOpen className="mb-4" />
 
         <button
           ref={buttonRef}

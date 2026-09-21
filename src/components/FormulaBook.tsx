@@ -5,6 +5,7 @@ import { isMastered, type Progress } from '../lib/storage'
 import { CATEGORIES, CATEGORY_META, type Category, type Question } from '../types'
 import { cx } from '../lib/cx'
 import { Tex } from './Tex'
+import { WorkedExample } from './WorkedExample'
 
 function plain(text: string): string {
   return text.replace(/[$\\{}]/g, ' ').toLowerCase()
@@ -70,6 +71,7 @@ function EntryCard({
               <Tex>{q.learning.common_trap}</Tex>
             </p>
           </div>
+          <WorkedExample example={q.example} />
           {q.learning.mnemonic && (
             <div className="flex gap-2.5 rounded-xl border border-violet-400/20 bg-violet-400/8 p-3">
               <Lightbulb size={15} className="mt-0.5 shrink-0 text-violet-300" />

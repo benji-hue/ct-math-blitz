@@ -16,8 +16,9 @@ import { GameScreen, type RoundSummary } from './components/GameScreen'
 import { HomeScreen } from './components/HomeScreen'
 import { ResultScreen } from './components/ResultScreen'
 import { FormulaBook } from './components/FormulaBook'
+import { AiTestScreen } from './components/AiTestScreen'
 
-type Screen = 'home' | 'game' | 'result' | 'book'
+type Screen = 'home' | 'game' | 'result' | 'book' | 'aitest'
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home')
@@ -104,6 +105,10 @@ export default function App() {
     )
   }
 
+  if (screen === 'aitest') {
+    return <AiTestScreen onBack={() => setScreen('home')} />
+  }
+
   if (screen === 'book') {
     return <FormulaBook progress={progress} onBack={() => setScreen(summary ? 'result' : 'home')} />
   }
@@ -115,6 +120,7 @@ export default function App() {
       onStart={startBlitz}
       onStartMistakes={startMistakeRound}
       onOpenBook={() => setScreen('book')}
+      onOpenAiTest={() => setScreen('aitest')}
       onReset={() => {
         clearProgress()
         setProgress(EMPTY_PROGRESS)

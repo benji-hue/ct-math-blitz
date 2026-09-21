@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { BookOpen, Flame, ListChecks, Play, RotateCcw, Target, Trophy } from 'lucide-react'
+import { BookOpen, Flame, ListChecks, Play, RotateCcw, Sparkles, Target, Trophy } from 'lucide-react'
 import { ALL_QUESTIONS } from '../lib/questions'
 import { masteredCount, type Progress } from '../lib/storage'
 import { CATEGORIES, CATEGORY_META, type Category } from '../types'
@@ -31,6 +31,7 @@ export function HomeScreen({
   onStart,
   onStartMistakes,
   onOpenBook,
+  onOpenAiTest,
   onReset,
 }: {
   progress: Progress
@@ -38,6 +39,7 @@ export function HomeScreen({
   onStart: (size: number, categories: Category[]) => void
   onStartMistakes: () => void
   onOpenBook: () => void
+  onOpenAiTest: () => void
   onReset: () => void
 }) {
   const [size, setSize] = useState(12)
@@ -160,6 +162,15 @@ export function HomeScreen({
               {mistakeCount}
             </span>
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenAiTest}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-400/40 bg-violet-400/12 px-4 py-3.5 text-[15px] font-semibold text-violet-200 transition active:scale-[0.99]"
+        >
+          <Sparkles size={17} />
+          Проверочная работа с ИИ
         </button>
 
         <button

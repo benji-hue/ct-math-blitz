@@ -47,6 +47,14 @@ export interface Learning {
   mnemonic: string | null
 }
 
+export interface Example {
+  /** условие простой задачи на то же правило */
+  task: string
+  /** решение по шагам: каждый шаг — отдельная строка */
+  solution: string[]
+  answer: string
+}
+
 export interface Question {
   id: string
   category: Category
@@ -56,6 +64,7 @@ export interface Question {
   correct_index: number
   graph_spec: GraphSpec | null
   learning: Learning
+  example: Example
 }
 
 /** A question with its options shuffled for this particular round. */
