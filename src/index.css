@@ -1,0 +1,148 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-abyss: #070b18;
+  --color-panel: #101830;
+  --color-panel-2: #16203c;
+  --color-edge: #24304f;
+  --color-muted: #8ea0c4;
+}
+
+:root {
+  color-scheme: dark;
+  font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, #1d2a56 0%, transparent 58%),
+    radial-gradient(900px 560px at 92% 4%, #3a1d4f 0%, transparent 55%),
+    var(--color-abyss);
+  background-attachment: fixed;
+  color: #e8eeff;
+  overscroll-behavior-y: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* ---- KaTeX ---------------------------------------------------------- */
+
+.katex {
+  font-size: 1.04em;
+}
+
+/* Long formulas must wrap instead of pushing the layout sideways. */
+.tex-host {
+  overflow-wrap: anywhere;
+}
+
+.tex-host .katex-display {
+  margin: 0.35em 0;
+}
+
+/* ---- Utilities ------------------------------------------------------ */
+
+/* Notch / Dynamic Island: the native shell renders full-bleed, so the app
+   keeps itself clear of the status bar on its own. Resolves to 0 in a browser. */
+#root {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-bottom {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+.screen-min-h {
+  min-height: calc(100dvh - env(safe-area-inset-top, 0px));
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.anim-pop {
+  animation: pop-in 0.26s ease-out both;
+}
+
+.anim-sheet {
+  animation: slide-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.anim-shake {
+  animation: shake 0.36s ease-in-out both;
+}
+
+.anim-fade {
+  animation: fade-in 0.2s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-pop,
+  .anim-sheet,
+  .anim-shake,
+  .anim-fade {
+    animation: none;
+  }
+}

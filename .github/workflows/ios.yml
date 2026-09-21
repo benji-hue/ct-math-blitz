@@ -1,0 +1,135 @@
+name: Build iOS IPA (unsigned)
+
+# Собирает НЕподписанный .ipa для сайдлоада через Sideloadly / AltStore.
+# Сертификаты Apple не нужны — подпись делается на вашей машине.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Toolchain versions
+        run: |
+          node --version
+          xcodebuild -version
+          pod --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web bundle
+        run: npm run build
+
+      - name: Generate native iOS project
+        run: npx cap add ios
+
+      - name: Sync web assets into the native project
+        run: npx cap sync ios
+
+      - name: Render app icon and launch screen
+        run: node scripts/ios-assets.mjs
+
+      - name: Configure Info.plist
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          PLIST=ios/App/App/Info.plist
+          VERSION=$(node -p "require('./package.json').version")
+
+          plist_set() {
+            key="$1"; type="$2"; shift 2; value="$*"
+            /usr/libexec/PlistBuddy -c "Set :$key $value" "$PLIST" 2>/dev/null \
+              || /usr/libexec/PlistBuddy -c "Add :$key $type $value" "$PLIST"
+          }
+
+          plist_set CFBundleDisplayName string ЦТ Математика
+          plist_set CFBundleShortVersionString string "$VERSION"
+          plist_set CFBundleVersion string "$BUILD_NUMBER"
+          # Тёмный фон приложения — статус-бар должен быть светлым.
+          plist_set UIStatusBarStyle string UIStatusBarStyleLightContent
+          plist_set UIViewControllerBasedStatusBarAppearance bool false
+
+          echo "--- Info.plist ---"
+          /usr/libexec/PlistBuddy -c "Print" "$PLIST"
+
+      - name: Archive without code signing
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/build/App.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            ENABLE_BITCODE=NO
+
+      - name: Package Payload into .ipa
+        id: package
+        run: |
+          set -euo pipefail
+          APP="build/App.xcarchive/Products/Applications/App.app"
+          test -d "$APP" || { echo "::error::App.app не найден в архиве"; exit 1; }
+
+          VERSION=$(node -p "require('./package.json').version")
+          NAME="CTMathBlitz-${VERSION}-build${{ github.run_number }}-unsigned.ipa"
+
+          rm -rf build/Payload
+          mkdir -p build/Payload
+          cp -R "$APP" build/Payload/
+          (cd build && zip -qry "$NAME" Payload)
+
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "--- Результат ---"
+          ls -lh "build/$NAME"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$APP/Info.plist" || true
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: build/*.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach IPA to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" build/*.ipa --generate-notes --title "$GITHUB_REF_NAME"
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcode-diagnostics
+          path: |
+            ~/Library/Logs/gym
+            build/App.xcarchive
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,0 +1,2345 @@
+[
+  {
+    "id": "trig_sin_double",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равен $\\sin 2\\alpha$?",
+    "options": [
+      "$2\\sin\\alpha\\cos\\alpha$",
+      "$\\sin^2\\alpha-\\cos^2\\alpha$",
+      "$\\sin\\alpha\\cos\\alpha$",
+      "$2\\sin\\alpha$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sin 2\\alpha = 2\\sin\\alpha\\cos\\alpha$",
+      "common_trap": "В вариантах ЦТ рядом всегда стоит $\\sin\\alpha\\cos\\alpha$ без двойки и «чужая» формула $\\cos^2\\alpha-\\sin^2\\alpha$ (это косинус двойного угла). Потеря множителя 2 — ошибка №1 в части А.",
+      "mnemonic": "«Два син-кос» — двойка спереди, углы одинаковые."
+    }
+  },
+  {
+    "id": "trig_cos_double_base",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равен $\\cos 2\\alpha$ (основная запись)?",
+    "options": [
+      "$\\cos^2\\alpha-\\sin^2\\alpha$",
+      "$\\sin^2\\alpha-\\cos^2\\alpha$",
+      "$\\cos^2\\alpha+\\sin^2\\alpha$",
+      "$2\\cos\\alpha\\sin\\alpha$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\cos 2\\alpha = \\cos^2\\alpha-\\sin^2\\alpha$",
+      "common_trap": "Перестановка слагаемых даёт $\\sin^2\\alpha-\\cos^2\\alpha=-\\cos 2\\alpha$ — верный ответ со знаком минус. Вариант $\\cos^2\\alpha+\\sin^2\\alpha$ тождественно равен 1 и стоит в ответах как ловушка на невнимательность.",
+      "mnemonic": "У косинуса косинус идёт первым: «кос² минус син²»."
+    }
+  },
+  {
+    "id": "trig_cos_double_via_sin",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Выразите $\\cos 2\\alpha$ только через $\\sin\\alpha$.",
+    "options": [
+      "$1-2\\sin^2\\alpha$",
+      "$2\\sin^2\\alpha-1$",
+      "$1-2\\cos^2\\alpha$",
+      "$1-\\sin^2\\alpha$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\cos 2\\alpha = 1-2\\sin^2\\alpha$",
+      "common_trap": "$2\\sin^2\\alpha-1$ — это $-\\cos 2\\alpha$. Если в задаче на понижение степени взять этот вариант, знак всего ответа перевернётся.",
+      "mnemonic": "Через синус — «единица минус», через косинус — «минус единица» в конце."
+    }
+  },
+  {
+    "id": "trig_cos_double_via_cos",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Выразите $\\cos 2\\alpha$ только через $\\cos\\alpha$.",
+    "options": [
+      "$2\\cos^2\\alpha-1$",
+      "$1-2\\cos^2\\alpha$",
+      "$2\\cos^2\\alpha+1$",
+      "$\\cos^2\\alpha-1$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\cos 2\\alpha = 2\\cos^2\\alpha-1$",
+      "common_trap": "Зеркальный дистрактор $1-2\\cos^2\\alpha$ отличается только знаком. Проверка за три секунды: подставьте $\\alpha=0$, должно получиться $\\cos 0=1$.",
+      "mnemonic": "Подставь $\\alpha=0$: верная формула обязана дать 1."
+    }
+  },
+  {
+    "id": "trig_tan_double",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равен $\\operatorname{tg} 2\\alpha$?",
+    "options": [
+      "$\\dfrac{2\\operatorname{tg}\\alpha}{1-\\operatorname{tg}^2\\alpha}$",
+      "$\\dfrac{2\\operatorname{tg}\\alpha}{1+\\operatorname{tg}^2\\alpha}$",
+      "$\\dfrac{1-\\operatorname{tg}^2\\alpha}{2\\operatorname{tg}\\alpha}$",
+      "$2\\operatorname{tg}\\alpha$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\operatorname{tg} 2\\alpha=\\dfrac{2\\operatorname{tg}\\alpha}{1-\\operatorname{tg}^2\\alpha}$",
+      "common_trap": "Знаменатель с плюсом — это универсальная подстановка для $\\sin 2\\alpha$, а не тангенс. Перевёрнутая дробь даёт $\\operatorname{ctg} 2\\alpha$.",
+      "mnemonic": "В тангенсе двойного угла в знаменателе МИНУС."
+    }
+  },
+  {
+    "id": "trig_sin_sum",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равен $\\sin(\\alpha+\\beta)$?",
+    "options": [
+      "$\\sin\\alpha\\cos\\beta+\\cos\\alpha\\sin\\beta$",
+      "$\\sin\\alpha\\cos\\beta-\\cos\\alpha\\sin\\beta$",
+      "$\\cos\\alpha\\cos\\beta-\\sin\\alpha\\sin\\beta$",
+      "$\\sin\\alpha+\\sin\\beta$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sin(\\alpha+\\beta)=\\sin\\alpha\\cos\\beta+\\cos\\alpha\\sin\\beta$",
+      "common_trap": "Классическая подмена — формула косинуса суммы $\\cos\\alpha\\cos\\beta-\\sin\\alpha\\sin\\beta$ и «линейность» $\\sin\\alpha+\\sin\\beta$, которой не существует.",
+      "mnemonic": "Синус суммы — знак ТОТ ЖЕ, функции чередуются."
+    }
+  },
+  {
+    "id": "trig_sin_diff",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равен $\\sin(\\alpha-\\beta)$?",
+    "options": [
+      "$\\sin\\alpha\\cos\\beta-\\cos\\alpha\\sin\\beta$",
+      "$\\sin\\alpha\\cos\\beta+\\cos\\alpha\\sin\\beta$",
+      "$\\cos\\alpha\\cos\\beta+\\sin\\alpha\\sin\\beta$",
+      "$\\sin\\alpha-\\sin\\beta$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sin(\\alpha-\\beta)=\\sin\\alpha\\cos\\beta-\\cos\\alpha\\sin\\beta$",
+      "common_trap": "Рядом ставят $\\cos\\alpha\\cos\\beta+\\sin\\alpha\\sin\\beta$ — это косинус разности. Ориентир: в синусе функции РАЗНЫЕ в каждом слагаемом.",
+      "mnemonic": "У синуса знак наследуется от скобки: разность → минус."
+    }
+  },
+  {
+    "id": "trig_cos_sum",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равен $\\cos(\\alpha+\\beta)$?",
+    "options": [
+      "$\\cos\\alpha\\cos\\beta-\\sin\\alpha\\sin\\beta$",
+      "$\\cos\\alpha\\cos\\beta+\\sin\\alpha\\sin\\beta$",
+      "$\\sin\\alpha\\cos\\beta+\\cos\\alpha\\sin\\beta$",
+      "$\\cos\\alpha+\\cos\\beta$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\cos(\\alpha+\\beta)=\\cos\\alpha\\cos\\beta-\\sin\\alpha\\sin\\beta$",
+      "common_trap": "Самая частая ошибка ЦТ: у КОСИНУСА знак в формуле противоположен знаку в скобке. Вариант с плюсом — это $\\cos(\\alpha-\\beta)$.",
+      "mnemonic": "Косинус «вредный»: в скобке плюс — в формуле минус."
+    }
+  },
+  {
+    "id": "trig_cos_diff",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равен $\\cos(\\alpha-\\beta)$?",
+    "options": [
+      "$\\cos\\alpha\\cos\\beta+\\sin\\alpha\\sin\\beta$",
+      "$\\cos\\alpha\\cos\\beta-\\sin\\alpha\\sin\\beta$",
+      "$\\sin\\alpha\\cos\\beta-\\cos\\alpha\\sin\\beta$",
+      "$\\cos\\alpha-\\cos\\beta$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\cos(\\alpha-\\beta)=\\cos\\alpha\\cos\\beta+\\sin\\alpha\\sin\\beta$",
+      "common_trap": "Дистрактор с минусом — это косинус суммы. Проверьте подстановкой $\\beta=\\alpha$: должно получиться $\\cos 0=1$, то есть $\\cos^2\\alpha+\\sin^2\\alpha$.",
+      "mnemonic": "Проверка $\\beta=\\alpha$ мгновенно ловит неверный знак."
+    }
+  },
+  {
+    "id": "trig_sin_sq_power_down",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Формула понижения степени: $\\sin^2\\alpha=\\;?$",
+    "options": [
+      "$\\dfrac{1-\\cos 2\\alpha}{2}$",
+      "$\\dfrac{1+\\cos 2\\alpha}{2}$",
+      "$\\dfrac{1-\\sin 2\\alpha}{2}$",
+      "$\\dfrac{\\cos 2\\alpha-1}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sin^2\\alpha=\\dfrac{1-\\cos 2\\alpha}{2}$",
+      "common_trap": "Вариант с плюсом — это $\\cos^2\\alpha$. А $\\frac{\\cos 2\\alpha-1}{2}$ вообще неположителен, хотя квадрат отрицательным быть не может.",
+      "mnemonic": "СинуС — минуС: обе с буквой «с»."
+    }
+  },
+  {
+    "id": "trig_cos_sq_power_down",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Формула понижения степени: $\\cos^2\\alpha=\\;?$",
+    "options": [
+      "$\\dfrac{1+\\cos 2\\alpha}{2}$",
+      "$\\dfrac{1-\\cos 2\\alpha}{2}$",
+      "$\\dfrac{1+\\cos\\alpha}{2}$",
+      "$\\dfrac{1+\\sin 2\\alpha}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\cos^2\\alpha=\\dfrac{1+\\cos 2\\alpha}{2}$",
+      "common_trap": "Дистрактор $\\frac{1+\\cos\\alpha}{2}$ — это формула половинного угла для $\\cos^2\\frac{\\alpha}{2}$: подменён аргумент, а не знак.",
+      "mnemonic": "Проверка $\\alpha=0$: слева 1, справа $\\frac{1+1}{2}=1$."
+    }
+  },
+  {
+    "id": "trig_sum_to_product_sin",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Преобразуйте сумму в произведение: $\\sin\\alpha+\\sin\\beta=\\;?$",
+    "options": [
+      "$2\\sin\\dfrac{\\alpha+\\beta}{2}\\cos\\dfrac{\\alpha-\\beta}{2}$",
+      "$2\\cos\\dfrac{\\alpha+\\beta}{2}\\sin\\dfrac{\\alpha-\\beta}{2}$",
+      "$2\\sin\\dfrac{\\alpha-\\beta}{2}\\cos\\dfrac{\\alpha+\\beta}{2}$",
+      "$\\sin\\dfrac{\\alpha+\\beta}{2}\\cos\\dfrac{\\alpha-\\beta}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sin\\alpha+\\sin\\beta=2\\sin\\dfrac{\\alpha+\\beta}{2}\\cos\\dfrac{\\alpha-\\beta}{2}$",
+      "common_trap": "Дистракторы меняют местами полусумму и полуразность (это формула разности синусов) либо убирают двойку.",
+      "mnemonic": "Сумма синусов: 2 · син(полусумма) · кос(полуразность)."
+    }
+  },
+  {
+    "id": "trig_sum_to_product_cos",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Преобразуйте сумму в произведение: $\\cos\\alpha+\\cos\\beta=\\;?$",
+    "options": [
+      "$2\\cos\\dfrac{\\alpha+\\beta}{2}\\cos\\dfrac{\\alpha-\\beta}{2}$",
+      "$2\\sin\\dfrac{\\alpha+\\beta}{2}\\sin\\dfrac{\\alpha-\\beta}{2}$",
+      "$-2\\sin\\dfrac{\\alpha+\\beta}{2}\\sin\\dfrac{\\alpha-\\beta}{2}$",
+      "$2\\cos\\dfrac{\\alpha+\\beta}{2}\\sin\\dfrac{\\alpha-\\beta}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\cos\\alpha+\\cos\\beta=2\\cos\\dfrac{\\alpha+\\beta}{2}\\cos\\dfrac{\\alpha-\\beta}{2}$",
+      "common_trap": "Вариант с двумя синусами и минусом — это РАЗНОСТЬ косинусов. Их специально ставят рядом, чтобы поймать на знаке.",
+      "mnemonic": "Сумма косинусов — «кос-кос», без минуса."
+    }
+  },
+  {
+    "id": "trig_diff_to_product_cos",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Преобразуйте разность в произведение: $\\cos\\alpha-\\cos\\beta=\\;?$",
+    "options": [
+      "$-2\\sin\\dfrac{\\alpha+\\beta}{2}\\sin\\dfrac{\\alpha-\\beta}{2}$",
+      "$2\\sin\\dfrac{\\alpha+\\beta}{2}\\sin\\dfrac{\\alpha-\\beta}{2}$",
+      "$2\\cos\\dfrac{\\alpha+\\beta}{2}\\cos\\dfrac{\\alpha-\\beta}{2}$",
+      "$-2\\cos\\dfrac{\\alpha+\\beta}{2}\\sin\\dfrac{\\alpha-\\beta}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\cos\\alpha-\\cos\\beta=-2\\sin\\dfrac{\\alpha+\\beta}{2}\\sin\\dfrac{\\alpha-\\beta}{2}$",
+      "common_trap": "Забытый МИНУС перед двойкой — массовая потеря балла. Это единственная формула суммы-разности, где минус вынесен наружу.",
+      "mnemonic": "Разность косинусов — «минус два син-син»."
+    }
+  },
+  {
+    "id": "trig_pythagorean_tan",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равно $1+\\operatorname{tg}^2\\alpha$?",
+    "options": [
+      "$\\dfrac{1}{\\cos^2\\alpha}$",
+      "$\\dfrac{1}{\\sin^2\\alpha}$",
+      "$\\operatorname{ctg}^2\\alpha$",
+      "$\\cos^2\\alpha$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$1+\\operatorname{tg}^2\\alpha=\\dfrac{1}{\\cos^2\\alpha}$ при $\\cos\\alpha\\neq 0$",
+      "common_trap": "Зеркальная формула $1+\\operatorname{ctg}^2\\alpha=\\frac{1}{\\sin^2\\alpha}$ всегда стоит рядом. Смотрите на знаменатель самой функции: у тангенса это косинус.",
+      "mnemonic": "Тангенс дружит с косинусом в знаменателе."
+    }
+  },
+  {
+    "id": "trig_pythagorean_cot",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равно $1+\\operatorname{ctg}^2\\alpha$?",
+    "options": [
+      "$\\dfrac{1}{\\sin^2\\alpha}$",
+      "$\\dfrac{1}{\\cos^2\\alpha}$",
+      "$\\operatorname{tg}^2\\alpha$",
+      "$\\sin^2\\alpha$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$1+\\operatorname{ctg}^2\\alpha=\\dfrac{1}{\\sin^2\\alpha}$ при $\\sin\\alpha\\neq 0$",
+      "common_trap": "Пару тангенс-котангенс подменяют местами. Вывод на ходу: $\\operatorname{ctg}\\alpha=\\frac{\\cos\\alpha}{\\sin\\alpha}$, общий знаменатель — $\\sin^2\\alpha$.",
+      "mnemonic": "Котангенс — синус внизу, значит и результат через синус."
+    }
+  },
+  {
+    "id": "trig_reduction_half_pi_plus",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Формула приведения: $\\sin\\left(\\dfrac{\\pi}{2}+\\alpha\\right)=\\;?$",
+    "options": [
+      "$\\cos\\alpha$",
+      "$-\\cos\\alpha$",
+      "$\\sin\\alpha$",
+      "$-\\sin\\alpha$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sin\\left(\\dfrac{\\pi}{2}+\\alpha\\right)=\\cos\\alpha$",
+      "common_trap": "Дистрактор $-\\cos\\alpha$ — это результат для $\\sin\\left(\\frac{3\\pi}{2}+\\alpha\\right)$. Знак берётся по четверти ИСХОДНОЙ функции: угол во второй четверти, синус там положителен.",
+      "mnemonic": "От $\\frac{\\pi}{2}$ и $\\frac{3\\pi}{2}$ функция меняется, от $\\pi$ и $2\\pi$ — остаётся."
+    }
+  },
+  {
+    "id": "trig_reduction_pi_plus",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Формула приведения: $\\cos(\\pi+\\alpha)=\\;?$",
+    "options": [
+      "$-\\cos\\alpha$",
+      "$\\cos\\alpha$",
+      "$-\\sin\\alpha$",
+      "$\\sin\\alpha$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\cos(\\pi+\\alpha)=-\\cos\\alpha$",
+      "common_trap": "Здесь функция НЕ меняется (аргумент $\\pi$, а не $\\frac{\\pi}{2}$), но по инерции пишут синус. Угол $\\pi+\\alpha$ лежит в III четверти, где косинус отрицателен.",
+      "mnemonic": "«Горизонталь» ($\\pi$, $2\\pi$) — имя функции сохраняется."
+    }
+  },
+  {
+    "id": "trig_reduction_cofunction",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Формула приведения: $\\operatorname{tg}\\left(\\dfrac{\\pi}{2}-\\alpha\\right)=\\;?$",
+    "options": [
+      "$\\operatorname{ctg}\\alpha$",
+      "$-\\operatorname{ctg}\\alpha$",
+      "$\\operatorname{tg}\\alpha$",
+      "$-\\operatorname{tg}\\alpha$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\operatorname{tg}\\left(\\dfrac{\\pi}{2}-\\alpha\\right)=\\operatorname{ctg}\\alpha$",
+      "common_trap": "Забывают сменить тангенс на котангенс. Для острого $\\alpha$ угол $\\frac{\\pi}{2}-\\alpha$ в I четверти, знак положительный — минус исключён.",
+      "mnemonic": "$\\frac{\\pi}{2}$ — «вертикаль»: tg ↔ ctg, sin ↔ cos."
+    }
+  },
+  {
+    "id": "trig_table_values",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равен $\\sin\\dfrac{\\pi}{3}$?",
+    "options": [
+      "$\\dfrac{\\sqrt3}{2}$",
+      "$\\dfrac{1}{2}$",
+      "$\\dfrac{\\sqrt2}{2}$",
+      "$\\dfrac{\\sqrt3}{3}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sin\\dfrac{\\pi}{3}=\\dfrac{\\sqrt3}{2}$, $\\;\\cos\\dfrac{\\pi}{3}=\\dfrac{1}{2}$",
+      "common_trap": "Ответ $\\frac12$ — это $\\sin\\frac{\\pi}{6}$ или $\\cos\\frac{\\pi}{3}$; $\\frac{\\sqrt3}{3}$ — это $\\operatorname{tg}\\frac{\\pi}{6}$. Таблицу 30°/45°/60° спрашивают почти в каждом варианте.",
+      "mnemonic": "Синус растёт: $\\frac{\\sqrt1}{2},\\frac{\\sqrt2}{2},\\frac{\\sqrt3}{2}$ — для 30°, 45°, 60°."
+    }
+  },
+  {
+    "id": "trig_product_to_sum",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Чему равно произведение $\\sin\\alpha\\cos\\beta$?",
+    "options": [
+      "$\\dfrac{1}{2}\\big(\\sin(\\alpha+\\beta)+\\sin(\\alpha-\\beta)\\big)$",
+      "$\\dfrac{1}{2}\\big(\\cos(\\alpha-\\beta)-\\cos(\\alpha+\\beta)\\big)$",
+      "$\\sin(\\alpha+\\beta)+\\sin(\\alpha-\\beta)$",
+      "$\\dfrac{1}{2}\\big(\\sin(\\alpha+\\beta)-\\sin(\\alpha-\\beta)\\big)$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sin\\alpha\\cos\\beta=\\dfrac{1}{2}\\big(\\sin(\\alpha+\\beta)+\\sin(\\alpha-\\beta)\\big)$",
+      "common_trap": "Вариант через косинусы — это формула для $\\sin\\alpha\\sin\\beta$. И почти всегда один дистрактор идёт без множителя $\\frac12$.",
+      "mnemonic": "Разные функции → сумма синусов; одинаковые → косинусы."
+    }
+  },
+  {
+    "id": "trig_tf_linearity",
+    "category": "trigonometry",
+    "type": "true_false",
+    "question": "Верно ли, что для любых углов $\\sin(\\alpha+\\beta)=\\sin\\alpha+\\sin\\beta$?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 1,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sin(\\alpha+\\beta)=\\sin\\alpha\\cos\\beta+\\cos\\alpha\\sin\\beta$ — синус не линеен.",
+      "common_trap": "«Раскрытие скобок» у тригонометрической функции. Контрпример за пять секунд: $\\alpha=\\beta=\\frac{\\pi}{2}$ даёт $\\sin\\pi=0$, а сумма равна $1+1=2$.",
+      "mnemonic": "Функция — не множитель: скобку у sin, cos, log раскрывать нельзя."
+    }
+  },
+  {
+    "id": "trig_tf_sin_range",
+    "category": "trigonometry",
+    "type": "true_false",
+    "question": "Верно ли, что уравнение $\\sin x = 1{,}5$ не имеет решений?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$-1\\le\\sin x\\le 1$ и $-1\\le\\cos x\\le 1$ при любом $x$.",
+      "common_trap": "В задачах вида $\\sin x=a$ параметр специально выводят за отрезок $[-1;1]$: правильный ответ «решений нет», а в вариантах заботливо лежит $\\arcsin 1{,}5$.",
+      "mnemonic": "Синус и косинус живут в коридоре от −1 до 1."
+    }
+  },
+  {
+    "id": "trig_basic_identity",
+    "category": "trigonometry",
+    "type": "formula_choice",
+    "question": "Основное тригонометрическое тождество связывает синус и косинус одного угла. Какое равенство верно?",
+    "options": [
+      "$\\sin^2\\alpha+\\cos^2\\alpha=1$",
+      "$\\sin^2\\alpha-\\cos^2\\alpha=1$",
+      "$\\sin\\alpha+\\cos\\alpha=1$",
+      "$\\sin^2\\alpha+\\cos^2\\alpha=2$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sin^2\\alpha+\\cos^2\\alpha=1$",
+      "common_trap": "Дистрактор $\\sin\\alpha+\\cos\\alpha=1$ без квадратов выглядит «похоже» и проходит проверку при $\\alpha=0$ — но ломается при $\\alpha=\\frac{\\pi}{4}$, где сумма равна $\\sqrt2$.",
+      "mnemonic": "Это теорема Пифагора на единичной окружности: катеты $\\sin$ и $\\cos$, гипотенуза 1."
+    }
+  },
+  {
+    "id": "stereo_cone_volume",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Объём конуса с радиусом основания $R$ и высотой $H$ равен…",
+    "options": [
+      "$\\dfrac{1}{3}\\pi R^2 H$",
+      "$\\pi R^2 H$",
+      "$\\dfrac{1}{3}\\pi R H^2$",
+      "$\\dfrac{4}{3}\\pi R^3$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$V_{\\text{конуса}}=\\dfrac{1}{3}\\pi R^2 H$",
+      "common_trap": "Дистрактор $\\pi R^2 H$ — это объём цилиндра: ровно втрое больше. Второй дистрактор меняет местами $R$ и $H$ в квадрате.",
+      "mnemonic": "У всего «острого» (конус, пирамида) впереди стоит $\\frac13$."
+    }
+  },
+  {
+    "id": "stereo_cone_lateral",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Площадь боковой поверхности конуса ($l$ — образующая):",
+    "options": [
+      "$\\pi R l$",
+      "$2\\pi R l$",
+      "$\\pi R H$",
+      "$\\pi R(l+R)$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_{\\text{бок}}=\\pi R l$",
+      "common_trap": "Подставляют высоту $H$ вместо образующей $l$ — самая дорогая ошибка темы. И берут $2\\pi Rl$ по аналогии с цилиндром.",
+      "mnemonic": "В боковой поверхности конуса двойки НЕТ, а буква — $l$, не $H$."
+    }
+  },
+  {
+    "id": "stereo_cone_total",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Площадь полной поверхности конуса равна…",
+    "options": [
+      "$\\pi R(l+R)$",
+      "$\\pi R(l+H)$",
+      "$2\\pi R(l+R)$",
+      "$\\pi R l + 2\\pi R^2$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_{\\text{полн}}=\\pi R l+\\pi R^2=\\pi R(l+R)$",
+      "common_trap": "У конуса ОДНО основание, поэтому $\\pi R^2$ добавляется один раз. Вариант с $2\\pi R^2$ — это «конус по правилам цилиндра».",
+      "mnemonic": "Полная = боковая + одно донышко."
+    }
+  },
+  {
+    "id": "stereo_cone_slant",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Как выражается образующая конуса $l$ через $R$ и $H$?",
+    "options": [
+      "$l=\\sqrt{R^2+H^2}$",
+      "$l=\\sqrt{H^2-R^2}$",
+      "$l=R+H$",
+      "$l=\\sqrt{R^2-H^2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$l=\\sqrt{R^2+H^2}$ — осевое сечение даёт прямоугольный треугольник с катетами $R$ и $H$.",
+      "common_trap": "Образующая — это ГИПОТЕНУЗА, поэтому она больше и $R$, и $H$. Варианты с разностью под корнем дают заведомо меньшее число.",
+      "mnemonic": "$l$ — гипотенуза: под корнем только СУММА квадратов."
+    }
+  },
+  {
+    "id": "stereo_cylinder_volume",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Объём цилиндра с радиусом $R$ и высотой $H$:",
+    "options": [
+      "$\\pi R^2 H$",
+      "$\\dfrac{1}{3}\\pi R^2 H$",
+      "$2\\pi R H$",
+      "$\\pi R H^2$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$V_{\\text{цил}}=\\pi R^2 H=S_{\\text{осн}}\\cdot H$",
+      "common_trap": "Лишняя треть из формулы конуса. А $2\\pi RH$ — это площадь боковой поверхности, а не объём: следите за размерностью (объём — «третья степень» длины).",
+      "mnemonic": "Цилиндр — «стопка кругов»: площадь круга × высота."
+    }
+  },
+  {
+    "id": "stereo_cylinder_lateral",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Площадь боковой поверхности цилиндра равна…",
+    "options": [
+      "$2\\pi R H$",
+      "$\\pi R H$",
+      "$2\\pi R^2 H$",
+      "$2\\pi R(R+H)$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_{\\text{бок}}=2\\pi R H$ — развёртка есть прямоугольник $2\\pi R$ на $H$.",
+      "common_trap": "Дистрактор $2\\pi R(R+H)$ — это ПОЛНАЯ поверхность. В условии всегда смотрите: «боковой» или «полной».",
+      "mnemonic": "Разверни банку: длина окружности $2\\pi R$ × высота."
+    }
+  },
+  {
+    "id": "stereo_cylinder_total",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Площадь полной поверхности цилиндра:",
+    "options": [
+      "$2\\pi R(R+H)$",
+      "$\\pi R(R+H)$",
+      "$2\\pi R H+\\pi R^2$",
+      "$2\\pi R^2 H$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_{\\text{полн}}=2\\pi RH+2\\pi R^2=2\\pi R(R+H)$",
+      "common_trap": "Дистрактор $2\\pi RH+\\pi R^2$ учитывает только ОДНО основание. У цилиндра их два — это и отличает его от конуса.",
+      "mnemonic": "У цилиндра два донышка — значит $2\\pi R^2$."
+    }
+  },
+  {
+    "id": "stereo_sphere_volume",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Объём шара радиуса $R$ равен…",
+    "options": [
+      "$\\dfrac{4}{3}\\pi R^3$",
+      "$4\\pi R^3$",
+      "$\\dfrac{4}{3}\\pi R^2$",
+      "$\\dfrac{3}{4}\\pi R^3$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$V_{\\text{шара}}=\\dfrac{4}{3}\\pi R^3$",
+      "common_trap": "Перевёрнутый коэффициент $\\frac34$ и «объём во второй степени». Отдельная ловушка условия: если дан ДИАМЕТР, радиус нужно сначала поделить на 2.",
+      "mnemonic": "Объём — куб радиуса, площадь — квадрат. Коэффициент $\\frac43$ только у объёма."
+    }
+  },
+  {
+    "id": "stereo_sphere_area",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Площадь поверхности сферы радиуса $R$:",
+    "options": [
+      "$4\\pi R^2$",
+      "$\\pi R^2$",
+      "$\\dfrac{4}{3}\\pi R^2$",
+      "$2\\pi R^2$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_{\\text{сферы}}=4\\pi R^2$",
+      "common_trap": "Дистрактор $\\pi R^2$ — площадь КРУГА (плоской фигуры), а не сферы. Тест часто называет это «площадью большого круга», чтобы запутать.",
+      "mnemonic": "Сфера = четыре больших круга."
+    }
+  },
+  {
+    "id": "stereo_pyramid_volume",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Объём пирамиды с площадью основания $S$ и высотой $H$:",
+    "options": [
+      "$\\dfrac{1}{3}SH$",
+      "$SH$",
+      "$\\dfrac{1}{2}SH$",
+      "$\\dfrac{1}{3}S^2H$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$V_{\\text{пир}}=\\dfrac{1}{3}S_{\\text{осн}}H$",
+      "common_trap": "Коэффициент $\\frac12$ приходит из планиметрии (площадь треугольника) — в стереометрии его здесь быть не может. $SH$ — это объём призмы.",
+      "mnemonic": "Пирамида — треть призмы с тем же основанием и высотой."
+    }
+  },
+  {
+    "id": "stereo_prism_volume",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Объём прямой призмы с площадью основания $S$ и высотой $H$:",
+    "options": [
+      "$SH$",
+      "$\\dfrac{1}{3}SH$",
+      "$\\dfrac{1}{2}SH$",
+      "$2SH$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$V_{\\text{призмы}}=S_{\\text{осн}}\\cdot H$",
+      "common_trap": "Лишняя треть «по привычке от пирамиды». Правило: треть есть только у конуса и пирамиды (фигур с вершиной).",
+      "mnemonic": "Есть вершина — есть $\\frac13$; нет вершины — нет и трети."
+    }
+  },
+  {
+    "id": "stereo_truncated_cone_volume",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Объём усечённого конуса с радиусами оснований $R$ и $r$ и высотой $H$:",
+    "options": [
+      "$\\dfrac{1}{3}\\pi H\\left(R^2+Rr+r^2\\right)$",
+      "$\\dfrac{1}{3}\\pi H\\left(R^2-Rr+r^2\\right)$",
+      "$\\dfrac{1}{3}\\pi H\\left(R+r\\right)^2$",
+      "$\\pi H\\left(R^2+r^2\\right)$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$V=\\dfrac{1}{3}\\pi H\\left(R^2+Rr+r^2\\right)$",
+      "common_trap": "Дистрактор со знаком минус — это «неполный квадрат разности» из формулы $a^3-b^3$; в объёме усечённого конуса все три слагаемых со знаком ПЛЮС. Проверка: при $r=R$ должно получиться $\\pi R^2H$ (цилиндр).",
+      "mnemonic": "Неполный квадрат СУММЫ: $R^2+Rr+r^2$."
+    }
+  },
+  {
+    "id": "stereo_truncated_cone_lateral",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Площадь боковой поверхности усечённого конуса ($l$ — образующая):",
+    "options": [
+      "$\\pi(R+r)l$",
+      "$\\pi(R-r)l$",
+      "$\\dfrac{1}{2}\\pi(R+r)l$",
+      "$2\\pi(R+r)l$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_{\\text{бок}}=\\pi(R+r)l$",
+      "common_trap": "Разность вместо суммы. Проверка предельным случаем: при $r=0$ формула обязана превратиться в $\\pi Rl$ — боковую поверхность обычного конуса.",
+      "mnemonic": "Это «средняя окружность» $\\pi(R+r)$, умноженная на образующую."
+    }
+  },
+  {
+    "id": "stereo_regular_pyramid_lateral",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Площадь боковой поверхности ПРАВИЛЬНОЙ пирамиды ($P$ — периметр основания, $a$ — апофема):",
+    "options": [
+      "$\\dfrac{1}{2}Pa$",
+      "$Pa$",
+      "$\\dfrac{1}{3}Pa$",
+      "$\\dfrac{1}{2}PH$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_{\\text{бок}}=\\dfrac{1}{2}P_{\\text{осн}}\\cdot a$, где $a$ — апофема (высота боковой грани)",
+      "common_trap": "Подстановка высоты пирамиды $H$ вместо апофемы $a$. Связь: $a=\\sqrt{H^2+r^2}$, где $r$ — радиус вписанной в основание окружности, то есть $a>H$.",
+      "mnemonic": "Апофема — на ГРАНИ, высота — ВНУТРИ. Это разные отрезки."
+    }
+  },
+  {
+    "id": "stereo_cube_diagonal",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Диагональ куба с ребром $a$ равна…",
+    "options": [
+      "$a\\sqrt3$",
+      "$a\\sqrt2$",
+      "$3a$",
+      "$a\\sqrt{2}+a$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$d_{\\text{куба}}=a\\sqrt3$",
+      "common_trap": "$a\\sqrt2$ — это диагональ ГРАНИ, а не куба. В условии ЦТ эти два объекта различают одним словом, которое легко пропустить.",
+      "mnemonic": "Грань — $\\sqrt2$ (две координаты), тело — $\\sqrt3$ (три координаты)."
+    }
+  },
+  {
+    "id": "stereo_box_diagonal",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Диагональ прямоугольного параллелепипеда с рёбрами $a$, $b$, $c$:",
+    "options": [
+      "$\\sqrt{a^2+b^2+c^2}$",
+      "$a+b+c$",
+      "$\\sqrt{a^2+b^2}$",
+      "$\\sqrt[3]{abc}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$d^2=a^2+b^2+c^2$",
+      "common_trap": "Дистрактор $\\sqrt{a^2+b^2}$ — диагональ основания. Это промежуточный результат, который и просится в ответ, если решать в два шага и остановиться на первом.",
+      "mnemonic": "Пифагор в пространстве: складываем квадраты всех трёх рёбер."
+    }
+  },
+  {
+    "id": "stereo_cone_unroll_angle",
+    "category": "stereometry",
+    "type": "formula_choice",
+    "question": "Развёртка боковой поверхности конуса — круговой сектор. Чему равен его угол $\\varphi$ (в градусах)?",
+    "options": [
+      "$\\varphi=360^\\circ\\cdot\\dfrac{R}{l}$",
+      "$\\varphi=360^\\circ\\cdot\\dfrac{l}{R}$",
+      "$\\varphi=180^\\circ\\cdot\\dfrac{R}{l}$",
+      "$\\varphi=360^\\circ\\cdot\\dfrac{R^2}{l^2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\varphi=360^\\circ\\cdot\\dfrac{R}{l}$ — длина дуги сектора равна длине окружности основания: $\\dfrac{\\varphi}{360^\\circ}\\cdot 2\\pi l=2\\pi R$.",
+      "common_trap": "Перевёрнутая дробь $\\frac{l}{R}$ даёт угол БОЛЬШЕ 360°, что невозможно: всегда $R<l$, значит и $\\varphi<360^\\circ$.",
+      "mnemonic": "Дуга сектора склеивается в основание — отсюда отношение $R/l$."
+    }
+  },
+  {
+    "id": "stereo_tf_sphere_scaling",
+    "category": "stereometry",
+    "type": "true_false",
+    "question": "Верно ли, что при увеличении радиуса шара в 2 раза его объём увеличится в 8 раз?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$V=\\dfrac{4}{3}\\pi R^3$, поэтому $V(2R)=\\dfrac{4}{3}\\pi(2R)^3=8V(R)$.",
+      "common_trap": "Отвечают «в 2 раза» или «в 4 раза». Коэффициент подобия $k$ меняет длины в $k$, площади в $k^2$, объёмы в $k^3$ раз — это отдельный пункт спецификации ЦТ.",
+      "mnemonic": "Длина — $k$, площадь — $k^2$, объём — $k^3$."
+    }
+  },
+  {
+    "id": "stereo_tf_diameter_trap",
+    "category": "stereometry",
+    "type": "true_false",
+    "question": "В условии дан диаметр шара $d$. Верно ли, что его объём равен $\\dfrac{4}{3}\\pi d^3$?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 1,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$R=\\dfrac{d}{2}$, поэтому $V=\\dfrac{4}{3}\\pi\\left(\\dfrac{d}{2}\\right)^3=\\dfrac{\\pi d^3}{6}$.",
+      "common_trap": "Подстановка диаметра прямо в формулу с радиусом завышает ответ ровно в 8 раз. РИКЗ регулярно даёт в условии именно диаметр — и кладёт «завышенный в 8 раз» результат в варианты ответа.",
+      "mnemonic": "Первым делом в стереометрии: дан $d$ — сразу пиши $R=d/2$."
+    }
+  },
+  {
+    "id": "plan_law_of_cosines",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Теорема косинусов для треугольника со сторонами $a$, $b$, $c$ и углом $\\alpha$ против стороны $a$:",
+    "options": [
+      "$a^2=b^2+c^2-2bc\\cos\\alpha$",
+      "$a^2=b^2+c^2+2bc\\cos\\alpha$",
+      "$a^2=b^2+c^2-2bc\\sin\\alpha$",
+      "$a^2=b^2-c^2-2bc\\cos\\alpha$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$a^2=b^2+c^2-2bc\\cos\\alpha$, где $\\alpha$ — угол МЕЖДУ сторонами $b$ и $c$.",
+      "common_trap": "Два дистрактора: знак «плюс» перед удвоенным произведением и синус вместо косинуса. Контроль: при $\\alpha=90^\\circ$ должно остаться $a^2=b^2+c^2$ — это выполняется только с косинусом и минусом.",
+      "mnemonic": "Пифагор со «штрафом» $-2bc\\cos\\alpha$ за неправильность угла."
+    }
+  },
+  {
+    "id": "plan_law_of_sines",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Теорема синусов ($R$ — радиус описанной окружности):",
+    "options": [
+      "$\\dfrac{a}{\\sin\\alpha}=\\dfrac{b}{\\sin\\beta}=\\dfrac{c}{\\sin\\gamma}=2R$",
+      "$\\dfrac{a}{\\sin\\alpha}=R$",
+      "$\\dfrac{\\sin\\alpha}{a}=2R$",
+      "$\\dfrac{a}{\\sin\\alpha}=\\dfrac{R}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\dfrac{a}{\\sin\\alpha}=2R$",
+      "common_trap": "Потеря двойки: ответ получается вдвое меньше нужного. Вторая ловушка — перевёрнутое отношение $\\frac{\\sin\\alpha}{a}$, которое равно $\\frac{1}{2R}$.",
+      "mnemonic": "Сторона делится на синус и равна ДИАМЕТРУ описанной окружности."
+    }
+  },
+  {
+    "id": "plan_area_two_sides_angle",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Площадь треугольника по двум сторонам и углу между ними:",
+    "options": [
+      "$S=\\dfrac{1}{2}ab\\sin\\gamma$",
+      "$S=\\dfrac{1}{2}ab\\cos\\gamma$",
+      "$S=ab\\sin\\gamma$",
+      "$S=\\dfrac{1}{2}ab\\operatorname{tg}\\gamma$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S=\\dfrac{1}{2}ab\\sin\\gamma$, где $\\gamma$ — угол между сторонами $a$ и $b$.",
+      "common_trap": "Косинус вместо синуса (тогда при $\\gamma=90^\\circ$ площадь обнулится) и потерянная $\\frac12$. Ещё одна ловушка: угол должен лежать МЕЖДУ этими сторонами, иначе формула неприменима.",
+      "mnemonic": "Половина произведения сторон на СИНУС угла между ними."
+    }
+  },
+  {
+    "id": "plan_area_inradius",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Как связаны площадь треугольника $S$, его полупериметр $p$ и радиус вписанной окружности $r$?",
+    "options": [
+      "$S=pr$",
+      "$S=\\dfrac{pr}{2}$",
+      "$S=Pr$, где $P$ — периметр",
+      "$S=\\dfrac{p}{r}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S=p\\cdot r$, где $p=\\dfrac{a+b+c}{2}$",
+      "common_trap": "Подстановка полного периметра вместо ПОЛУпериметра завышает ответ вдвое. В условии ЦТ обычно дают периметр — делить на 2 надо самому.",
+      "mnemonic": "«эС равно пэ эр» — площадь = полупериметр × радиус вписанной."
+    }
+  },
+  {
+    "id": "plan_area_circumradius",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Площадь треугольника через три стороны и радиус описанной окружности $R$:",
+    "options": [
+      "$S=\\dfrac{abc}{4R}$",
+      "$S=\\dfrac{abc}{2R}$",
+      "$S=\\dfrac{abc}{4r}$",
+      "$S=abcR$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S=\\dfrac{abc}{4R}$",
+      "common_trap": "Подмена $R$ (описанная) на $r$ (вписанная) — в печатном варианте различие в одной букве. Также путают коэффициент 4 с 2 (из теоремы синусов).",
+      "mnemonic": "Описанная — «4R», вписанная — «pr». Не смешивать."
+    }
+  },
+  {
+    "id": "plan_heron",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Формула Герона для площади треугольника ($p$ — полупериметр):",
+    "options": [
+      "$S=\\sqrt{p(p-a)(p-b)(p-c)}$",
+      "$S=\\sqrt{p(a-p)(b-p)(c-p)}$",
+      "$S=p(p-a)(p-b)(p-c)$",
+      "$S=\\sqrt{(p-a)(p-b)(p-c)}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S=\\sqrt{p(p-a)(p-b)(p-c)}$, $\\;p=\\dfrac{a+b+c}{2}$",
+      "common_trap": "Скобки вида $(a-p)$ вместо $(p-a)$ дают отрицательные множители: полупериметр всегда больше любой стороны. И часто «теряют» первый множитель $p$ под корнем.",
+      "mnemonic": "Под корнем ЧЕТЫРЕ множителя, и первый — сам $p$."
+    }
+  },
+  {
+    "id": "plan_median_length",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Длина медианы $m_a$, проведённой к стороне $a$:",
+    "options": [
+      "$m_a=\\dfrac{1}{2}\\sqrt{2b^2+2c^2-a^2}$",
+      "$m_a=\\dfrac{1}{2}\\sqrt{2b^2+2c^2+a^2}$",
+      "$m_a=\\dfrac{1}{2}\\sqrt{b^2+c^2-a^2}$",
+      "$m_a=\\dfrac{a}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$m_a=\\dfrac{1}{2}\\sqrt{2b^2+2c^2-a^2}$",
+      "common_trap": "Знак перед $a^2$ и потерянные двойки при $b^2$ и $c^2$. Запомните: сторона, К КОТОРОЙ проведена медиана, входит с минусом и без двойки.",
+      "mnemonic": "«Две чужие с двойкой, своя — с минусом»."
+    }
+  },
+  {
+    "id": "plan_median_centroid",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "В каком отношении точка пересечения медиан делит каждую медиану, считая ОТ ВЕРШИНЫ?",
+    "options": [
+      "$2:1$",
+      "$1:2$",
+      "$1:1$",
+      "$3:1$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Медианы пересекаются в одной точке и делятся ею в отношении $2:1$, считая от вершины.",
+      "common_trap": "Отношение $1:2$ — это то же деление, но отсчитанное от СТОРОНЫ. В задаче обязательно сказано, откуда считать, и на этом слове теряют баллы.",
+      "mnemonic": "От вершины — бóльший кусок: $\\frac23$ медианы."
+    }
+  },
+  {
+    "id": "plan_right_median_hypotenuse",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Медиана прямоугольного треугольника, проведённая к гипотенузе $c$, равна…",
+    "options": [
+      "$\\dfrac{c}{2}$",
+      "$\\dfrac{c}{3}$",
+      "$c$",
+      "$\\dfrac{2c}{3}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$m_c=\\dfrac{c}{2}=R$ — она равна радиусу описанной окружности.",
+      "common_trap": "Дистрактор $\\frac{2c}{3}$ подмешивает свойство центроида ($2:1$), которое к длине медианы отношения не имеет.",
+      "mnemonic": "Середина гипотенузы — центр описанной окружности, медиана — её радиус."
+    }
+  },
+  {
+    "id": "plan_right_inradius",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Радиус вписанной окружности прямоугольного треугольника с катетами $a$, $b$ и гипотенузой $c$:",
+    "options": [
+      "$r=\\dfrac{a+b-c}{2}$",
+      "$r=\\dfrac{a+b+c}{2}$",
+      "$r=\\dfrac{c}{2}$",
+      "$r=\\dfrac{a+b}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$r=\\dfrac{a+b-c}{2}$ (частный случай $S=pr$ для прямоугольного треугольника)",
+      "common_trap": "$\\frac{a+b+c}{2}$ — это полупериметр, а $\\frac{c}{2}$ — радиус ОПИСАННОЙ окружности. Оба стоят в вариантах ответа как «знакомые» выражения.",
+      "mnemonic": "Катеты плюс, гипотенуза минус, всё пополам."
+    }
+  },
+  {
+    "id": "plan_equilateral_area",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Площадь равностороннего треугольника со стороной $a$:",
+    "options": [
+      "$\\dfrac{a^2\\sqrt3}{4}$",
+      "$\\dfrac{a^2\\sqrt3}{2}$",
+      "$\\dfrac{a\\sqrt3}{2}$",
+      "$\\dfrac{a^2\\sqrt2}{4}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S=\\dfrac{a^2\\sqrt3}{4}$",
+      "common_trap": "Дистрактор $\\frac{a\\sqrt3}{2}$ — это ВЫСОТА равностороннего треугольника, а не площадь. Проверяйте по размерности: у площади должен быть $a^2$.",
+      "mnemonic": "Высота — $\\frac{a\\sqrt3}{2}$, площадь — ещё раз $\\frac{a}{2}$ сверху, итого $\\frac{a^2\\sqrt3}{4}$."
+    }
+  },
+  {
+    "id": "plan_trapezoid_area",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Площадь трапеции с основаниями $a$, $b$ и высотой $h$:",
+    "options": [
+      "$S=\\dfrac{a+b}{2}\\cdot h$",
+      "$S=(a+b)\\cdot h$",
+      "$S=\\dfrac{a\\cdot b}{2}\\cdot h$",
+      "$S=\\dfrac{a-b}{2}\\cdot h$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S=\\dfrac{a+b}{2}\\cdot h$ — полусумма оснований на высоту (средняя линия × высота).",
+      "common_trap": "Забытое деление на 2 даёт удвоенный ответ. Ещё одна ловушка — подставить боковую сторону вместо высоты: в наклонной трапеции это разные отрезки.",
+      "mnemonic": "Средняя линия $m=\\frac{a+b}{2}$, значит $S=m\\cdot h$."
+    }
+  },
+  {
+    "id": "plan_rhombus_area",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Площадь ромба через диагонали $d_1$ и $d_2$:",
+    "options": [
+      "$S=\\dfrac{1}{2}d_1 d_2$",
+      "$S=d_1 d_2$",
+      "$S=\\dfrac{1}{4}d_1 d_2$",
+      "$S=\\dfrac{d_1+d_2}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S=\\dfrac{1}{2}d_1 d_2$ — верно для любого четырёхугольника со взаимно перпендикулярными диагоналями.",
+      "common_trap": "Формула $d_1d_2$ без половины — это площадь ПРЯМОУГОЛЬНИКА, построенного на диагоналях. Ромб занимает ровно его половину.",
+      "mnemonic": "Диагонали ромба перпендикулярны — отсюда «половина произведения»."
+    }
+  },
+  {
+    "id": "plan_inscribed_angle",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Как связаны вписанный угол и центральный угол, опирающиеся на одну дугу?",
+    "options": [
+      "Вписанный равен половине центрального",
+      "Вписанный равен центральному",
+      "Вписанный вдвое больше центрального",
+      "Вписанный равен трети центрального"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\angle_{\\text{впис}}=\\dfrac{1}{2}\\angle_{\\text{центр}}=\\dfrac{1}{2}\\smile$ дуги",
+      "common_trap": "Отношение переворачивают. Контроль: угол, опирающийся на диаметр (центральный $180^\\circ$), равен $90^\\circ$ — половине, а не удвоенному.",
+      "mnemonic": "Из центра видно «в два раза шире», чем с окружности."
+    }
+  },
+  {
+    "id": "plan_sector_area",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Площадь кругового сектора радиуса $R$ с углом $n$ градусов:",
+    "options": [
+      "$S=\\dfrac{\\pi R^2 n}{360}$",
+      "$S=\\dfrac{\\pi R^2 n}{180}$",
+      "$S=\\dfrac{\\pi R n}{180}$",
+      "$S=\\dfrac{\\pi R^2 n}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_{\\text{сект}}=\\dfrac{\\pi R^2 n}{360^\\circ}$, а в радианах $S=\\dfrac{1}{2}R^2\\alpha$.",
+      "common_trap": "Знаменатель 180 — из формулы длины ДУГИ $l=\\frac{\\pi R n}{180}$. Площадь берёт долю от полного круга, то есть делится на 360.",
+      "mnemonic": "Площадь — доля от $360^\\circ$; длина дуги — доля от $180^\\circ$ (там $2\\pi R$ сокращается)."
+    }
+  },
+  {
+    "id": "plan_arc_length",
+    "category": "planimetry",
+    "type": "formula_choice",
+    "question": "Длина дуги окружности радиуса $R$, соответствующей центральному углу $n$ градусов:",
+    "options": [
+      "$l=\\dfrac{\\pi R n}{180}$",
+      "$l=\\dfrac{\\pi R n}{360}$",
+      "$l=\\dfrac{\\pi R^2 n}{180}$",
+      "$l=\\dfrac{2\\pi R n}{180}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$l=\\dfrac{2\\pi R\\cdot n}{360^\\circ}=\\dfrac{\\pi R n}{180^\\circ}$, а в радианах $l=R\\alpha$.",
+      "common_trap": "Либо не сокращают двойку и делят $2\\pi R n$ на 360 (это тот же ответ, но дистрактор $\\frac{\\pi Rn}{360}$ уже вдвое меньше), либо ставят $R^2$ — размерность длины требует ПЕРВОЙ степени радиуса.",
+      "mnemonic": "Длина — первая степень $R$, площадь — вторая. Проверка размерности спасает."
+    }
+  },
+  {
+    "id": "plan_tf_thales",
+    "category": "planimetry",
+    "type": "true_false",
+    "question": "Верно ли, что вписанный угол, опирающийся на диаметр окружности, всегда прямой?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Следствие из теоремы о вписанном угле: он равен половине центрального, то есть $\\frac{180^\\circ}{2}=90^\\circ$.",
+      "common_trap": "Обратное утверждение тоже верно и часто нужно в задаче: если угол треугольника прямой, то гипотенуза — диаметр описанной окружности, а $R=\\frac{c}{2}$.",
+      "mnemonic": "Диаметр «видно» под прямым углом из любой точки окружности."
+    }
+  },
+  {
+    "id": "plan_tf_triangle_inequality",
+    "category": "planimetry",
+    "type": "true_false",
+    "question": "Верно ли, что существует треугольник со сторонами 2, 3 и 6?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 1,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Неравенство треугольника: каждая сторона меньше суммы двух других. Здесь $2+3=5<6$ — треугольника нет.",
+      "common_trap": "В задачах с теоремой косинусов подставляют данные, не проверив существование фигуры, и получают $|\\cos\\alpha|>1$. Если так вышло — треугольника не существует, и это и есть ответ.",
+      "mnemonic": "Сначала проверь $a+b>c$, потом считай."
+    }
+  },
+  {
+    "id": "fg_line_signs_neg_k",
+    "category": "functions_graphs",
+    "type": "graph_id",
+    "question": "На рисунке изображён график функции $y=kx+b$. Определите знаки коэффициентов $k$ и $b$.",
+    "options": [
+      "$k<0,\\; b>0$",
+      "$k>0,\\; b>0$",
+      "$k<0,\\; b<0$",
+      "$k>0,\\; b<0$"
+    ],
+    "correct_index": 0,
+    "graph_spec": {
+      "type": "linear",
+      "params": {
+        "k": -0.8,
+        "b": 2,
+        "view": {
+          "xMin": -5,
+          "xMax": 5,
+          "yMin": -4,
+          "yMax": 5
+        }
+      }
+    },
+    "learning": {
+      "rule": "$k$ — угловой коэффициент: $k>0$ — прямая возрастает, $k<0$ — убывает. $b$ — ордината точки пересечения с осью $Oy$.",
+      "common_trap": "Знак $b$ определяют по пересечению с осью $Ox$ вместо $Oy$. $b$ читается ТОЛЬКО по вертикальной оси: выше нуля — $b>0$.",
+      "mnemonic": "$k$ — наклон («вверх/вниз»), $b$ — прокол оси $Oy$."
+    }
+  },
+  {
+    "id": "fg_line_signs_pos_k",
+    "category": "functions_graphs",
+    "type": "graph_id",
+    "question": "На рисунке изображён график функции $y=kx+b$. Определите знаки коэффициентов $k$ и $b$.",
+    "options": [
+      "$k>0,\\; b<0$",
+      "$k>0,\\; b>0$",
+      "$k<0,\\; b<0$",
+      "$k<0,\\; b>0$"
+    ],
+    "correct_index": 0,
+    "graph_spec": {
+      "type": "linear",
+      "params": {
+        "k": 1.5,
+        "b": -3,
+        "view": {
+          "xMin": -4,
+          "xMax": 5,
+          "yMin": -6,
+          "yMax": 5
+        }
+      }
+    },
+    "learning": {
+      "rule": "Прямая возрастает ⇒ $k>0$; пересекает $Oy$ ниже начала координат ⇒ $b<0$.",
+      "common_trap": "Прямая пересекает ось $Ox$ в положительной точке $x=2$, и это «положительное» число принимают за $b$. Корень прямой равен $-\\frac{b}{k}$, а не $b$.",
+      "mnemonic": "Идёт вверх слева направо — $k>0$, и никаких исключений."
+    }
+  },
+  {
+    "id": "fg_parabola_read_vertex",
+    "category": "functions_graphs",
+    "type": "graph_id",
+    "question": "На рисунке — график функции $y=x^2-4x+3$. Каковы координаты вершины параболы?",
+    "options": [
+      "$(2;\\,-1)$",
+      "$(-2;\\,15)$",
+      "$(2;\\,1)$",
+      "$(4;\\,3)$"
+    ],
+    "correct_index": 0,
+    "graph_spec": {
+      "type": "parabola",
+      "params": {
+        "a": 1,
+        "b": -4,
+        "c": 3,
+        "view": {
+          "xMin": -2,
+          "xMax": 6,
+          "yMin": -3,
+          "yMax": 7
+        }
+      }
+    },
+    "learning": {
+      "rule": "$x_0=-\\dfrac{b}{2a}=\\dfrac{4}{2}=2$, затем $y_0=y(x_0)=4-8+3=-1$.",
+      "common_trap": "Знак в формуле $-\\frac{b}{2a}$: при $b=-4$ получается $+2$, а не $-2$. И ордината вершины НЕ равна $c$: $c=3$ — это значение при $x=0$.",
+      "mnemonic": "Нашёл $x_0$ — обязательно подставь его обратно в функцию."
+    }
+  },
+  {
+    "id": "fg_parabola_signs_a_c",
+    "category": "functions_graphs",
+    "type": "graph_id",
+    "question": "На рисунке — график функции $y=ax^2+bx+c$. Определите знаки $a$ и $c$.",
+    "options": [
+      "$a<0,\\; c>0$",
+      "$a<0,\\; c<0$",
+      "$a>0,\\; c>0$",
+      "$a>0,\\; c<0$"
+    ],
+    "correct_index": 0,
+    "graph_spec": {
+      "type": "parabola",
+      "params": {
+        "a": -0.5,
+        "b": 1,
+        "c": 2,
+        "view": {
+          "xMin": -4,
+          "xMax": 6,
+          "yMin": -4,
+          "yMax": 4
+        }
+      }
+    },
+    "learning": {
+      "rule": "Ветви вниз ⇒ $a<0$. Свободный член $c=y(0)$ — ордината пересечения с осью $Oy$.",
+      "common_trap": "$c$ ищут по корням параболы. Корни связаны с $c$ только через теорему Виета ($x_1x_2=\\frac{c}{a}$), а напрямую $c$ читается по оси $Oy$.",
+      "mnemonic": "Ветви вверх — «улыбка», $a>0$; вниз — «грусть», $a<0$."
+    }
+  },
+  {
+    "id": "fg_parabola_vertex_formula",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "Абсцисса вершины параболы $y=ax^2+bx+c$ равна…",
+    "options": [
+      "$x_0=-\\dfrac{b}{2a}$",
+      "$x_0=\\dfrac{b}{2a}$",
+      "$x_0=-\\dfrac{b}{a}$",
+      "$x_0=-\\dfrac{D}{4a}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$x_0=-\\dfrac{b}{2a}$, $\\;y_0=-\\dfrac{D}{4a}$, где $D=b^2-4ac$.",
+      "common_trap": "Дистрактор $-\\frac{D}{4a}$ — это ОРДИНАТА вершины; их подставляют друг вместо друга. И теряют двойку в знаменателе.",
+      "mnemonic": "Абсцисса — «минус бэ на два а», ордината — «минус дэ на четыре а»."
+    }
+  },
+  {
+    "id": "fg_parabola_axis_symmetry",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "Парабола пересекает ось $Ox$ в точках $x_1=-1$ и $x_2=5$. Чему равна абсцисса её вершины?",
+    "options": [
+      "$2$",
+      "$4$",
+      "$-3$",
+      "$6$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$x_0=\\dfrac{x_1+x_2}{2}$ — вершина лежит ровно посередине между корнями.",
+      "common_trap": "Вместо полусуммы берут полуразность или сумму корней. Приём с серединой работает всегда, когда корни известны, и экономит счёт дискриминанта.",
+      "mnemonic": "Парабола симметрична: вершина — середина отрезка между корнями."
+    }
+  },
+  {
+    "id": "fg_hyperbola_sign_k",
+    "category": "functions_graphs",
+    "type": "graph_id",
+    "question": "На рисунке — график функции $y=\\dfrac{k}{x}$. Определите знак $k$ и расположение ветвей.",
+    "options": [
+      "$k<0$, ветви во II и IV четвертях",
+      "$k>0$, ветви в I и III четвертях",
+      "$k<0$, ветви в I и III четвертях",
+      "$k>0$, ветви во II и IV четвертях"
+    ],
+    "correct_index": 0,
+    "graph_spec": {
+      "type": "hyperbola",
+      "params": {
+        "k": -3,
+        "shiftX": 0,
+        "shiftY": 0,
+        "view": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -6,
+          "yMax": 6
+        }
+      }
+    },
+    "learning": {
+      "rule": "$y=\\dfrac{k}{x}$: при $k>0$ ветви в I и III четвертях, при $k<0$ — во II и IV.",
+      "common_trap": "Четверти нумеруют по часовой стрелке. Правильный порядок — ПРОТИВ часовой: I — вверху справа, II — вверху слева, III — внизу слева, IV — внизу справа.",
+      "mnemonic": "Знак $k$ = знак произведения $xy$. Во II четверти $x<0$, $y>0$ ⇒ $k<0$."
+    }
+  },
+  {
+    "id": "fg_hyperbola_asymptotes",
+    "category": "functions_graphs",
+    "type": "graph_id",
+    "question": "На рисунке — график функции $y=\\dfrac{2}{x-1}+1$. Укажите её асимптоты.",
+    "options": [
+      "$x=1$ и $y=1$",
+      "$x=-1$ и $y=1$",
+      "$x=1$ и $y=2$",
+      "$x=0$ и $y=0$"
+    ],
+    "correct_index": 0,
+    "graph_spec": {
+      "type": "hyperbola",
+      "params": {
+        "k": 2,
+        "shiftX": 1,
+        "shiftY": 1,
+        "view": {
+          "xMin": -5,
+          "xMax": 7,
+          "yMin": -5,
+          "yMax": 7
+        }
+      }
+    },
+    "learning": {
+      "rule": "У $y=\\dfrac{k}{x-a}+b$ вертикальная асимптота $x=a$, горизонтальная $y=b$.",
+      "common_trap": "Знак сдвига читают «как написано»: из $x-1$ делают $x=-1$. В скобке минус — сдвиг ВПРАВО, асимптота $x=+1$.",
+      "mnemonic": "Асимптота $x=a$ — это то, что обнуляет знаменатель."
+    }
+  },
+  {
+    "id": "fg_trig_amplitude",
+    "category": "functions_graphs",
+    "type": "graph_id",
+    "question": "На рисунке — график функции вида $y=A\\sin x$. Чему равно $A$?",
+    "options": [
+      "$A=2$",
+      "$A=1$",
+      "$A=\\dfrac{1}{2}$",
+      "$A=4$"
+    ],
+    "correct_index": 0,
+    "graph_spec": {
+      "type": "trig",
+      "params": {
+        "fn": "sin",
+        "A": 2,
+        "k": 1,
+        "phase": 0,
+        "shift": 0,
+        "view": {
+          "xMin": -6.5,
+          "xMax": 6.5,
+          "yMin": -3,
+          "yMax": 3
+        }
+      }
+    },
+    "learning": {
+      "rule": "У $y=A\\sin(kx)$ амплитуда равна $|A|$, а область значений — $[-|A|;\\,|A|]$.",
+      "common_trap": "За амплитуду принимают полный размах графика (расстояние от минимума до максимума). Размах равен $2|A|$ — отсюда дистрактор $A=4$.",
+      "mnemonic": "Амплитуда — половина размаха, от оси до гребня."
+    }
+  },
+  {
+    "id": "fg_trig_period_graph",
+    "category": "functions_graphs",
+    "type": "graph_id",
+    "question": "На рисунке — график функции $y=\\sin(kx)$ с периодом $\\pi$. Чему равно $k$?",
+    "options": [
+      "$k=2$",
+      "$k=\\dfrac{1}{2}$",
+      "$k=\\pi$",
+      "$k=1$"
+    ],
+    "correct_index": 0,
+    "graph_spec": {
+      "type": "trig",
+      "params": {
+        "fn": "sin",
+        "A": 1,
+        "k": 2,
+        "phase": 0,
+        "shift": 0,
+        "view": {
+          "xMin": -6.5,
+          "xMax": 6.5,
+          "yMin": -2,
+          "yMax": 2
+        }
+      }
+    },
+    "learning": {
+      "rule": "$T=\\dfrac{2\\pi}{|k|}$, поэтому из $T=\\pi$ следует $k=2$.",
+      "common_trap": "Дробь переворачивают и получают $k=\\frac12$ — это растянутый график с периодом $4\\pi$. Больше $k$ — ЧАЩЕ волны и МЕНЬШЕ период.",
+      "mnemonic": "$k$ — «частота»: растёт $k$ — график сжимается."
+    }
+  },
+  {
+    "id": "fg_period_formula",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "Чему равен основной период функции $y=\\cos(kx)$?",
+    "options": [
+      "$T=\\dfrac{2\\pi}{|k|}$",
+      "$T=\\dfrac{\\pi}{|k|}$",
+      "$T=2\\pi|k|$",
+      "$T=\\dfrac{2\\pi}{k^2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$T=\\dfrac{2\\pi}{|k|}$ для $\\sin$ и $\\cos$; для $\\operatorname{tg}(kx)$ и $\\operatorname{ctg}(kx)$ период равен $\\dfrac{\\pi}{|k|}$.",
+      "common_trap": "Период тангенса ($\\frac{\\pi}{|k|}$) подставляют синусу. У $\\sin$ и $\\cos$ базовый период $2\\pi$, у $\\operatorname{tg}$ — $\\pi$.",
+      "mnemonic": "sin/cos — $2\\pi$ сверху; tg/ctg — просто $\\pi$."
+    }
+  },
+  {
+    "id": "fg_range_a_sin_b",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "Какова область значений функции $y=3\\sin x-2$?",
+    "options": [
+      "$[-5;\\,1]$",
+      "$[-3;\\,3]$",
+      "$[-1;\\,5]$",
+      "$[-2;\\,3]$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Из $-1\\le\\sin x\\le 1$ следует $-3\\le 3\\sin x\\le 3$ и далее $-5\\le 3\\sin x-2\\le 1$.",
+      "common_trap": "Сдвиг $-2$ либо игнорируют, либо прибавляют вместо вычитания (дистрактор $[-1;5]$). Умножаем на амплитуду, ПОТОМ сдвигаем — порядок важен.",
+      "mnemonic": "Область значений $y=A\\sin x+B$ — это $[B-|A|;\\,B+|A|]$."
+    }
+  },
+  {
+    "id": "fg_shift_horizontal",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "Как получить график $y=f(x+3)$ из графика $y=f(x)$?",
+    "options": [
+      "Сдвиг на 3 единицы ВЛЕВО вдоль оси $Ox$",
+      "Сдвиг на 3 единицы вправо вдоль оси $Ox$",
+      "Сдвиг на 3 единицы вверх вдоль оси $Oy$",
+      "Сдвиг на 3 единицы вниз вдоль оси $Oy$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$y=f(x+a)$ при $a>0$ — сдвиг ВЛЕВО на $a$; $y=f(x-a)$ — вправо на $a$.",
+      "common_trap": "Главный «перевёртыш» темы: внутри скобки всё работает ПРОТИВОПОЛОЖНО знаку. Проверка: у $y=(x+3)^2$ вершина в $x=-3$, то есть слева.",
+      "mnemonic": "Внутри скобки — наоборот, снаружи — как написано."
+    }
+  },
+  {
+    "id": "fg_shift_vertical",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "Как получить график $y=f(x)-4$ из графика $y=f(x)$?",
+    "options": [
+      "Сдвиг на 4 единицы вниз вдоль оси $Oy$",
+      "Сдвиг на 4 единицы вверх вдоль оси $Oy$",
+      "Сдвиг на 4 единицы влево",
+      "Сдвиг на 4 единицы вправо"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$y=f(x)+b$ — сдвиг вдоль $Oy$: вверх при $b>0$, вниз при $b<0$.",
+      "common_trap": "Вертикальный и горизонтальный сдвиги меняют местами. Снаружи функции знак работает «честно»: минус — вниз.",
+      "mnemonic": "Слагаемое СНАРУЖИ двигает по вертикали и по своему знаку."
+    }
+  },
+  {
+    "id": "fg_reflection_ox",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "График функции $y=-f(x)$ получается из графика $y=f(x)$…",
+    "options": [
+      "симметричным отражением относительно оси $Ox$",
+      "симметричным отражением относительно оси $Oy$",
+      "симметрией относительно начала координат",
+      "сдвигом вниз"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$y=-f(x)$ — отражение относительно $Ox$; $y=f(-x)$ — относительно $Oy$.",
+      "common_trap": "Минус перед ФУНКЦИЕЙ и минус перед АРГУМЕНТОМ дают разные оси. Проверка на $y=\\sqrt{x}$: у $-\\sqrt{x}$ ветвь уходит вниз, у $\\sqrt{-x}$ — влево.",
+      "mnemonic": "Минус снаружи — переворот по вертикали (ось $Ox$)."
+    }
+  },
+  {
+    "id": "fg_reflection_oy",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "График функции $y=f(-x)$ получается из графика $y=f(x)$…",
+    "options": [
+      "симметричным отражением относительно оси $Oy$",
+      "симметричным отражением относительно оси $Ox$",
+      "сдвигом влево",
+      "растяжением вдоль $Oy$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$y=f(-x)$ — отражение относительно оси $Oy$ (замена $x$ на $-x$).",
+      "common_trap": "Считают, что минус в аргументе «сдвигает» график. Минус отражает, сдвигает только слагаемое: $f(x+a)$.",
+      "mnemonic": "Минус ВНУТРИ — переворот по горизонтали (ось $Oy$)."
+    }
+  },
+  {
+    "id": "fg_derivative_sign_growth",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "Что можно сказать о функции $f$ на промежутке, где $f'(x)>0$?",
+    "options": [
+      "Функция возрастает",
+      "Функция убывает",
+      "Функция положительна",
+      "Функция имеет максимум"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$f'(x)>0$ на промежутке ⇒ $f$ возрастает; $f'(x)<0$ ⇒ убывает.",
+      "common_trap": "Подмена «производная положительна» на «функция положительна». Это разные вещи: $f(x)=x-10$ на $[0;1]$ возрастает, оставаясь отрицательной.",
+      "mnemonic": "Производная — про НАКЛОН, а не про высоту графика."
+    }
+  },
+  {
+    "id": "fg_extremum_sign_change",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "В точке $x_0$ производная обращается в нуль и меняет знак с «$+$» на «$-$». Что это за точка?",
+    "options": [
+      "Точка максимума",
+      "Точка минимума",
+      "Точка перегиба",
+      "Точка разрыва"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Смена знака $f'$ с «$+$» на «$-$» — максимум; с «$-$» на «$+$» — минимум.",
+      "common_trap": "Максимум и минимум переставляют. Логика: сначала функция росла, потом стала убывать — значит, в этой точке была вершина.",
+      "mnemonic": "Плюс-минус — «горка» (максимум); минус-плюс — «яма» (минимум)."
+    }
+  },
+  {
+    "id": "fg_critical_not_extremum",
+    "category": "functions_graphs",
+    "type": "true_false",
+    "question": "Верно ли, что если $f'(x_0)=0$, то $x_0$ обязательно является точкой экстремума?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 1,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Равенство $f'(x_0)=0$ — необходимое, но НЕ достаточное условие экстремума: нужна ещё смена знака производной.",
+      "common_trap": "Контрпример — $f(x)=x^3$ в точке $x=0$: производная равна нулю, но функция всюду возрастает, экстремума нет.",
+      "mnemonic": "Нуль производной — только «подозрительная» точка, её надо проверить на смену знака."
+    }
+  },
+  {
+    "id": "fg_domain_log",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "Какова область определения функции $y=\\log_2(x-3)$?",
+    "options": [
+      "$x>3$",
+      "$x\\ge 3$",
+      "$x>0$",
+      "$x\\neq 3$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Аргумент логарифма строго положителен: $x-3>0\\Rightarrow x>3$.",
+      "common_trap": "Нестрогое неравенство $x\\ge3$: в точке $x=3$ получится $\\log_2 0$, чего не существует. У логарифма — всегда СТРОГО больше нуля (в отличие от корня, где $\\ge0$).",
+      "mnemonic": "Под корнем $\\ge 0$, под логарифмом $>0$."
+    }
+  },
+  {
+    "id": "fg_even_odd",
+    "category": "functions_graphs",
+    "type": "formula_choice",
+    "question": "График функции симметричен относительно начала координат. Какая это функция?",
+    "options": [
+      "Нечётная: $f(-x)=-f(x)$",
+      "Чётная: $f(-x)=f(x)$",
+      "Периодическая",
+      "Возрастающая"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Чётная функция симметрична относительно оси $Oy$, нечётная — относительно начала координат.",
+      "common_trap": "Определения меняют местами. Ориентир: $y=x^2$ (чётная степень) — «парабола-чаша», симметрия по $Oy$; $y=x^3$ и $y=\\sin x$ — нечётные, симметрия по центру.",
+      "mnemonic": "Чётная — как $x^2$ (зеркало по $Oy$); нечётная — как $x^3$ (поворот на 180°)."
+    }
+  },
+  {
+    "id": "fg_tf_linear_root",
+    "category": "functions_graphs",
+    "type": "true_false",
+    "question": "Верно ли, что прямая $y=kx+b$ ($k\\neq0$) пересекает ось $Ox$ в точке $x=b$?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 1,
+    "graph_spec": null,
+    "learning": {
+      "rule": "С осью $Ox$: $kx+b=0\\Rightarrow x=-\\dfrac{b}{k}$. Значение $b$ — это точка пересечения с осью $Oy$.",
+      "common_trap": "Перепутанные оси — самая частая ошибка в задачах «определите знаки коэффициентов по рисунку»: по оси $Ox$ читают $-\\frac{b}{k}$, по $Oy$ — сам $b$.",
+      "mnemonic": "$b$ живёт на вертикальной оси, корень — на горизонтальной."
+    }
+  },
+  {
+    "id": "log_product",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равен $\\log_a(xy)$ при $x>0$, $y>0$?",
+    "options": [
+      "$\\log_a x+\\log_a y$",
+      "$\\log_a x\\cdot\\log_a y$",
+      "$\\log_a x-\\log_a y$",
+      "$\\log_a(x+y)$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\log_a(xy)=\\log_a x+\\log_a y$",
+      "common_trap": "Произведение логарифмов вместо суммы. Логарифм «понижает уровень операции»: умножение превращается в сложение, степень — в умножение.",
+      "mnemonic": "Логарифм произведения = сумма логарифмов."
+    }
+  },
+  {
+    "id": "log_quotient",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равен $\\log_a\\dfrac{x}{y}$ при $x>0$, $y>0$?",
+    "options": [
+      "$\\log_a x-\\log_a y$",
+      "$\\dfrac{\\log_a x}{\\log_a y}$",
+      "$\\log_a y-\\log_a x$",
+      "$\\log_a x\\cdot\\log_a y$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\log_a\\dfrac{x}{y}=\\log_a x-\\log_a y$",
+      "common_trap": "Частное логарифмов $\\frac{\\log_a x}{\\log_a y}$ — это формула ПЕРЕХОДА К НОВОМУ ОСНОВАНИЮ ($\\log_y x$), а не логарифм дроби. Они выглядят похоже и стоят рядом в ответах.",
+      "mnemonic": "Дробь внутри → минус снаружи. Дробь СНАРУЖИ → смена основания."
+    }
+  },
+  {
+    "id": "log_power_argument",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равен $\\log_a x^n$ при $x>0$?",
+    "options": [
+      "$n\\log_a x$",
+      "$\\left(\\log_a x\\right)^n$",
+      "$\\dfrac{1}{n}\\log_a x$",
+      "$\\log_a(nx)$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\log_a x^n=n\\log_a x$ (при $x>0$)",
+      "common_trap": "Путают $\\log_a x^n$ (степень АРГУМЕНТА, выносится как $n$) и $\\log^n_a x$ (степень самого логарифма, не выносится вообще).",
+      "mnemonic": "Показатель из аргумента «выпрыгивает» вперёд множителем."
+    }
+  },
+  {
+    "id": "log_power_base",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равен $\\log_{a^n} x$?",
+    "options": [
+      "$\\dfrac{1}{n}\\log_a x$",
+      "$n\\log_a x$",
+      "$\\dfrac{1}{n^2}\\log_a x$",
+      "$\\log_a x$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\log_{a^n}x=\\dfrac{1}{n}\\log_a x$ — из ОСНОВАНИЯ степень выносится в знаменатель.",
+      "common_trap": "Показатель из основания выносят так же, как из аргумента, — множителем $n$. Направление противоположное: из аргумента — вперёд, из основания — «вниз», как $\\frac1n$.",
+      "mnemonic": "Основание — «внизу дроби», значит и его степень уходит в знаменатель."
+    }
+  },
+  {
+    "id": "log_base_change",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Формула перехода к новому основанию $c$:",
+    "options": [
+      "$\\log_a b=\\dfrac{\\log_c b}{\\log_c a}$",
+      "$\\log_a b=\\dfrac{\\log_c a}{\\log_c b}$",
+      "$\\log_a b=\\log_c b\\cdot\\log_c a$",
+      "$\\log_a b=\\log_c\\dfrac{b}{a}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\log_a b=\\dfrac{\\log_c b}{\\log_c a}$ — «аргумент сверху, основание снизу».",
+      "common_trap": "Перевёрнутая дробь даёт $\\log_b a$ — обратную величину. Проверка: $\\log_2 8=3$, и $\\frac{\\lg 8}{\\lg 2}=3$, а не $\\frac13$.",
+      "mnemonic": "Основание опускается ВНИЗ, в знаменатель."
+    }
+  },
+  {
+    "id": "log_main_identity",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равно $a^{\\log_a b}$ при $a>0$, $a\\neq1$, $b>0$?",
+    "options": [
+      "$b$",
+      "$a$",
+      "$ab$",
+      "$\\log_a b$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$a^{\\log_a b}=b$ — основное логарифмическое тождество.",
+      "common_trap": "В варианте ЦТ это обычно спрятано в выражении вроде $5^{\\log_5 7}+\\log_3 1$: первое слагаемое равно 7, второе — 0. Без тождества начинают считать «в лоб» и теряют время.",
+      "mnemonic": "Показательная и логарифмическая функции взаимно обратны — гасят друг друга."
+    }
+  },
+  {
+    "id": "log_reciprocal",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равно произведение $\\log_a b\\cdot\\log_b a$ (при допустимых $a$, $b$)?",
+    "options": [
+      "$1$",
+      "$0$",
+      "$ab$",
+      "$\\log_a a$ не определён"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\log_a b=\\dfrac{1}{\\log_b a}$, поэтому произведение равно 1.",
+      "common_trap": "Отвечают 0 по аналогии с $\\log_a 1=0$. Проверьте на числах: $\\log_2 8\\cdot\\log_8 2=3\\cdot\\frac13=1$.",
+      "mnemonic": "Поменяли местами основание и аргумент — получили обратное число."
+    }
+  },
+  {
+    "id": "log_chain",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равно $\\log_a b\\cdot\\log_b c$?",
+    "options": [
+      "$\\log_a c$",
+      "$\\log_c a$",
+      "$\\log_a b+\\log_b c$",
+      "$\\log_{ab} c$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\log_a b\\cdot\\log_b c=\\log_a c$ — «цепочка» сокращается через промежуточное основание.",
+      "common_trap": "Результат записывают «задом наперёд» ($\\log_c a$). Правило: остаются КРАЙНИЕ элементы цепочки в исходном порядке — основание первого и аргумент последнего.",
+      "mnemonic": "Как сокращение дробей: $\\frac{\\lg b}{\\lg a}\\cdot\\frac{\\lg c}{\\lg b}=\\frac{\\lg c}{\\lg a}$."
+    }
+  },
+  {
+    "id": "log_lg2_lg5",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равно $\\lg 2+\\lg 5$?",
+    "options": [
+      "$1$",
+      "$0$",
+      "$\\lg 7$",
+      "$10$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\lg 2+\\lg 5=\\lg 10=1$ (десятичный логарифм — по основанию 10).",
+      "common_trap": "Складывают аргументы и пишут $\\lg 7$. Сумма логарифмов — это логарифм ПРОИЗВЕДЕНИЯ: $2\\cdot5=10$. Эта пара «2 и 5» — фирменный приём составителей ЦТ.",
+      "mnemonic": "Увидел рядом $\\lg 2$ и $\\lg 5$ — сразу пиши 1."
+    }
+  },
+  {
+    "id": "log_odz",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Каковы условия существования $\\log_a b$?",
+    "options": [
+      "$b>0$, $a>0$, $a\\neq1$",
+      "$b\\ge0$, $a>0$",
+      "$b>0$, $a\\neq0$",
+      "$b>0$, $a>1$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "ОДЗ логарифма: аргумент $b>0$, основание $a>0$ и $a\\neq1$.",
+      "common_trap": "Забывают условие $a\\neq1$ и допускают $b=0$. Отдельная ловушка ЦТ: корень уравнения формально найден, но не проходит ОДЗ — его надо отбросить, и в ответах такой «лишний» корень всегда есть.",
+      "mnemonic": "Проверка ОДЗ — обязательный последний шаг в любом логарифмическом уравнении."
+    }
+  },
+  {
+    "id": "log_square_modulus",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Как правильно преобразовать $\\log_a x^2$, если про знак $x$ ничего не известно?",
+    "options": [
+      "$2\\log_a|x|$",
+      "$2\\log_a x$",
+      "$\\left(\\log_a x\\right)^2$",
+      "$\\dfrac{1}{2}\\log_a x$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\log_a x^2=2\\log_a|x|$; запись $2\\log_a x$ верна только при $x>0$.",
+      "common_trap": "Снятие модуля сужает ОДЗ: выражение $\\log_a x^2$ существует и при $x<0$, а $\\log_a x$ — нет. На этом теряются отрицательные корни уравнения.",
+      "mnemonic": "Чётная степень под логарифмом — выноси с МОДУЛЕМ."
+    }
+  },
+  {
+    "id": "log_inequality_small_base",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Неравенство $\\log_{0{,}5}x>\\log_{0{,}5}3$ равносильно…",
+    "options": [
+      "$0<x<3$",
+      "$x>3$",
+      "$x<3$",
+      "$x>0{,}5$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "При основании $0<a<1$ логарифм убывает, поэтому при переходе к аргументам знак неравенства МЕНЯЕТСЯ. Плюс ОДЗ: $x>0$.",
+      "common_trap": "Сохраняют знак и получают $x>3$. Второй слой ловушки — забыть ОДЗ и записать просто $x<3$, включив отрицательные $x$, где логарифма не существует.",
+      "mnemonic": "Основание меньше 1 — знак переворачивается; и всегда дописывай $x>0$."
+    }
+  },
+  {
+    "id": "pow_product",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равно $a^m\\cdot a^n$?",
+    "options": [
+      "$a^{m+n}$",
+      "$a^{mn}$",
+      "$a^{m-n}$",
+      "$2a^{m+n}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$a^m\\cdot a^n=a^{m+n}$",
+      "common_trap": "Показатели перемножают — это правило для $(a^m)^n$. Умножение самих степеней даёт СЛОЖЕНИЕ показателей.",
+      "mnemonic": "Умножаем степени — складываем показатели."
+    }
+  },
+  {
+    "id": "pow_power",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равно $\\left(a^m\\right)^n$?",
+    "options": [
+      "$a^{mn}$",
+      "$a^{m+n}$",
+      "$a^{m^n}$",
+      "$a^{n-m}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\left(a^m\\right)^n=a^{mn}$",
+      "common_trap": "Дистрактор $a^{m^n}$ («башня степеней») — это совсем другое число: $\\left(2^2\\right)^3=64$, а $2^{2^3}=256$.",
+      "mnemonic": "Степень в степень — показатели перемножаются."
+    }
+  },
+  {
+    "id": "pow_negative",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равно $a^{-n}$ при $a\\neq0$?",
+    "options": [
+      "$\\dfrac{1}{a^n}$",
+      "$-a^n$",
+      "$-\\dfrac{1}{a^n}$",
+      "$\\dfrac{1}{a}\\cdot n$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$a^{-n}=\\dfrac{1}{a^n}$",
+      "common_trap": "Минус в показателе принимают за минус у всего выражения: $2^{-3}=\\frac18$, а вовсе не $-8$. Отрицательный показатель переворачивает дробь, но не меняет знак.",
+      "mnemonic": "Минус в показателе = «перевернуть», а не «сделать отрицательным»."
+    }
+  },
+  {
+    "id": "pow_fractional",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равно $a^{\\frac{m}{n}}$ при $a>0$?",
+    "options": [
+      "$\\sqrt[n]{a^m}$",
+      "$\\sqrt[m]{a^n}$",
+      "$\\dfrac{a^m}{a^n}$",
+      "$\\left(\\sqrt{a}\\right)^{mn}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$a^{\\frac{m}{n}}=\\sqrt[n]{a^m}$ — ЗНАМЕНАТЕЛЬ показателя становится показателем корня.",
+      "common_trap": "Меняют местами $m$ и $n$. Ориентир: $a^{\\frac12}=\\sqrt{a}$, значит знаменатель 2 ушёл в корень второй степени.",
+      "mnemonic": "Знаменатель — «под корень», числитель — «в степень»."
+    }
+  },
+  {
+    "id": "pow_sqrt_modulus",
+    "category": "powers_and_logs",
+    "type": "formula_choice",
+    "question": "Чему равно $\\sqrt{a^2}$ для произвольного действительного $a$?",
+    "options": [
+      "$|a|$",
+      "$a$",
+      "$-a$",
+      "$a^2$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\sqrt{a^2}=|a|$ (в общем случае $\\sqrt[2n]{a^{2n}}=|a|$).",
+      "common_trap": "Ответ $a$ верен только при $a\\ge0$. Если в задаче есть $\\sqrt{(x-5)^2}$ и известно, что $x<5$, то результат равен $5-x$, а не $x-5$ — это типовой пункт части B.",
+      "mnemonic": "Корень из квадрата — всегда неотрицателен, значит модуль."
+    }
+  },
+  {
+    "id": "log_tf_sum_trap",
+    "category": "powers_and_logs",
+    "type": "true_false",
+    "question": "Верно ли, что $\\lg(x+y)=\\lg x+\\lg y$ при всех допустимых $x$ и $y$?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 1,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Сумма логарифмов равна логарифму ПРОИЗВЕДЕНИЯ: $\\lg x+\\lg y=\\lg(xy)$, а не $\\lg(x+y)$.",
+      "common_trap": "Логарифм «раскрывают как скобку». Контрпример: $\\lg(1+1)=\\lg2\\approx0{,}3$, тогда как $\\lg1+\\lg1=0$.",
+      "mnemonic": "Логарифм суммы не упрощается НИКАК. Упрощается только логарифм произведения."
+    }
+  },
+  {
+    "id": "log_tf_base_one",
+    "category": "powers_and_logs",
+    "type": "true_false",
+    "question": "Верно ли, что $\\log_a 1=0$ для любого допустимого основания $a$?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$\\log_a 1=0$ и $\\log_a a=1$ при $a>0$, $a\\neq1$ — потому что $a^0=1$.",
+      "common_trap": "Эту пару путают между собой. В длинных выражениях ЦТ слагаемое $\\log_a 1$ просто обнуляется, а $\\log_a a$ даёт 1 — заметив это, можно решить пример устно.",
+      "mnemonic": "Логарифм единицы — ноль; логарифм самого основания — единица."
+    }
+  },
+  {
+    "id": "prog_ap_nth_term",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Формула $n$-го члена арифметической прогрессии:",
+    "options": [
+      "$a_n=a_1+(n-1)d$",
+      "$a_n=a_1+nd$",
+      "$a_n=a_1\\cdot d^{\\,n-1}$",
+      "$a_n=a_1+(n+1)d$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$a_n=a_1+(n-1)d$",
+      "common_trap": "Дистрактор $a_1+nd$ смещает ответ ровно на одно $d$ — это $a_{n+1}$. Проверка: при $n=1$ формула обязана дать $a_1$, то есть скобка должна обнуляться.",
+      "mnemonic": "Шагов на один меньше, чем членов: от $a_1$ до $a_n$ — ровно $(n-1)$ шаг."
+    }
+  },
+  {
+    "id": "prog_ap_sum_first_last",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Сумма первых $n$ членов арифметической прогрессии через $a_1$ и $a_n$:",
+    "options": [
+      "$S_n=\\dfrac{a_1+a_n}{2}\\cdot n$",
+      "$S_n=\\dfrac{a_1+a_n}{2}$",
+      "$S_n=(a_1+a_n)\\cdot n$",
+      "$S_n=\\dfrac{a_1\\cdot a_n}{2}\\cdot n$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_n=\\dfrac{a_1+a_n}{2}\\cdot n$",
+      "common_trap": "Забывают множитель $n$ — получается средний член вместо суммы. Или не делят на 2, завышая ответ вдвое.",
+      "mnemonic": "Средний член × количество членов. «Приём Гаусса»: пары с краёв дают одинаковую сумму."
+    }
+  },
+  {
+    "id": "prog_ap_sum_d",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Сумма первых $n$ членов арифметической прогрессии через $a_1$ и $d$:",
+    "options": [
+      "$S_n=\\dfrac{2a_1+(n-1)d}{2}\\cdot n$",
+      "$S_n=\\dfrac{2a_1+nd}{2}\\cdot n$",
+      "$S_n=\\dfrac{a_1+(n-1)d}{2}\\cdot n$",
+      "$S_n=\\left(2a_1+(n-1)d\\right)\\cdot n$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_n=\\dfrac{2a_1+(n-1)d}{2}\\cdot n$ — получается подстановкой $a_n=a_1+(n-1)d$ в предыдущую формулу.",
+      "common_trap": "Теряют двойку при $a_1$ (в числителе стоит $2a_1$, потому что $a_1+a_n=a_1+a_1+(n-1)d$) или пишут $nd$ вместо $(n-1)d$.",
+      "mnemonic": "Не помнишь эту формулу — найди $a_n$ и используй $\\frac{a_1+a_n}{2}\\cdot n$."
+    }
+  },
+  {
+    "id": "prog_ap_compute",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "В арифметической прогрессии $a_1=3$, $d=4$. Чему равен $a_{10}$?",
+    "options": [
+      "$39$",
+      "$43$",
+      "$40$",
+      "$36$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$a_{10}=a_1+9d=3+9\\cdot4=39$",
+      "common_trap": "Умножают на 10 вместо 9 и получают 43 — именно этот ответ всегда есть в вариантах. Шагов на один меньше, чем номер члена.",
+      "mnemonic": "$a_{10}$ — это девять шагов от $a_1$, а не десять."
+    }
+  },
+  {
+    "id": "prog_ap_from_kth",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Как выразить $a_n$ через произвольный член $a_k$ арифметической прогрессии?",
+    "options": [
+      "$a_n=a_k+(n-k)d$",
+      "$a_n=a_k+(n-1)d$",
+      "$a_n=a_k+(k-n)d$",
+      "$a_n=a_k\\cdot(n-k)d$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$a_n=a_k+(n-k)d$",
+      "common_trap": "Автоматически пишут $(n-1)$, хотя стартуют не с первого члена. Если в условии дан $a_5$, а нужен $a_{12}$, то шагов ровно $12-5=7$.",
+      "mnemonic": "Считай разность НОМЕРОВ — столько и шагов $d$."
+    }
+  },
+  {
+    "id": "prog_ap_mean",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Характеристическое свойство арифметической прогрессии:",
+    "options": [
+      "$a_n=\\dfrac{a_{n-1}+a_{n+1}}{2}$",
+      "$a_n=\\sqrt{a_{n-1}\\cdot a_{n+1}}$",
+      "$a_n=a_{n-1}+a_{n+1}$",
+      "$a_n^2=a_{n-1}\\cdot a_{n+1}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Каждый член (кроме крайних) — СРЕДНЕЕ АРИФМЕТИЧЕСКОЕ соседей: $a_n=\\dfrac{a_{n-1}+a_{n+1}}{2}$.",
+      "common_trap": "Подставляют среднее геометрическое — это свойство геометрической прогрессии. Составители ставят обе формулы рядом в одном задании.",
+      "mnemonic": "Арифметическая — среднее арифметическое; геометрическая — геометрическое."
+    }
+  },
+  {
+    "id": "prog_ap_d_definition",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Как найти разность арифметической прогрессии $d$?",
+    "options": [
+      "$d=a_{n+1}-a_n$",
+      "$d=\\dfrac{a_{n+1}}{a_n}$",
+      "$d=a_n-a_{n+1}$",
+      "$d=\\dfrac{a_n+a_{n+1}}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$d=a_{n+1}-a_n$ — из ПОСЛЕДУЮЩЕГО вычитается предыдущий.",
+      "common_trap": "Порядок вычитания переворачивают, и знак $d$ меняется: убывающая прогрессия «превращается» в возрастающую, а с ней — и весь ответ.",
+      "mnemonic": "Следующий минус текущий — так же, как приращение по времени."
+    }
+  },
+  {
+    "id": "prog_gp_nth_term",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Формула $n$-го члена геометрической прогрессии:",
+    "options": [
+      "$b_n=b_1q^{\\,n-1}$",
+      "$b_n=b_1q^{\\,n}$",
+      "$b_n=b_1+(n-1)q$",
+      "$b_n=b_1q^{\\,n+1}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$b_n=b_1\\cdot q^{\\,n-1}$",
+      "common_trap": "Показатель $n$ вместо $n-1$ — ответ завышается ровно в $q$ раз. Проверка: при $n=1$ должно получиться $b_1$, то есть $q^0=1$.",
+      "mnemonic": "И здесь умножений на одно меньше, чем членов."
+    }
+  },
+  {
+    "id": "prog_gp_compute",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "В геометрической прогрессии $b_1=2$, $q=3$. Чему равен $b_4$?",
+    "options": [
+      "$54$",
+      "$162$",
+      "$24$",
+      "$81$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$b_4=b_1q^3=2\\cdot27=54$",
+      "common_trap": "Берут $q^4$ и получают 162 — этот ответ всегда лежит в вариантах. Ещё один дистрактор, 24, получается «по арифметике»: $2\\cdot3\\cdot4$.",
+      "mnemonic": "Номер минус один — в показатель."
+    }
+  },
+  {
+    "id": "prog_gp_sum",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Сумма первых $n$ членов геометрической прогрессии при $q\\neq1$:",
+    "options": [
+      "$S_n=\\dfrac{b_1\\left(q^n-1\\right)}{q-1}$",
+      "$S_n=\\dfrac{b_1\\left(q^{n-1}-1\\right)}{q-1}$",
+      "$S_n=\\dfrac{b_1\\left(q^n-1\\right)}{q+1}$",
+      "$S_n=\\dfrac{b_1}{1-q}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S_n=\\dfrac{b_1\\left(q^n-1\\right)}{q-1}=\\dfrac{b_1\\left(1-q^n\\right)}{1-q}$ — обе записи эквивалентны.",
+      "common_trap": "В числителе ставят $q^{n-1}$ «по аналогии с $b_n$» — в СУММЕ показатель равен именно $n$. Дистрактор $\\frac{b_1}{1-q}$ — сумма БЕСКОНЕЧНОЙ прогрессии.",
+      "mnemonic": "В $b_n$ показатель $n-1$, в $S_n$ — ровно $n$."
+    }
+  },
+  {
+    "id": "prog_gp_infinite_sum",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Сумма бесконечно убывающей геометрической прогрессии:",
+    "options": [
+      "$S=\\dfrac{b_1}{1-q}$",
+      "$S=\\dfrac{b_1}{1+q}$",
+      "$S=\\dfrac{b_1}{q-1}$",
+      "$S=\\dfrac{b_1 q}{1-q}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$S=\\dfrac{b_1}{1-q}$ при $|q|<1$.",
+      "common_trap": "Перевёрнутый знаменатель $q-1$ даёт ответ с обратным знаком: при $|q|<1$ выражение $1-q$ положительно, и сумма имеет знак $b_1$.",
+      "mnemonic": "«Первый член делить на единицу минус $q$»."
+    }
+  },
+  {
+    "id": "prog_gp_infinite_condition",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "При каком условии существует сумма бесконечной геометрической прогрессии?",
+    "options": [
+      "$|q|<1$",
+      "$q<1$",
+      "$q>0$",
+      "$|q|>1$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Сумма существует тогда и только тогда, когда $|q|<1$, то есть $-1<q<1$ (и $q\\neq0$).",
+      "common_trap": "Условие $q<1$ пропускает $q=-3$, при котором прогрессия расходится. Нужен именно МОДУЛЬ: отрицательные $q$ тоже допустимы, но только по модулю меньше 1.",
+      "mnemonic": "Убывает по модулю — значит, $|q|<1$, а не просто $q<1$."
+    }
+  },
+  {
+    "id": "prog_gp_mean",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Характеристическое свойство геометрической прогрессии:",
+    "options": [
+      "$b_n^2=b_{n-1}\\cdot b_{n+1}$",
+      "$b_n=\\dfrac{b_{n-1}+b_{n+1}}{2}$",
+      "$b_n=b_{n-1}\\cdot b_{n+1}$",
+      "$b_n^2=\\dfrac{b_{n-1}+b_{n+1}}{2}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$b_n^2=b_{n-1}\\cdot b_{n+1}$, то есть $|b_n|=\\sqrt{b_{n-1}b_{n+1}}$.",
+      "common_trap": "Забывают возвести в квадрат либо извлекают корень без учёта знака: при отрицательном $q$ члены чередуют знак, и корень даёт только модуль.",
+      "mnemonic": "Квадрат среднего = произведение соседей."
+    }
+  },
+  {
+    "id": "prog_gp_q_definition",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Как найти знаменатель геометрической прогрессии $q$?",
+    "options": [
+      "$q=\\dfrac{b_{n+1}}{b_n}$",
+      "$q=b_{n+1}-b_n$",
+      "$q=\\dfrac{b_n}{b_{n+1}}$",
+      "$q=\\sqrt{b_{n+1}b_n}$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$q=\\dfrac{b_{n+1}}{b_n}$ — последующий ДЕЛИТСЯ на предыдущий.",
+      "common_trap": "Вычитают вместо деления (это разность арифметической прогрессии) или переворачивают дробь, получая $\\frac1q$.",
+      "mnemonic": "Арифметическая — вычитаем, геометрическая — делим."
+    }
+  },
+  {
+    "id": "prog_sum_naturals",
+    "category": "progressions",
+    "type": "formula_choice",
+    "question": "Чему равна сумма первых $n$ натуральных чисел $1+2+\\ldots+n$?",
+    "options": [
+      "$\\dfrac{n(n+1)}{2}$",
+      "$\\dfrac{n(n-1)}{2}$",
+      "$\\dfrac{n^2}{2}$",
+      "$n(n+1)$"
+    ],
+    "correct_index": 0,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$1+2+\\ldots+n=\\dfrac{n(n+1)}{2}$ — частный случай суммы арифметической прогрессии при $a_1=1$, $d=1$.",
+      "common_trap": "Дистрактор $\\frac{n(n-1)}{2}$ — это сумма от 1 до $n-1$ (и одновременно число сочетаний $C_n^2$). Проверка при $n=3$: должно быть 6, а не 3.",
+      "mnemonic": "Проверь на $n=3$: правильная формула обязана дать $1+2+3=6$."
+    }
+  },
+  {
+    "id": "prog_tf_gp_offbyone",
+    "category": "progressions",
+    "type": "true_false",
+    "question": "Верно ли, что $n$-й член геометрической прогрессии равен $b_n=b_1q^{\\,n}$?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 1,
+    "graph_spec": null,
+    "learning": {
+      "rule": "$b_n=b_1q^{\\,n-1}$: показатель на единицу меньше номера.",
+      "common_trap": "Эта «ошибка на единицу» — самая частая в теме прогрессий, и в вариантах ЦТ всегда лежит ответ, завышенный ровно в $q$ раз.",
+      "mnemonic": "Подставь $n=1$: $q^{1-1}=q^0=1$, и получится $b_1$ — как и должно быть."
+    }
+  },
+  {
+    "id": "prog_tf_negative_q",
+    "category": "progressions",
+    "type": "true_false",
+    "question": "Верно ли, что геометрическая прогрессия с $q=-2$ является бесконечно убывающей?",
+    "options": [
+      "Верно",
+      "Неверно"
+    ],
+    "correct_index": 1,
+    "graph_spec": null,
+    "learning": {
+      "rule": "Бесконечно убывающей называют прогрессию с $|q|<1$. Здесь $|-2|=2>1$, члены по модулю растут.",
+      "common_trap": "Слово «убывающая» понимают как «знаменатель отрицательный» или «члены уменьшаются по знаку». Речь всегда о модуле: $|q|<1$.",
+      "mnemonic": "Убывание — про МОДУЛЬ членов, а не про их знак."
+    }
+  }
+]

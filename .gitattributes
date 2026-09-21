@@ -1,0 +1,4 @@
+# CI-скрипты в workflow должны приезжать на раннер с LF, иначе bash спотыкается о \r
+* text=auto eol=lf
+*.png binary
+*.ipa binary

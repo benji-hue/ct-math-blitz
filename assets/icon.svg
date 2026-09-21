@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16224a"/>
+      <stop offset="0.55" stop-color="#0d1430"/>
+      <stop offset="1" stop-color="#070b18"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.28" cy="0.2" r="0.75">
+      <stop offset="0" stop-color="#3b82f6" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#3b82f6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="curve" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+
+  <!-- coordinate grid -->
+  <g stroke="#2a3a66" stroke-width="6" opacity="0.65">
+    <path d="M232 180 V844"/>
+    <path d="M792 180 V844"/>
+    <path d="M160 332 H864"/>
+    <path d="M160 692 H864"/>
+  </g>
+
+  <!-- axes -->
+  <g stroke="#7ba0d8" stroke-width="16" stroke-linecap="round" opacity="0.9">
+    <path d="M148 512 H876"/>
+    <path d="M512 876 V148"/>
+    <path d="M876 512 l-44 -30 M876 512 l-44 30"/>
+    <path d="M512 148 l-30 44 M512 148 l30 44"/>
+  </g>
+
+  <!-- parabola -->
+  <path d="M216 800 Q512 132 808 800" fill="none" stroke="url(#curve)" stroke-width="80"
+        stroke-linecap="round" opacity="0.18"/>
+  <path d="M216 800 Q512 132 808 800" fill="none" stroke="url(#curve)" stroke-width="42"
+        stroke-linecap="round"/>
+
+  <!-- vertex -->
+  <circle cx="512" cy="466" r="30" fill="#070b18"/>
+  <circle cx="512" cy="466" r="30" fill="none" stroke="#fbbf24" stroke-width="16"/>
+</svg>
