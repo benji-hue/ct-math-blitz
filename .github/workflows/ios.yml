@@ -60,7 +60,10 @@ jobs:
               || /usr/libexec/PlistBuddy -c "Add :$key $type $value" "$PLIST"
           }
 
-          plist_set CFBundleDisplayName string ЦТ Математика
+          # Только ASCII: Sideloadly 0.60 под Windows отвергал бандл с кириллическим
+          # CFBundleDisplayName («does not look like valid iOS app»). Кириллицу
+          # правильнее возвращать через ru.lproj/InfoPlist.strings, а не сюда.
+          plist_set CFBundleDisplayName string CT Math
           plist_set CFBundleShortVersionString string "$VERSION"
           plist_set CFBundleVersion string "$BUILD_NUMBER"
           # Тёмный фон приложения — статус-бар должен быть светлым.

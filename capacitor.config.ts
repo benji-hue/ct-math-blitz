@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'by.ctmath.blitz',
-  appName: 'ЦТ Математика',
+  appName: 'CT Math',
   webDir: 'dist',
   backgroundColor: '#070b18',
   ios: {
