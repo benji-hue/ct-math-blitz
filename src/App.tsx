@@ -28,6 +28,7 @@ export default function App() {
   const [roundNonce, setRoundNonce] = useState(0)
   const [summary, setSummary] = useState<RoundSummary | null>(null)
   const [isRecord, setIsRecord] = useState(false)
+  const [aiFocusId, setAiFocusId] = useState<string | null>(null)
   const [lastConfig, setLastConfig] = useState<{ size: number; categories: Category[] }>({
     size: 12,
     categories: [],
@@ -106,11 +107,29 @@ export default function App() {
   }
 
   if (screen === 'aitest') {
-    return <AiTestScreen onBack={() => setScreen('home')} />
+    return (
+      <AiTestScreen
+        key={aiFocusId ?? 'free'}
+        initialFocusId={aiFocusId}
+        onBack={() => {
+          setAiFocusId(null)
+          setScreen('home')
+        }}
+      />
+    )
   }
 
   if (screen === 'book') {
-    return <FormulaBook progress={progress} onBack={() => setScreen(summary ? 'result' : 'home')} />
+    return (
+      <FormulaBook
+        progress={progress}
+        onBack={() => setScreen(summary ? 'result' : 'home')}
+        onTestFormula={(id) => {
+          setAiFocusId(id)
+          setScreen('aitest')
+        }}
+      />
+    )
   }
 
   return (
@@ -120,7 +139,10 @@ export default function App() {
       onStart={startBlitz}
       onStartMistakes={startMistakeRound}
       onOpenBook={() => setScreen('book')}
-      onOpenAiTest={() => setScreen('aitest')}
+      onOpenAiTest={() => {
+        setAiFocusId(null)
+        setScreen('aitest')
+      }}
       onReset={() => {
         clearProgress()
         setProgress(EMPTY_PROGRESS)

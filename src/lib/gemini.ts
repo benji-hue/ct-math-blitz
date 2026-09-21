@@ -1,4 +1,4 @@
-import { CATEGORY_META, type Category } from '../types'
+import { CATEGORY_META, type Category, type Question } from '../types'
 
 /**
  * Ключ Gemini хранится ТОЛЬКО в localStorage устройства и никогда не попадает
@@ -86,7 +86,44 @@ const SCHEMA = {
   required: ['tasks'],
 }
 
-function buildPrompt(categories: Category[], count: number): string {
+/** Общие правила оформления — одинаковы для обоих режимов. */
+const RULES = [
+  '3. У каждого задания ровно 4 варианта ответа, верный ровно один.',
+  '4. Неверные варианты должны быть ПРАВДОПОДОБНЫМИ: результат типичной ошибки',
+  '   (потерянный множитель, перепутанный знак, подстановка диаметра вместо радиуса,',
+  '   показатель n вместо n−1), а не случайные числа.',
+  '5. correct_index — индекс верного варианта в массиве options, от 0 до 3.',
+  '6. solution — от 2 до 4 шагов решения, каждый шаг отдельной строкой.',
+  '7. Формулы записывай в LaTeX между знаками доллара: $\\sin 2\\alpha$, $\\dfrac{a}{b}$.',
+  '   Обычный текст — по-русски, без LaTeX.',
+  '9. Числа подбирай так, чтобы ответы были аккуратными.',
+  '',
+  'Ответ верни строго в JSON по заданной схеме, без пояснений вокруг.',
+]
+
+function buildFocusedPrompt(focus: Question, count: number): string {
+  return [
+    `Составь проверочную работу из ${count} заданий по ОДНОЙ конкретной формуле`,
+    'для подготовки к централизованному тестированию (ЦТ/ЦЭ) в Беларуси.',
+    '',
+    `Раздел: ${CATEGORY_META[focus.category].label}.`,
+    `Формула: ${focus.learning.rule}`,
+    `Типичная ошибка, на которой ловят в тестах: ${focus.learning.common_trap}`,
+    '',
+    'Требования:',
+    `1. Ровно ${count} заданий, и КАЖДОЕ решается именно этой формулой.`,
+    '   Не подменяй её родственными формулами из той же темы.',
+    '2. Сложность строго возрастает: первое — прямая подстановка чисел в формулу,',
+    '   последнее — в два-три действия, где формула лишь один из шагов.',
+    '   Поле difficulty — целое от 1 до 5, не убывает от задания к заданию.',
+    ...RULES,
+    '8. topic — краткое название проверяемой формулы по-русски, одинаковое во всех заданиях.',
+    '   Хотя бы в половине заданий один из неверных вариантов должен быть результатом',
+    '   именно той ошибки, что описана выше.',
+  ].join('\n')
+}
+
+function buildTopicPrompt(categories: Category[], count: number): string {
   const topics = categories.length
     ? categories.map((c) => CATEGORY_META[c].label).join(', ')
     : 'тригонометрия, стереометрия, планиметрия, функции и графики, степени и логарифмы, прогрессии'
@@ -101,18 +138,8 @@ function buildPrompt(categories: Category[], count: number): string {
     `1. Ровно ${count} заданий, строго по возрастанию сложности: первое — на прямое`,
     '   применение формулы, последнее — в два-три действия, уровня части B.',
     '2. Поле difficulty — целое от 1 до 5, не убывает от задания к заданию.',
-    '3. У каждого задания ровно 4 варианта ответа, верный ровно один.',
-    '4. Неверные варианты должны быть ПРАВДОПОДОБНЫМИ: результат типичной ошибки',
-    '   (потерянный множитель, перепутанный знак, подстановка диаметра вместо радиуса,',
-    '   показатель n вместо n−1), а не случайные числа.',
-    '5. correct_index — индекс верного варианта в массиве options, от 0 до 3.',
-    '6. solution — от 2 до 4 шагов решения, каждый шаг отдельной строкой.',
-    '7. Формулы записывай в LaTeX между знаками доллара: $\\sin 2\\alpha$, $\\dfrac{a}{b}$.',
-    '   Обычный текст — по-русски, без LaTeX.',
+    ...RULES,
     '8. topic — название темы задания по-русски.',
-    '9. Числа подбирай так, чтобы ответы были аккуратными.',
-    '',
-    'Ответ верни строго в JSON по заданной схеме, без пояснений вокруг.',
   ].join('\n')
 }
 
@@ -154,14 +181,19 @@ function validate(raw: unknown, count: number): AiTask[] {
 export async function generateTest({
   settings,
   categories,
+  focus,
   count,
   signal,
 }: {
   settings: GeminiSettings
   categories: Category[]
+  /** конкретная формула — работа строится только по ней */
+  focus?: Question | null
   count: number
   signal?: AbortSignal
 }): Promise<AiTask[]> {
+  const prompt = focus ? buildFocusedPrompt(focus, count) : buildTopicPrompt(categories, count)
+
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(settings.model)}` +
     ':generateContent'
@@ -175,7 +207,7 @@ export async function generateTest({
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.apiKey },
       signal,
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: buildPrompt(categories, count) }] }],
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 1.0,
           responseMimeType: 'application/json',

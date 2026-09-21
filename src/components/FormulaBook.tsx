@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, Eye, Lightbulb, Lock, Search, Trophy, TriangleAlert, X } from 'lucide-react'
+import { ChevronDown, Eye, Lightbulb, Lock, Search, Sparkles, Trophy, TriangleAlert, X } from 'lucide-react'
 import { ALL_QUESTIONS } from '../lib/questions'
 import { isMastered, type Progress } from '../lib/storage'
 import { CATEGORIES, CATEGORY_META, type Category, type Question } from '../types'
@@ -16,11 +16,13 @@ function EntryCard({
   mastered,
   seen,
   revealed,
+  onTest,
 }: {
   q: Question
   mastered: boolean
   seen: boolean
   revealed: boolean
+  onTest: (id: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const locked = !seen && !revealed
@@ -72,6 +74,14 @@ function EntryCard({
             </p>
           </div>
           <WorkedExample example={q.example} />
+          <button
+            type="button"
+            onClick={() => onTest(q.id)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-violet-400/35 bg-violet-400/10 py-2.5 text-[13px] font-semibold text-violet-200 transition active:scale-[0.99]"
+          >
+            <Sparkles size={14} />
+            Проверочная работа по этой формуле
+          </button>
           {q.learning.mnemonic && (
             <div className="flex gap-2.5 rounded-xl border border-violet-400/20 bg-violet-400/8 p-3">
               <Lightbulb size={15} className="mt-0.5 shrink-0 text-violet-300" />
@@ -86,7 +96,15 @@ function EntryCard({
   )
 }
 
-export function FormulaBook({ progress, onBack }: { progress: Progress; onBack: () => void }) {
+export function FormulaBook({
+  progress,
+  onBack,
+  onTestFormula,
+}: {
+  progress: Progress
+  onBack: () => void
+  onTestFormula: (id: string) => void
+}) {
   const [query, setQuery] = useState('')
   const [revealAll, setRevealAll] = useState(false)
   const [openCategory, setOpenCategory] = useState<Category | null>(CATEGORIES[0])
@@ -200,6 +218,7 @@ export function FormulaBook({ progress, onBack }: { progress: Progress; onBack: 
                       mastered={isMastered(progress, q.id)}
                       seen={(progress.seen[q.id] ?? 0) > 0}
                       revealed={revealAll}
+                      onTest={onTestFormula}
                     />
                   ))}
                 </ul>

@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight,
   Check,
   ChevronDown,
   Key,
   Loader,
+  Search,
   Sparkles,
   TriangleAlert,
   X,
 } from 'lucide-react'
-import { CATEGORIES, CATEGORY_META, type Category } from '../types'
+import { CATEGORIES, CATEGORY_META, type Category, type Question } from '../types'
+import { ALL_QUESTIONS, QUESTIONS_BY_ID } from '../lib/questions'
 import {
   DEFAULT_MODEL,
   generateTest,
@@ -197,11 +199,108 @@ function TaskReview({ task, chosen, index }: { task: AiTask; chosen: number | nu
   )
 }
 
-export function AiTestScreen({ onBack }: { onBack: () => void }) {
+/** Выбор одной конкретной формулы из 119: поиск + список по разделам. */
+function FormulaPicker({
+  selected,
+  onSelect,
+}: {
+  selected: Question | null
+  onSelect: (q: Question | null) => void
+}) {
+  const [query, setQuery] = useState('')
+  const needle = query.trim().replace(/[$\\{}]/g, ' ').toLowerCase()
+
+  const matches = useMemo(() => {
+    if (needle === '') return ALL_QUESTIONS
+    return ALL_QUESTIONS.filter((q) =>
+      [q.learning.rule, q.question, CATEGORY_META[q.category].label]
+        .join(' ')
+        .replace(/[$\\{}]/g, ' ')
+        .toLowerCase()
+        .includes(needle),
+    )
+  }, [needle])
+
+  if (selected) {
+    const meta = CATEGORY_META[selected.category]
+    return (
+      <div className="rounded-2xl border border-violet-400/40 bg-violet-400/10 p-3.5">
+        <p className="mb-1.5 text-[11px] font-semibold" style={{ color: meta.accent }}>
+          {meta.label}
+        </p>
+        <p className="mb-3 text-[15px] text-slate-100">
+          <Tex>{selected.learning.rule}</Tex>
+        </p>
+        <button
+          type="button"
+          onClick={() => onSelect(null)}
+          className="rounded-xl border border-edge px-3 py-1.5 text-[12px] text-muted transition hover:text-white"
+        >
+          Выбрать другую
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2 rounded-xl border border-edge bg-panel-2/70 px-3 py-2">
+        <Search size={15} className="shrink-0 text-muted" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Поиск формулы: синус, конус, логарифм…"
+          className="w-full bg-transparent text-[14px] text-slate-100 outline-none placeholder:text-muted/70"
+        />
+      </div>
+
+      <ul className="max-h-72 space-y-1.5 overflow-y-auto rounded-xl border border-edge bg-abyss/40 p-2">
+        {matches.map((q) => {
+          const meta = CATEGORY_META[q.category]
+          return (
+            <li key={q.id}>
+              <button
+                type="button"
+                onClick={() => onSelect(q)}
+                className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-white/5"
+              >
+                <span
+                  className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: meta.accent }}
+                />
+                <span className="min-w-0 flex-1 text-[14px] text-slate-200">
+                  <Tex>{q.learning.rule}</Tex>
+                </span>
+              </button>
+            </li>
+          )
+        })}
+        {matches.length === 0 && (
+          <li className="px-2.5 py-4 text-center text-[13px] text-muted">
+            Ничего не нашлось. Попробуйте другое слово.
+          </li>
+        )}
+      </ul>
+      <p className="mt-1.5 px-1 text-[11px] text-muted">Формул в списке: {matches.length}</p>
+    </div>
+  )
+}
+
+export function AiTestScreen({
+  onBack,
+  initialFocusId,
+}: {
+  onBack: () => void
+  initialFocusId?: string | null
+}) {
   const [phase, setPhase] = useState<Phase>('setup')
   const [settings, setSettings] = useState<GeminiSettings>(loadSettings)
   const [editingKey, setEditingKey] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
+  const [mode, setMode] = useState<'topics' | 'formula'>(initialFocusId ? 'formula' : 'topics')
+  const [focus, setFocus] = useState<Question | null>(
+    initialFocusId ? (QUESTIONS_BY_ID[initialFocusId] ?? null) : null,
+  )
   const [count, setCount] = useState(5)
   const [tasks, setTasks] = useState<AiTask[]>([])
   const [answers, setAnswers] = useState<(number | null)[]>([])
@@ -212,6 +311,7 @@ export function AiTestScreen({ onBack }: { onBack: () => void }) {
   useEffect(() => () => abortRef.current?.abort(), [])
 
   const hasKey = settings.apiKey.trim() !== ''
+  const ready = hasKey && (mode === 'topics' || focus !== null)
 
   function toggle(category: Category) {
     setCategories((prev) =>
@@ -226,7 +326,13 @@ export function AiTestScreen({ onBack }: { onBack: () => void }) {
     const controller = new AbortController()
     abortRef.current = controller
     try {
-      const generated = await generateTest({ settings, categories, count, signal: controller.signal })
+      const generated = await generateTest({
+        settings,
+        categories,
+        focus: mode === 'formula' ? focus : null,
+        count,
+        signal: controller.signal,
+      })
       setTasks(generated)
       setAnswers(new Array(generated.length).fill(null))
       setIdx(0)
@@ -482,6 +588,38 @@ export function AiTestScreen({ onBack }: { onBack: () => void }) {
       )}
 
       <section className="mb-4">
+        <div className="mb-3 flex gap-1.5 rounded-xl border border-edge bg-panel-2/40 p-1">
+          {(
+            [
+              ['topics', 'По темам'],
+              ['formula', 'По одной формуле'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setMode(value)}
+              aria-pressed={mode === value}
+              className={cx(
+                'flex-1 rounded-lg py-2 text-[13px] font-semibold transition',
+                mode === value ? 'bg-violet-400 text-slate-950' : 'text-muted',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {mode === 'formula' ? (
+          <>
+            <h2 className="mb-2 text-[13px] font-semibold text-slate-200">
+              Формула{' '}
+              <span className="font-normal text-muted">· вся работа будет по ней одной</span>
+            </h2>
+            <FormulaPicker selected={focus} onSelect={setFocus} />
+          </>
+        ) : (
+          <>
         <h2 className="mb-2 text-[13px] font-semibold text-slate-200">
           Темы <span className="font-normal text-muted">· ничего не выбрано = все</span>
         </h2>
@@ -506,6 +644,8 @@ export function AiTestScreen({ onBack }: { onBack: () => void }) {
             )
           })}
         </div>
+          </>
+        )}
       </section>
 
       <section className="mb-5">
@@ -533,11 +673,11 @@ export function AiTestScreen({ onBack }: { onBack: () => void }) {
       <div className="safe-bottom">
         <button
           type="button"
-          disabled={!hasKey}
+          disabled={!ready}
           onClick={start}
           className={cx(
             'flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-4 text-[16px] font-bold transition active:scale-[0.99]',
-            hasKey
+            ready
               ? 'bg-gradient-to-r from-violet-400 to-fuchsia-500 text-slate-950 shadow-lg shadow-violet-500/20'
               : 'bg-white/8 text-muted',
           )}
