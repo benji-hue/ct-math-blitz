@@ -1,7 +1,7 @@
 {
   "name": "ct-math-blitz",
   "private": true,
-  "version": "1.2.1",
+  "version": "1.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "ios:assets": "node scripts/ios-assets.mjs",
     "ios:add": "npm run build && npx cap add ios && npm run ios:assets",
-    "ios:sync": "npm run build && npx cap sync ios && npm run ios:assets"
+    "ios:sync": "npm run build && npx cap sync ios && npm run ios:assets",
+    "pwa:assets": "node scripts/pwa-assets.mjs",
+    "build:pwa": "npm run build && node scripts/make-sw.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",

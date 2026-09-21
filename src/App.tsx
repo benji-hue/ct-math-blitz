@@ -17,6 +17,7 @@ import { HomeScreen } from './components/HomeScreen'
 import { ResultScreen } from './components/ResultScreen'
 import { FormulaBook } from './components/FormulaBook'
 import { AiTestScreen } from './components/AiTestScreen'
+import { UpdateBanner } from './components/UpdateBanner'
 
 type Screen = 'home' | 'game' | 'result' | 'book' | 'aitest'
 
@@ -80,74 +81,85 @@ export default function App() {
     setScreen('result')
   }
 
-  if (screen === 'game' && queue.length > 0) {
-    return (
-      <GameScreen
-        key={roundNonce}
-        initialQueue={queue}
-        title={roundTitle}
-        onAnswer={(id, correct) => setProgress((p) => recordAnswer(p, id, correct))}
-        onFinish={handleFinish}
-        onExit={() => setScreen('home')}
-      />
-    )
-  }
+  function renderScreen() {
+    if (screen === 'game' && queue.length > 0) {
+      return (
+        <GameScreen
+          key={roundNonce}
+          initialQueue={queue}
+          title={roundTitle}
+          onAnswer={(id, correct) => setProgress((p) => recordAnswer(p, id, correct))}
+          onFinish={handleFinish}
+          onExit={() => setScreen('home')}
+        />
+      )
+    }
 
-  if (screen === 'result' && summary) {
-    return (
-      <ResultScreen
-        summary={summary}
-        isRecord={isRecord}
-        onRestart={() => startBlitz(lastConfig.size, lastConfig.categories)}
-        onReviewMistakes={() => replayMistakes(summary)}
-        onOpenBook={() => setScreen('book')}
-        onHome={() => setScreen('home')}
-      />
-    )
-  }
+    if (screen === 'result' && summary) {
+      return (
+        <ResultScreen
+          summary={summary}
+          isRecord={isRecord}
+          onRestart={() => startBlitz(lastConfig.size, lastConfig.categories)}
+          onReviewMistakes={() => replayMistakes(summary)}
+          onOpenBook={() => setScreen('book')}
+          onHome={() => setScreen('home')}
+        />
+      )
+    }
 
-  if (screen === 'aitest') {
-    return (
-      <AiTestScreen
-        key={aiFocusId ?? 'free'}
-        initialFocusId={aiFocusId}
-        onBack={() => {
-          setAiFocusId(null)
-          setScreen('home')
-        }}
-      />
-    )
-  }
+    if (screen === 'aitest') {
+      return (
+        <AiTestScreen
+          key={aiFocusId ?? 'free'}
+          initialFocusId={aiFocusId}
+          onBack={() => {
+            setAiFocusId(null)
+            setScreen('home')
+          }}
+        />
+      )
+    }
 
-  if (screen === 'book') {
+    if (screen === 'book') {
+      return (
+        <FormulaBook
+          progress={progress}
+          onBack={() => setScreen(summary ? 'result' : 'home')}
+          onTestFormula={(id) => {
+            setAiFocusId(id)
+            setScreen('aitest')
+          }}
+        />
+      )
+    }
+
     return (
-      <FormulaBook
+      <HomeScreen
         progress={progress}
-        onBack={() => setScreen(summary ? 'result' : 'home')}
-        onTestFormula={(id) => {
-          setAiFocusId(id)
+        mistakeCount={mistakeBankIds(progress).length}
+        onStart={startBlitz}
+        onStartMistakes={startMistakeRound}
+        onOpenBook={() => setScreen('book')}
+        onOpenAiTest={() => {
+          setAiFocusId(null)
           setScreen('aitest')
+        }}
+        onImportProgress={setProgress}
+        onReset={() => {
+          clearProgress()
+          setProgress(EMPTY_PROGRESS)
+          setSummary(null)
         }}
       />
     )
   }
 
   return (
-    <HomeScreen
-      progress={progress}
-      mistakeCount={mistakeBankIds(progress).length}
-      onStart={startBlitz}
-      onStartMistakes={startMistakeRound}
-      onOpenBook={() => setScreen('book')}
-      onOpenAiTest={() => {
-        setAiFocusId(null)
-        setScreen('aitest')
-      }}
-      onReset={() => {
-        clearProgress()
-        setProgress(EMPTY_PROGRESS)
-        setSummary(null)
-      }}
-    />
+    <>
+      {renderScreen()}
+      {/* Баннер живёт поверх любого экрана: обновление может приехать в любой момент. */}
+      <UpdateBanner />
+    </>
   )
 }

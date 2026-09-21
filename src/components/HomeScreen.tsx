@@ -4,6 +4,7 @@ import { ALL_QUESTIONS } from '../lib/questions'
 import { masteredCount, type Progress } from '../lib/storage'
 import { CATEGORIES, CATEGORY_META, type Category } from '../types'
 import { cx } from '../lib/cx'
+import { ProgressTransfer } from './ProgressTransfer'
 
 const SIZES = [10, 12, 15]
 
@@ -33,6 +34,7 @@ export function HomeScreen({
   onOpenBook,
   onOpenAiTest,
   onReset,
+  onImportProgress,
 }: {
   progress: Progress
   mistakeCount: number
@@ -41,6 +43,7 @@ export function HomeScreen({
   onOpenBook: () => void
   onOpenAiTest: () => void
   onReset: () => void
+  onImportProgress: (progress: Progress) => void
 }) {
   const [size, setSize] = useState(12)
   const [selected, setSelected] = useState<Category[]>([])
@@ -207,6 +210,8 @@ export function HomeScreen({
             {confirmReset ? 'Точно сбросить?' : 'Сброс'}
           </button>
         </div>
+
+        <ProgressTransfer progress={progress} onImport={onImportProgress} />
       </div>
     </div>
   )

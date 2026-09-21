@@ -1,0 +1,59 @@
+name: Deploy PWA to GitHub Pages
+
+# Веб-версия, которую можно добавить на экран «Домой» без компьютера
+# и без подписи. Сборка IPA живёт отдельно в ios.yml и этим не затрагивается.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Деплой всегда один: новый пуш отменяет предыдущий незавершённый.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build with service worker
+        run: npm run build:pwa
+
+      - name: Check PWA files
+        run: |
+          set -euo pipefail
+          for f in dist/index.html dist/sw.js dist/manifest.webmanifest \
+                   dist/icons/apple-touch-icon.png dist/icons/icon-512.png; do
+            test -f "$f" || { echo "::error::нет $f"; exit 1; }
+          done
+          echo "Размер сборки: $(du -sh dist | cut -f1)"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
