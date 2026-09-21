@@ -70,11 +70,27 @@ jobs:
           echo "--- Info.plist ---"
           /usr/libexec/PlistBuddy -c "Print" "$PLIST"
 
+      - name: Inspect generated project
+        run: |
+          set -euo pipefail
+          ls -la ios/App
+          # Capacitor 8 генерирует Swift Package Manager вместо CocoaPods:
+          # workspace появляется только у старых (подовых) проектов.
+          if [ -d ios/App/App.xcworkspace ]; then
+            echo "CONTAINER_FLAG=-workspace" >> "$GITHUB_ENV"
+            echo "CONTAINER_PATH=ios/App/App.xcworkspace" >> "$GITHUB_ENV"
+          else
+            echo "CONTAINER_FLAG=-project" >> "$GITHUB_ENV"
+            echo "CONTAINER_PATH=ios/App/App.xcodeproj" >> "$GITHUB_ENV"
+          fi
+          xcodebuild -list -project ios/App/App.xcodeproj
+
       - name: Archive without code signing
         run: |
           set -euo pipefail
+          echo "Сборка через $CONTAINER_FLAG $CONTAINER_PATH"
           xcodebuild archive \
-            -workspace ios/App/App.xcworkspace \
+            "$CONTAINER_FLAG" "$CONTAINER_PATH" \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \

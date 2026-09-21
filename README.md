@@ -156,7 +156,9 @@ IPA собирается на GitHub Actions — macOS-раннер, **без с
 `.github/workflows/ios.yml`, по шагам:
 
 1. `npm ci` и `npm run build` — обычный веб-бандл в `dist/`.
-2. `npx cap add ios` — генерирует нативный проект и запускает `pod install`.
+2. `npx cap add ios` — генерирует нативный Xcode-проект. Capacitor 8 использует
+   Swift Package Manager, а не CocoaPods, поэтому собирается `App.xcodeproj`
+   напрямую, без `.xcworkspace`.
    Папка `ios/` **не хранится в репозитории**: она целиком выводится из
    `capacitor.config.ts` и пересоздаётся на каждой сборке.
 3. `node scripts/ios-assets.mjs` — рендерит `assets/icon.svg` и
