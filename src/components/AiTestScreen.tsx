@@ -70,7 +70,7 @@ function KeyEditor({
           type={visible ? 'text' : 'password'}
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder="AIza..."
+          placeholder="AQ. или AIza…"
           autoComplete="off"
           spellCheck={false}
           className="min-w-0 flex-1 rounded-xl border border-edge bg-abyss/60 px-3 py-2 font-mono text-[13px] text-slate-100 outline-none placeholder:text-muted/60 focus:border-sky-400/60"
@@ -87,8 +87,8 @@ function KeyEditor({
       {suspicious && (
         <p className="mb-2 flex gap-1.5 text-[12px] leading-relaxed text-amber-300">
           <TriangleAlert size={13} className="mt-0.5 shrink-0" />
-          Не похоже на ключ AI Studio — они начинаются с «AIza». Сохранить можно, но запрос,
-          скорее всего, отклонят.
+          Не похоже на ключ AI Studio: они начинаются с «AQ.» или «AIza». Сохранить можно,
+          но запрос, скорее всего, отклонят.
         </p>
       )}
 

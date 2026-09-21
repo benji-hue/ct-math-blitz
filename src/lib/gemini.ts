@@ -46,9 +46,13 @@ export function clearSettings(): void {
   }
 }
 
-/** Ключи AI Studio выглядят как AIza… длиной 39 символов. */
+/**
+ * AI Studio выдаёт ключи двух видов: новые начинаются с «AQ.», старые —
+ * с «AIza». Принимаем оба, иначе проверка ругалась бы на свежий ключ.
+ */
 export function looksLikeGeminiKey(key: string): boolean {
-  return /^AIza[\w-]{30,}$/.test(key.trim())
+  const k = key.trim()
+  return /^AQ\.[\w-]{20,}$/.test(k) || /^AIza[\w-]{30,}$/.test(k)
 }
 
 export interface AiTask {
@@ -160,13 +164,15 @@ export async function generateTest({
 }): Promise<AiTask[]> {
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(settings.model)}` +
-    `:generateContent?key=${encodeURIComponent(settings.apiKey)}`
+    ':generateContent'
 
   let response: Response
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // Ключ идёт заголовком, а не в query-строке: из URL он попадал бы
+      // в логи прокси и историю запросов.
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.apiKey },
       signal,
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: buildPrompt(categories, count) }] }],

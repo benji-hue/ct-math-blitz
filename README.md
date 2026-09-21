@@ -221,7 +221,8 @@ npm run ios:add && npx cap open ios
 а запрос уходит напрямую в Google, минуя любой промежуточный сервер.
 
 Получить ключ: [aistudio.google.com/apikey](https://aistudio.google.com/apikey) —
-он выглядит как `AIza…`. Модель по умолчанию `gemini-2.5-flash`, её можно
+ключ выглядит как `AQ.…` (новый формат) или `AIza…` (старый). Передаётся
+заголовком `x-goog-api-key`, а не в query-строке. Модель по умолчанию `gemini-2.5-flash`, её можно
 сменить в том же окне.
 
 Ответ запрашивается структурированным (`responseMimeType: application/json`
