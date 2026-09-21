@@ -111,6 +111,25 @@ jobs:
           APP="build/App.xcarchive/Products/Applications/App.app"
           test -d "$APP" || { echo "::error::App.app не найден в архиве"; exit 1; }
 
+          # CODE_SIGNING_ALLOWED=NO убирает из Mach-O сам сегмент LC_CODE_SIGNATURE.
+          # Sideloadly/AltStore не подписывают с нуля — они ПЕРЕвыпускают подпись,
+          # и без этого слота отвечают «This does not look like valid iOS app».
+          # Ad-hoc подпись создаёт слот и _CodeSignature, оставаясь недоверенной
+          # для Apple, то есть ничего не меняет по сути — только формат.
+          if [ -d "$APP/Frameworks" ]; then
+            for fw in "$APP"/Frameworks/*.framework; do
+              [ -e "$fw" ] || continue
+              echo "ad-hoc: $(basename "$fw")"
+              codesign --force --sign - --timestamp=none "$fw"
+            done
+          fi
+          codesign --force --sign - --timestamp=none "$APP"
+
+          echo "--- проверка слота подписи ---"
+          otool -l "$APP/App" | grep -c LC_CODE_SIGNATURE
+          test -d "$APP/_CodeSignature" || { echo "::error::_CodeSignature не создан"; exit 1; }
+          codesign -dvv "$APP" 2>&1 | head -6
+
           VERSION=$(node -p "require('./package.json').version")
           NAME="CTMathBlitz-${VERSION}-build${{ github.run_number }}-unsigned.ipa"
 
