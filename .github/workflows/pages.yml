@@ -50,6 +50,10 @@ jobs:
           echo "Размер сборки: $(du -sh dist | cut -f1)"
 
       - uses: actions/configure-pages@v5
+        with:
+          # Включает Pages сам, если он ещё не включён в настройках репозитория:
+          # иначе первый прогон падает с «Get Pages site failed / Not Found».
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
