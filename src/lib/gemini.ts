@@ -7,7 +7,21 @@ import { CATEGORY_META, type Category, type Question } from '../types'
  */
 const KEY = 'ct-math-blitz:gemini:v1'
 
-export const DEFAULT_MODEL = 'gemini-2.5-flash'
+/** Flash-Lite: самый высокий лимит запросов при вполне приличном качестве. */
+export const DEFAULT_MODEL = 'gemini-3.5-flash-lite'
+
+/** Быстрый выбор в настройках — от «много запросов» к «точнее». */
+export const MODEL_PRESETS: { id: string; note: string }[] = [
+  { id: 'gemini-3.5-flash-lite', note: 'больше всего запросов' },
+  { id: 'gemini-3.5-flash', note: 'точнее, лимит ниже' },
+  { id: 'gemini-2.5-flash-lite', note: 'запасной вариант' },
+]
+
+/**
+ * Модели, которые когда-то стояли по умолчанию. Если в настройках лежит одна
+ * из них, значит пользователь её не выбирал осознанно — подтягиваем на текущую.
+ */
+const LEGACY_DEFAULTS = new Set(['gemini-2.5-flash'])
 
 export interface GeminiSettings {
   apiKey: string
@@ -21,9 +35,10 @@ export function loadSettings(): GeminiSettings {
     const raw = localStorage.getItem(KEY)
     if (!raw) return EMPTY_SETTINGS
     const parsed = JSON.parse(raw) as Partial<GeminiSettings>
+    const stored = typeof parsed.model === 'string' ? parsed.model.trim() : ''
     return {
       apiKey: typeof parsed.apiKey === 'string' ? parsed.apiKey : '',
-      model: typeof parsed.model === 'string' && parsed.model ? parsed.model : DEFAULT_MODEL,
+      model: stored && !LEGACY_DEFAULTS.has(stored) ? stored : DEFAULT_MODEL,
     }
   } catch {
     return EMPTY_SETTINGS

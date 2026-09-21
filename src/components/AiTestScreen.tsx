@@ -17,6 +17,7 @@ import {
   generateTest,
   loadSettings,
   looksLikeGeminiKey,
+  MODEL_PRESETS,
   saveSettings,
   type AiTask,
   type GeminiSettings,
@@ -94,11 +95,39 @@ function KeyEditor({
         </p>
       )}
 
+      <p className="mb-1.5 text-[12px] text-muted">Модель</p>
+      <div className="mb-2 flex flex-col gap-1.5">
+        {MODEL_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            onClick={() => setModel(preset.id)}
+            aria-pressed={model === preset.id}
+            className={cx(
+              'flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition',
+              model === preset.id
+                ? 'border-sky-400/60 bg-sky-400/12'
+                : 'border-edge bg-abyss/40 hover:border-slate-500',
+            )}
+          >
+            <span
+              className={cx(
+                'h-2 w-2 shrink-0 rounded-full',
+                model === preset.id ? 'bg-sky-400' : 'bg-white/15',
+              )}
+            />
+            <span className="min-w-0 flex-1 font-mono text-[12px] text-slate-200">{preset.id}</span>
+            <span className="shrink-0 text-[11px] text-muted">{preset.note}</span>
+          </button>
+        ))}
+      </div>
+
       <input
         value={model}
         onChange={(e) => setModel(e.target.value)}
         placeholder={DEFAULT_MODEL}
         spellCheck={false}
+        aria-label="Имя модели"
         className="mb-3 w-full rounded-xl border border-edge bg-abyss/60 px-3 py-2 font-mono text-[12px] text-slate-300 outline-none placeholder:text-muted/60 focus:border-sky-400/60"
       />
 
