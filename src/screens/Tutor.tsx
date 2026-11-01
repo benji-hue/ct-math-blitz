@@ -21,7 +21,7 @@ import {
 import { topicById, useSubject, loadSubject } from '../content'
 import { SUBJECT_LIST, SUBJECTS } from '../domain/subjects'
 import type { SubjectId } from '../domain/types'
-import { AiError, compressImage, streamChat, type ChatTurn, type TaskContext } from '../lib/ai'
+import { AiError, compressImage, isAiUnavailable, streamChat, type ChatTurn, type TaskContext } from '../lib/ai'
 import { demoAnswer } from '../lib/demoAi'
 import { referencesFor } from '../lib/retrieval'
 import { useStore, type AiMode, type ChatMessage } from '../lib/store'
@@ -161,7 +161,7 @@ export default function TutorScreen() {
       } catch (e) {
         if ((e as Error).name === 'AbortError') {
           patchMessage(id, { content: acc || 'Остановлено.' })
-        } else if (useStore.getState().demo && (e as AiError).status === 0) {
+        } else if (useStore.getState().demo && isAiUnavailable(e)) {
           // Демо без интернета: заранее подготовленный ответ, честно помеченный.
           for await (const chunk of demoAnswer(mode, body)) {
             acc += chunk
@@ -302,7 +302,7 @@ export default function TutorScreen() {
           ))}
         </AnimatePresence>
         {demo && messages.some((m) => m.provider === 'demo') && (
-          <p className="text-center text-[11.5px] text-faint">Демо-режим: часть ответов заготовлена заранее на случай плохой сети.</p>
+          <p className="text-center text-[11.5px] text-faint">Демо-режим: если сервер ИИ недоступен, показываются заранее заготовленные ответы.</p>
         )}
       </div>
 

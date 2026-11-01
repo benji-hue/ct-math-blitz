@@ -4,7 +4,8 @@ import { Brain, CalendarRange, CircleCheck, Lightbulb, RefreshCw, Target, Triang
 import { loadSubject } from '../content'
 import { nextExam } from '../domain/calendar'
 import { SUBJECTS } from '../domain/subjects'
-import { analyzeProgress, type Analysis } from '../lib/ai'
+import { analyzeProgress, isAiUnavailable, type Analysis, type AnalyzeRequest } from '../lib/ai'
+import { localAnalysis } from '../lib/localAnalysis'
 import { errorBreakdown, forecast, liveStreak, topicRows, weakTopics } from '../lib/analytics'
 import { useStore } from '../lib/store'
 import { Header } from '../ui/chrome'
@@ -30,6 +31,7 @@ export default function AnalysisScreen() {
     }
   })
   const [error, setError] = useState('')
+  const [offline, setOffline] = useState(false)
   const abort = useRef<AbortController | null>(null)
   useEffect(() => () => abort.current?.abort(), [])
 
@@ -62,22 +64,33 @@ export default function AnalysisScreen() {
         }),
       )
       const exam = nextExam(profile.subjects, profile.exam)
-      const data = await analyzeProgress(
-        {
-          profile: { grade: profile.grade, exam: profile.exam, dailyGoal: profile.dailyGoal },
-          streak: liveStreak(progress),
-          daysToExam: exam?.days ?? null,
-          subjects,
-        },
-        controller.signal,
-      )
+      const request: AnalyzeRequest = {
+        profile: { grade: profile.grade, exam: profile.exam, dailyGoal: profile.dailyGoal },
+        streak: liveStreak(progress),
+        daysToExam: exam?.days ?? null,
+        subjects,
+      }
+      let data: Analysis
+      let local = false
+      try {
+        data = await analyzeProgress(request, controller.signal)
+      } catch (e) {
+        // Сервер ИИ недоступен — считаем разбор на устройстве, а не показываем ошибку.
+        if ((e as Error).name === 'AbortError' || !isAiUnavailable(e)) throw e
+        data = localAnalysis(request)
+        local = true
+      }
+      setOffline(local)
       setResult(data)
       setState('done')
       notify('success')
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data }))
-      } catch {
-        // ignore
+      // Разбор без ИИ не кэшируем: в следующий раз стоит снова попробовать сервер.
+      if (!local) {
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data }))
+        } catch {
+          // ignore
+        }
       }
     } catch (e) {
       if ((e as Error).name === 'AbortError') return
@@ -122,6 +135,11 @@ export default function AnalysisScreen() {
 
       {result && state !== 'loading' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={springSoft} className="space-y-4">
+          {offline && (
+            <p className="px-1 text-[12.5px] leading-relaxed text-muted">
+              Сервер ИИ сейчас недоступен, поэтому разбор посчитан на устройстве по тем же данным. С ИИ выводы будут подробнее.
+            </p>
+          )}
           <Card glow="#a497ff">
             <p className="text-[15.5px] leading-relaxed text-fg">{result.summary}</p>
           </Card>

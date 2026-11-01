@@ -228,3 +228,32 @@ describe('русская плюрализация', () => {
     expect([1, 2, 5, 11, 21, 104].map((n) => plural(n, f))).toEqual(['день', 'дня', 'дней', 'дней', 'день', 'дня'])
   })
 })
+
+describe('разбор прогресса без ИИ', async () => {
+  const { localAnalysis } = await import('../lib/localAnalysis')
+  const { isAiUnavailable, AiError } = await import('../lib/ai')
+
+  it('строит выводы и план на 7 дней из тех же агрегатов', () => {
+    const a = localAnalysis({
+      profile: { grade: '11', exam: 'both', dailyGoal: 15 },
+      streak: 4,
+      daysToExam: 200,
+      subjects: [
+        { id: 'math', title: 'Математика', forecast: 64, coverage: 0.9, target: 85, weak: [{ title: 'Логарифмы', mastery: 0.4, n: 9 }], strong: [{ title: 'Уравнения', mastery: 0.86 }], errors: { careless: 5, calc: 1 } },
+        { id: 'phys', title: 'Физика', forecast: 72, coverage: 0.8, weak: [{ title: 'Оптика', mastery: 0.25, n: 6 }], strong: [], errors: {} },
+      ],
+    })
+    expect(a.week).toHaveLength(7)
+    expect(a.gaps[0].topic).toContain('Оптика')
+    expect(a.summary).toContain('физика')
+    expect(a.strengths[0]).toContain('Уравнения')
+    expect(a.tip).toContain('Подчёркивать')
+  })
+
+  it('отличает «сервер не подключён» от настоящей ошибки', () => {
+    expect(isAiUnavailable(new AiError('x', 0))).toBe(true)
+    expect(isAiUnavailable(new AiError('x', 405))).toBe(true)
+    expect(isAiUnavailable(new AiError('x', 429))).toBe(false)
+    expect(isAiUnavailable(new AiError('x', 401))).toBe(false)
+  })
+})

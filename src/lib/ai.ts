@@ -64,11 +64,18 @@ function headers(): HeadersInit {
 export function describeStatus(status: number, body = ''): string {
   if (status === 401) return 'Не удалось подтвердить вход через Telegram. Откройте приложение заново из бота.'
   if (status === 403) return 'ИИ доступен только внутри Telegram. Откройте мини-апп через бота.'
+  if (status === 404 || status === 405) return 'ИИ-сервер не подключён к этой версии приложения. Откройте мини-апп через бота — или включите демо-профиль, чтобы посмотреть, как работает ИИ.'
   if (status === 413) return 'Слишком большой запрос — сократите текст или уменьшите фото.'
   if (status === 429) return body || 'Дневной лимит запросов к ИИ исчерпан. Он обновится завтра — а пока можно тренироваться в банке заданий.'
   if (status === 503) return 'ИИ-сервер временно недоступен. Попробуйте через минуту.'
   if (status >= 500) return 'Сбой на сервере ИИ. Попробуйте ещё раз.'
   return `Ошибка ${status}`
+}
+
+/** Сервер ИИ не отвечает или не подключён к этой сборке (например, статика на GitHub Pages). */
+export function isAiUnavailable(e: unknown): boolean {
+  const status = (e as AiError | undefined)?.status
+  return status === 0 || status === 404 || status === 405 || status === 501 || status === 502 || status === 503
 }
 
 async function errorFrom(res: Response): Promise<AiError> {
