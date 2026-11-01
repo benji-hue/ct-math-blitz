@@ -9,7 +9,7 @@ import sharp from 'sharp'
 
 const SRC = 'assets/icon.svg'
 const DIR = 'public/icons'
-const BACKGROUND = '#070b18'
+const BACKGROUND = '#05060b'
 
 /** Маскируемая иконка: Android обрезает её в круг, поэтому нужны поля. */
 const MASKABLE_SAFE_RATIO = 0.78

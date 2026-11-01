@@ -63,11 +63,12 @@ jobs:
           # Только ASCII: Sideloadly 0.60 под Windows отвергал бандл с кириллическим
           # CFBundleDisplayName («does not look like valid iOS app»). Кириллицу
           # правильнее возвращать через ru.lproj/InfoPlist.strings, а не сюда.
-          plist_set CFBundleDisplayName string CT Math
+          plist_set CFBundleDisplayName string Krok
           plist_set CFBundleShortVersionString string "$VERSION"
           plist_set CFBundleVersion string "$BUILD_NUMBER"
-          # Тёмный фон приложения — статус-бар должен быть светлым.
-          plist_set UIStatusBarStyle string UIStatusBarStyleLightContent
+          # Приложение следует системной теме: Default на iOS 13+ сам выбирает
+          # тёмный или светлый текст статус-бара.
+          plist_set UIStatusBarStyle string UIStatusBarStyleDefault
           plist_set UIViewControllerBasedStatusBarAppearance bool false
 
           echo "--- Info.plist ---"
@@ -134,7 +135,7 @@ jobs:
           codesign -dvv "$APP" 2>&1 | head -6
 
           VERSION=$(node -p "require('./package.json').version")
-          NAME="CTMathBlitz-${VERSION}-build${{ github.run_number }}-unsigned.ipa"
+          NAME="Krok-${VERSION}-build${{ github.run_number }}-unsigned.ipa"
 
           rm -rf build/Payload
           mkdir -p build/Payload

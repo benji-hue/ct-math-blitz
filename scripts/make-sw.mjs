@@ -24,6 +24,9 @@ async function walk(dir) {
 const files = (await walk(DIST))
   .map((f) => '/' + path.relative(DIST, f).split(path.sep).join('/'))
   .filter((f) => f !== '/sw.js')
+  // Старые форматы шрифтов (ttf, woff) браузеры не запрашивают, пока есть woff2:
+  // не тащим лишние ~1,3 МБ в офлайн-кэш при первом запуске в Telegram.
+  .filter((f) => !/\.(ttf|woff)$/.test(f))
   .sort()
 
 // Версия кэша — хэш содержимого всех файлов: меняется ровно тогда,

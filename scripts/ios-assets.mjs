@@ -13,7 +13,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
 
-const BACKGROUND = '#070b18'
+const BACKGROUND = '#05060b'
 const ICON_SVG = 'assets/icon.svg'
 const SPLASH_SVG = 'assets/splash.svg'
 const XCASSETS = 'ios/App/App/Assets.xcassets'
