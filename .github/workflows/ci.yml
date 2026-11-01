@@ -1,0 +1,55 @@
+name: CI
+
+# Проверки на каждый пуш и PR: типы, линтер, юнит-тесты (включая проверку
+# всего банка заданий), сборка мини-аппа и тесты воркера.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Типы
+        run: npx tsc -b
+      - name: Линтер
+        run: npx oxlint
+      - name: Юнит-тесты и проверка контента
+        run: npx vitest run
+      - name: Сборка
+        run: npm run build:pwa
+
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+      - name: Типы
+        run: npx tsc --noEmit
+      - name: Тесты (подпись Telegram, SSE, промпты, напоминания)
+        run: npx vitest run
