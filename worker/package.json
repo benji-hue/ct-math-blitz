@@ -1,0 +1,22 @@
+{
+  "name": "krok-worker",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Cloudflare Worker для мини-аппа «Крок»: раздача приложения, ИИ-прокси, Telegram-бот, напоминания.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:init": "wrangler d1 migrations apply krok --remote",
+    "db:init:local": "wrangler d1 migrations apply krok --local",
+    "bot:setup": "node scripts/setup-bot.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261101.1",
+    "typescript": "^6.0.2",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.156.0"
+  }
+}

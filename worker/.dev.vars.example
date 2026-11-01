@@ -1,0 +1,12 @@
+# Скопируйте в .dev.vars для `wrangler dev` (файл .dev.vars в git не попадает).
+# В продакшене те же значения задаются командой `wrangler secret put ИМЯ`.
+BOT_TOKEN=1234567890:AA...
+WEBHOOK_SECRET=длинная-случайная-строка
+# Необязательно: внешние провайдеры, если есть легальный доступ.
+# GEMINI_API_KEY=
+# OPENAI_API_KEY=
+# OPENAI_BASE_URL=https://api.deepseek.com/v1
+# OPENAI_MODEL=deepseek-chat
+# Для локальной разработки без Telegram и без ИИ:
+ALLOW_ANONYMOUS=true
+ALLOW_MOCK_AI=true
