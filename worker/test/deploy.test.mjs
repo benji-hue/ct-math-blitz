@@ -213,7 +213,10 @@ describe('пробный вариант', () => {
     const s = SCENARIOS.find((x) => x.id === 'continuity')
     const ideal = 'Через дискриминант: $D = 7^2 - 4 \\cdot 12 = 49 - 48 = 1$, поэтому $x = (7 \\pm 1)/2$, корни 3 и 4.'
     expect(s.checks.filter(([, test]) => !test(ideal))).toEqual([])
-    const amnesia = 'Конечно! Какое уравнение будем решать? Пришли уравнение, и я покажу, как работает дискриминант.'
+    // Ответ Gemini из прогона 7: уравнение из истории помнит, досчитать предлагает ученику.
+    const hint = 'Для твоего уравнения $x^2 - 7x + 12 = 0$ коэффициенты такие: $a = 1$, $b = -7$, $c = 12$. Формула дискриминанта: $$D = b^2 - 4ac$$ Попробуй подставить числа.'
+    expect(s.checks.filter(([, test]) => !test(hint))).toEqual([])
+    const amnesia ='Конечно! Какое уравнение будем решать? Пришли уравнение, и я покажу, как работает дискриминант.'
     expect(s.checks.filter(([, test]) => !test(amnesia)).length).toBeGreaterThanOrEqual(2)
     expect(s.history[0].role).toBe('user')
     expect(s.history.at(-1).role).toBe('assistant')
