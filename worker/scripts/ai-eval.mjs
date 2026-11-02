@@ -40,10 +40,12 @@ async function discoverAppUrl() {
 }
 
 const base = await discoverAppUrl()
+// «default» — цепочка моделей, как у учеников (без выбора модели).
 const models = (process.env.MODELS ?? '')
   .split(',')
   .map((m) => m.trim())
   .filter(Boolean)
+  .map((m) => (m === 'default' ? null : m))
 const onlyScenarios = new Set(
   (process.env.SCENARIOS ?? '')
     .split(',')

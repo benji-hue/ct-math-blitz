@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { SCENARIOS } from '../scripts/eval/variant.mjs'
-import { CloudflareError, cloudflare, evalKey, prepareCloudflare, rewriteWranglerConfig, signInitData, webhookSecret } from '../scripts/lib.mjs'
+import { CloudflareError, cloudflare, evalKey, prepareCloudflare, providerOrder, rewriteWranglerConfig, signInitData, webhookSecret } from '../scripts/lib.mjs'
 import { deriveSecret, validateInitData } from '../src/telegram'
 
 const TOKEN = '1234567890:TEST-token-for-unit-tests'
@@ -63,6 +63,19 @@ describe('wrangler.jsonc в CI', () => {
     expect(parse(rewriteWranglerConfig(original, { ...values, aiProviders: 'gemini,workers-ai' })).vars.AI_PROVIDERS).toBe('gemini,workers-ai')
     expect(parse(rewriteWranglerConfig(original, values)).vars.AI_PROVIDERS).toBe(parse(original).vars.AI_PROVIDERS)
     expect(() => rewriteWranglerConfig(original, { ...values, aiProviders: 'gemini","x' })).toThrow(/провайдеров/)
+  })
+
+  it('фото — своя цепочка', () => {
+    const config = parse(rewriteWranglerConfig(original, { ...values, aiProviders: 'workers-ai,gemini', aiVisionProviders: 'gemini,workers-ai' }))
+    expect(config.vars.AI_PROVIDERS).toBe('workers-ai,gemini')
+    expect(config.vars.AI_VISION_PROVIDERS).toBe('gemini,workers-ai')
+  })
+
+  it('порядок моделей по ключам: текст — Workers AI, фото — Gemini', () => {
+    expect(providerOrder()).toEqual({ text: '', vision: '' })
+    expect(providerOrder({ hasGemini: true })).toEqual({ text: 'workers-ai,gemini', vision: 'gemini,workers-ai' })
+    expect(providerOrder({ hasGemini: true, hasOpenai: true })).toEqual({ text: 'workers-ai,openai,gemini', vision: 'gemini,workers-ai,openai' })
+    expect(providerOrder({ hasGemini: true, text: 'gemini,workers-ai' }).text).toBe('gemini,workers-ai')
   })
 
   it('по умолчанию анонимный доступ выключен', () => {

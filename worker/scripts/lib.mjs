@@ -39,11 +39,27 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
  * Подставляет данные деплоя в wrangler.jsonc. Меняется только рабочая копия
  * в CI — в git это не попадает, а комментарии и форматирование сохраняются.
  */
-export function rewriteWranglerConfig(text, { databaseId, appUrl, allowedOrigins = '', allowAnonymous = false, aiProviders = '' }) {
+/**
+ * Порядок провайдеров по ключам из секретов репозитория — по итогам пробного варианта:
+ * текст первой отвечает Qwen на Workers AI (быстро, без квот на минуту), внешние модели —
+ * запасные; фото первой проверяет Gemini (быстрее и точнее на рукописных решениях).
+ * Переменные репозитория AI_PROVIDERS / AI_VISION_PROVIDERS задают порядок вручную.
+ */
+export function providerOrder({ hasGemini = false, hasOpenai = false, text = '', vision = '' } = {}) {
+  const external = [hasOpenai && 'openai', hasGemini && 'gemini'].filter(Boolean)
+  return {
+    text: text || (external.length ? ['workers-ai', ...external].join(',') : ''),
+    vision: vision || (hasGemini ? ['gemini', 'workers-ai', ...(hasOpenai ? ['openai'] : [])].join(',') : ''),
+  }
+}
+
+export function rewriteWranglerConfig(text, { databaseId, appUrl, allowedOrigins = '', allowAnonymous = false, aiProviders = '', aiVisionProviders = '' }) {
   if (!UUID.test(databaseId)) throw new Error(`database_id должен быть UUID, получено: ${databaseId}`)
   if (!/^https:\/\/[a-z0-9.-]+$/i.test(appUrl)) throw new Error(`Некорректный адрес приложения: ${appUrl}`)
   if (/["\\\n]/.test(allowedOrigins)) throw new Error('ALLOWED_ORIGINS содержит недопустимые символы')
-  if (aiProviders && !/^[a-z-]+(,[a-z-]+)*$/.test(aiProviders)) throw new Error(`Некорректный список провайдеров: ${aiProviders}`)
+  for (const providers of [aiProviders, aiVisionProviders]) {
+    if (providers && !/^[a-z-]+(,[a-z-]+)*$/.test(providers)) throw new Error(`Некорректный список провайдеров: ${providers}`)
+  }
 
   let out = text
   const set = (key, value) => {
@@ -56,6 +72,7 @@ export function rewriteWranglerConfig(text, { databaseId, appUrl, allowedOrigins
   set('ALLOWED_ORIGINS', allowedOrigins)
   set('ALLOW_ANONYMOUS', allowAnonymous ? 'true' : 'false')
   if (aiProviders) set('AI_PROVIDERS', aiProviders)
+  if (aiVisionProviders) set('AI_VISION_PROVIDERS', aiVisionProviders)
   return out
 }
 

@@ -34,6 +34,8 @@
 
   "vars": {
     "AI_PROVIDERS": "workers-ai",
+    // Для фото решений — своя цепочка: с ключом Gemini деплой ставит её первой.
+    "AI_VISION_PROVIDERS": "workers-ai",
     // Порядок — по итогам пробного варианта (docs/ПРОБНЫЙ-ВАРИАНТ.md). DeepSeek V4 Flash на Workers AI
     // доступен только на платном тарифе Workers Paid, Gemma 3 закрыта для аккаунта.
     "WORKERS_AI_MODELS": "@cf/qwen/qwen3.8-27b,@cf/openai/gpt-oss-120b,@cf/meta/llama-4-scout-17b-16e-instruct",

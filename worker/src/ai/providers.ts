@@ -57,6 +57,19 @@ export const DEFAULT_WORKERS_MODELS = ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-o
 export const DEFAULT_VISION_MODELS = ['@cf/qwen/qwen3.8-27b', '@cf/meta/llama-4-scout-17b-16e-instruct']
 export const DEFAULT_GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash-lite']
 
+/** Запас токенов на скрытые рассуждения Gemini — сверх лимита на сам ответ. */
+const GEMINI_THINKING_ALLOWANCE = 2048
+
+/**
+ * Уровень рассуждений Gemini: по умолчанию модель «думает» долго (первый токен через
+ * 5–7 с). Для обычных ответов — минимум, для проверки решений — немного.
+ */
+export function geminiThinking(model: string, input: Pick<ChatInput, 'reasoning'>): Record<string, unknown> | null {
+  if (/^gemini-([3-9]|\d{2})/.test(model)) return { thinkingLevel: input.reasoning === 'low' ? 'low' : 'minimal' }
+  if (/^gemini-2\.5-flash/.test(model)) return { thinkingBudget: input.reasoning === 'low' ? 1024 : 0 }
+  return null
+}
+
 type Opener = (env: Env, model: string, input: ChatInput, signal?: AbortSignal) => Promise<AsyncGenerator<string>>
 
 interface Provider {
@@ -155,20 +168,32 @@ const gemini: Provider = {
       if (input.image && i === input.messages.length - 1 && m.role === 'user') parts.push({ inlineData: { mimeType: input.image.mime, data: input.image.data } })
       return { role: m.role === 'assistant' ? 'model' : 'user', parts }
     })
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY ?? '' },
-      signal,
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: input.system }] },
-        contents,
-        generationConfig: {
-          temperature: input.temperature,
-          maxOutputTokens: input.maxTokens,
-          ...(input.json ? { responseMimeType: 'application/json' } : {}),
-        },
-      }),
-    })
+    const send = (thinking: Record<string, unknown> | null) =>
+      fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY ?? '' },
+        signal,
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: input.system }] },
+          contents,
+          generationConfig: {
+            temperature: input.temperature,
+            // Скрытые рассуждения Gemini тратят тот же лимит, что и ответ: без запаса
+            // пробный вариант получал ответы, оборванные на полуслове.
+            maxOutputTokens: input.maxTokens + GEMINI_THINKING_ALLOWANCE,
+            ...(input.json ? { responseMimeType: 'application/json' } : {}),
+            ...(thinking ? { thinkingConfig: thinking } : {}),
+          },
+        }),
+      })
+    const thinking = geminiThinking(model, input)
+    let res = await send(thinking)
+    if (res.status === 400 && thinking) {
+      // Модель не поддерживает такой уровень рассуждений — повторяем без настройки.
+      const detail = await res.text().catch(() => '')
+      if (!/thinking/i.test(detail)) throw new ProviderError(`Gemini 400: ${detail.slice(0, 200)}`, 400)
+      res = await send(null)
+    }
     if (!res.ok || !res.body) throw new ProviderError(`Gemini ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`, res.status)
     return mapSse(res.body)
   },
@@ -224,8 +249,12 @@ export function availableProviders(env: Env): string[] {
     .map((p) => p.id)
 }
 
-export function providerChain(env: Env): Provider[] {
-  const order = list(env.AI_PROVIDERS, ['workers-ai'])
+/**
+ * Цепочка провайдеров. Для фото — своя (AI_VISION_PROVIDERS): по пробному варианту
+ * Gemini проверяет фото быстрее и точнее, а текст быстрее отвечает Qwen на Workers AI.
+ */
+export function providerChain(env: Env, input?: Pick<ChatInput, 'image'>): Provider[] {
+  const order = input?.image ? list(env.AI_VISION_PROVIDERS, list(env.AI_PROVIDERS, ['workers-ai'])) : list(env.AI_PROVIDERS, ['workers-ai'])
   if (env.ALLOW_MOCK_AI === 'true' && !order.includes('mock')) order.push('mock')
   return order.map((id) => PROVIDERS[id]).filter((p): p is Provider => Boolean(p) && p.available(env))
 }
@@ -240,7 +269,7 @@ export function describeProviders(env: Env): { id: string; model: string }[] {
  */
 export async function openStream(env: Env, input: ChatInput, signal?: AbortSignal, force?: ForcedModel): Promise<OpenedStream> {
   const errors: string[] = []
-  let chain = providerChain(env)
+  let chain = providerChain(env, input)
   if (force) {
     const provider = PROVIDERS[force.provider]
     if (!provider || !provider.available(env)) throw new ProviderError(`Провайдер ${force.provider} не настроен на сервере`, 503)

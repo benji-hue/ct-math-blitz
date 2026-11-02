@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildSystemPrompt, buildGeneratePrompt } from '../src/ai/prompts'
-import { openStream, type ChatInput } from '../src/ai/providers'
+import { geminiThinking, openStream, providerChain, type ChatInput } from '../src/ai/providers'
 import { asNumber, sameAnswer, screenTask, verifyTasks, type DraftTask } from '../src/ai/verify'
 import type { Env } from '../src/env'
 import { createThinkFilter, extractDelta, parseJsonLoose, readSse } from '../src/ai/sse'
@@ -188,5 +188,26 @@ describe('перепроверка сгенерированных заданий
   it('если проверить не удалось — задания не отдаются', async () => {
     const env = { AI: { run: async () => ({ response: 'не JSON' }) }, AI_PROVIDERS: 'workers-ai' } as unknown as Env
     expect(await verifyTasks(env, [good], 'Математика')).toBeNull()
+  })
+})
+
+describe('маршрутизация моделей', () => {
+  const env = { AI: { run: async () => ({}) }, GEMINI_API_KEY: 'k', AI_PROVIDERS: 'workers-ai,gemini', AI_VISION_PROVIDERS: 'gemini,workers-ai' } as unknown as Env
+
+  it('текст — сначала Workers AI, фото — сначала Gemini', () => {
+    expect(providerChain(env).map((p) => p.id)).toEqual(['workers-ai', 'gemini'])
+    expect(providerChain(env, { image: { mime: 'image/png', data: 'x' } }).map((p) => p.id)).toEqual(['gemini', 'workers-ai'])
+  })
+
+  it('без отдельной цепочки фото идут по общей', () => {
+    const plain = { ...env, AI_VISION_PROVIDERS: undefined } as unknown as Env
+    expect(providerChain(plain, { image: { mime: 'image/png', data: 'x' } }).map((p) => p.id)).toEqual(['workers-ai', 'gemini'])
+  })
+
+  it('Gemini «думает» по минимуму, при проверке решения — немного', () => {
+    expect(geminiThinking('gemini-3.6-flash', { reasoning: 'none' })).toEqual({ thinkingLevel: 'minimal' })
+    expect(geminiThinking('gemini-3.5-flash-lite', { reasoning: 'low' })).toEqual({ thinkingLevel: 'low' })
+    expect(geminiThinking('gemini-2.5-flash', {})).toEqual({ thinkingBudget: 0 })
+    expect(geminiThinking('some-other-model', {})).toBeNull()
   })
 })

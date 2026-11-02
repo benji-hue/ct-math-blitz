@@ -11,16 +11,8 @@
  * через GITHUB_ENV (CLOUDFLARE_ACCOUNT_ID, APP_URL).
  */
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
-import { cloudflare, prepareCloudflare, rewriteWranglerConfig } from './lib.mjs'
+import { cloudflare, prepareCloudflare, providerOrder, rewriteWranglerConfig } from './lib.mjs'
 
-/**
- * Если в секретах репозитория есть ключ внешней модели (GEMINI_API_KEY, OPENAI_API_KEY),
- * она идёт первой, а Workers AI остаётся запасной. Без ключей — как в wrangler.jsonc.
- */
-function providersFromKeys() {
-  const external = ['gemini', 'openai'].filter((id) => process.env[`HAS_${id.toUpperCase()}`] === 'true')
-  return external.length ? [...external, 'workers-ai'].join(',') : ''
-}
 
 const token = process.env.CLOUDFLARE_API_TOKEN
 if (!token) {
@@ -34,13 +26,21 @@ try {
     log: (message) => console.log(message),
   })
 
+  const order = providerOrder({
+    hasGemini: process.env.HAS_GEMINI === 'true',
+    hasOpenai: process.env.HAS_OPENAI === 'true',
+    text: (process.env.AI_PROVIDERS ?? '').trim(),
+    vision: (process.env.AI_VISION_PROVIDERS ?? '').trim(),
+  })
+  if (order.text || order.vision) console.log(`Цепочка моделей: текст — ${order.text || 'как в wrangler.jsonc'}; фото — ${order.vision || 'как в wrangler.jsonc'}`)
   const configPath = new URL('../wrangler.jsonc', import.meta.url)
   const updated = rewriteWranglerConfig(readFileSync(configPath, 'utf8'), {
     databaseId: result.databaseId,
     appUrl: result.appUrl,
     allowedOrigins: (process.env.ALLOWED_ORIGINS ?? '').trim().toLowerCase(),
     allowAnonymous: process.env.ALLOW_ANONYMOUS === 'true',
-    aiProviders: providersFromKeys(),
+    aiProviders: order.text,
+    aiVisionProviders: order.vision,
   })
   writeFileSync(configPath, updated)
 

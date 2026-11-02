@@ -17,6 +17,8 @@ export interface Env {
 
   /** Порядок провайдеров: например "workers-ai" или "gemini,workers-ai". */
   AI_PROVIDERS?: string
+  /** Порядок провайдеров для фото решений (по умолчанию — как AI_PROVIDERS). */
+  AI_VISION_PROVIDERS?: string
   WORKERS_AI_MODELS?: string
   WORKERS_AI_VISION_MODELS?: string
   GEMINI_MODEL?: string

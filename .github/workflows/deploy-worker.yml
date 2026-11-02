@@ -6,7 +6,7 @@ name: Deploy to Cloudflare
 #   CLOUDFLARE_API_TOKEN   — токен Cloudflare: шаблон «Edit Cloudflare Workers» + Account → D1 → Edit
 #   BOT_TOKEN              — токен бота из @BotFather (/mybots → бот → API Token)
 #   CLOUDFLARE_ACCOUNT_ID  — по желанию; без него берётся единственный аккаунт токена
-#   GEMINI_API_KEY         — по желанию: Gemini станет основной моделью, Workers AI — запасной
+#   GEMINI_API_KEY         — по желанию: Gemini проверяет фото решений и подстраховывает текст
 #   OPENAI_API_KEY         — по желанию: любой OpenAI-совместимый API (адрес и модель — в wrangler.jsonc)
 #
 # Что делает: создаёт базу D1 и поддомен workers.dev (если их нет), применяет
@@ -91,6 +91,8 @@ jobs:
           ALLOW_ANONYMOUS: ${{ inputs.allow_anonymous }}
           HAS_GEMINI: ${{ secrets.GEMINI_API_KEY != '' }}
           HAS_OPENAI: ${{ secrets.OPENAI_API_KEY != '' }}
+          AI_PROVIDERS: ${{ vars.AI_PROVIDERS }}
+          AI_VISION_PROVIDERS: ${{ vars.AI_VISION_PROVIDERS }}
 
       - name: Миграции D1
         run: npx wrangler d1 migrations apply krok --remote
