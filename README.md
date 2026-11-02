@@ -53,13 +53,15 @@ FSRS — тому же, что в Anki.
 | [docs/АРХИТЕКТУРА.md](docs/АРХИТЕКТУРА.md) | Схема системы, модули, дизайн-система, производительность, тесты |
 | [docs/ДЕПЛОЙ.md](docs/ДЕПЛОЙ.md) | Запуск в Telegram за 20 минут: бот, Cloudflare, секреты, чек-лист к защите |
 | [docs/ЗАЩИТА.md](docs/ЗАЩИТА.md) | Структура выступления, сценарий демо, ответы жюри, дорожная карта |
+| [docs/ВЫБОР-МОДЕЛИ.md](docs/ВЫБОР-МОДЕЛИ.md) | Какую бесплатную нейросеть выбрать: сравнение, лимиты, доступность из Беларуси |
+| [docs/ПРОБНЫЙ-ВАРИАНТ.md](docs/ПРОБНЫЙ-ВАРИАНТ.md) | Проверка ИИ на варианте с намеренными ошибками: что работает, что исправили |
 
 ## Быстрый старт
 
 ```bash
 npm install
 npm run dev          # интерфейс: http://localhost:5173
-npm test             # 63 теста, включая проверку всего банка заданий
+npm test             # 64 теста, включая проверку всего банка заданий
 npm run build:pwa    # продакшен-сборка с офлайн-кэшем
 ```
 
@@ -67,7 +69,7 @@ npm run build:pwa    # продакшен-сборка с офлайн-кэше�
 
 ```bash
 npm run worker:install
-npm run worker:test  # 35 тестов: подпись Telegram, SSE, промпты, цепочка моделей, скрипты деплоя
+npm run worker:test  # 39 тестов: подпись Telegram, SSE, промпты, цепочка моделей, скрипты деплоя
 npm run worker:dev   # локально с заглушкой ИИ (см. worker/.dev.vars.example)
 npm run worker:deploy
 ```
@@ -80,7 +82,7 @@ npm run worker:deploy
 - **Клиент:** React 19, TypeScript (strict), Vite 8, Tailwind CSS v4, motion,
   zustand, ts-fsrs, KaTeX (ленивая загрузка), шрифт Onest, Telegram Mini Apps API.
 - **Сервер:** Cloudflare Workers (статика + API + вебхук + cron), Workers AI
-  (DeepSeek V4 Flash, Qwen 3.8, gpt-oss-120b, Llama 4 Scout для фото),
+  (Qwen 3.8 — текст и фото, gpt-oss-120b, Llama 4 Scout; перепроверка заданий второй моделью),
   опционально Gemini и любой OpenAI-совместимый API, D1 (SQLite).
 - **Качество:** vitest, oxlint, GitHub Actions (CI, деплой на Cloudflare,
   GitHub Pages, сборка iOS).
