@@ -59,7 +59,7 @@ FSRS — тому же, что в Anki.
 ```bash
 npm install
 npm run dev          # интерфейс: http://localhost:5173
-npm test             # 61 тест, включая проверку всего банка заданий
+npm test             # 63 теста, включая проверку всего банка заданий
 npm run build:pwa    # продакшен-сборка с офлайн-кэшем
 ```
 
@@ -67,12 +67,13 @@ npm run build:pwa    # продакшен-сборка с офлайн-кэше�
 
 ```bash
 npm run worker:install
-npm run worker:test  # 15 тестов: подпись Telegram, SSE, промпты, часовые пояса
+npm run worker:test  # 27 тестов: подпись Telegram, SSE, промпты, часовые пояса, скрипты деплоя
 npm run worker:dev   # локально с заглушкой ИИ (см. worker/.dev.vars.example)
 npm run worker:deploy
 ```
 
-Пошагово — в [docs/ДЕПЛОЙ.md](docs/ДЕПЛОЙ.md).
+Без компьютера: два токена в секреты GitHub и кнопка **Deploy to Cloudflare** в Actions —
+пошагово в [docs/ДЕПЛОЙ.md](docs/ДЕПЛОЙ.md).
 
 ## Стек
 

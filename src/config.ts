@@ -17,7 +17,7 @@ export const EXAM_YEAR = 2027
  */
 export const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/+$/, '') ?? ''
 
-/** Ссылка на бота — для кнопки «Поделиться» и напоминаний. */
-export const BOT_USERNAME = (import.meta.env.VITE_BOT_USERNAME as string | undefined) ?? ''
+/** Бот «Крока» (без @) — для кнопки «Пригласить друга». Переопределяется VITE_BOT_USERNAME. */
+export const BOT_USERNAME = ((import.meta.env.VITE_BOT_USERNAME as string | undefined) || 'PFPFISJFOIJBOT').replace(/^@/, '')
 
 export const STORAGE_KEY = 'krok:state:v1'

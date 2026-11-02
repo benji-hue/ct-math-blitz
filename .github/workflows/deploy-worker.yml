@@ -1,13 +1,24 @@
 name: Deploy to Cloudflare
 
-# Публикует мини-апп и воркер одной командой (статика + API + бот).
-# Нужны секреты репозитория CLOUDFLARE_API_TOKEN и CLOUDFLARE_ACCOUNT_ID
-# и, по желанию, переменная VITE_BOT_USERNAME (имя бота без @).
-# Секреты самого воркера (BOT_TOKEN, WEBHOOK_SECRET…) задаются один раз
-# через `wrangler secret put` и в репозитории не хранятся.
+# Один запуск = мини-апп + воркер с ИИ + база + Telegram-бот. Компьютер не нужен.
+#
+# Секреты репозитория (Settings → Secrets and variables → Actions → New repository secret):
+#   CLOUDFLARE_API_TOKEN   — токен Cloudflare: шаблон «Edit Cloudflare Workers» + Account → D1 → Edit
+#   BOT_TOKEN              — токен бота из @BotFather (/mybots → бот → API Token)
+#   CLOUDFLARE_ACCOUNT_ID  — по желанию; без него берётся единственный аккаунт токена
+#
+# Что делает: создаёт базу D1 и поддомен workers.dev (если их нет), применяет
+# миграции, собирает и публикует воркер, кладёт секреты, ставит вебхук, кнопку меню
+# и команды бота, затем проверяет всё живым запросом. Повторный запуск безопасен.
+# Секреты воркера в git не попадают; секрет вебхука выводится из токена бота.
 
 on:
   workflow_dispatch:
+    inputs:
+      allow_anonymous:
+        description: 'Пускать к ИИ из обычного браузера (показ с ноутбука; лимиты для анонимов строже)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,29 +30,77 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
+      - name: Проверка секретов
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          missing=0
+          for name in CLOUDFLARE_API_TOKEN BOT_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Нет секрета $name::Добавьте $name в Settings → Secrets and variables → Actions"
+              missing=1
+            fi
+          done
+          exit $missing
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
+
+      # Установка зависимостей и сборка идут без секретов: скрипты пакетов их не видят.
       - run: npm ci
+
       - name: Сборка мини-аппа
         run: npm run build:pwa
         env:
           VITE_BOT_USERNAME: ${{ vars.VITE_BOT_USERNAME }}
+
       - run: npm ci
         working-directory: worker
+
+      - name: Cloudflare — аккаунт, база D1, поддомен
+        run: node scripts/cloudflare-prepare.mjs
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ALLOWED_ORIGINS: https://${{ github.repository_owner }}.github.io
+          ALLOW_ANONYMOUS: ${{ inputs.allow_anonymous }}
+
       - name: Миграции D1
         run: npx wrangler d1 migrations apply krok --remote
         working-directory: worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Деплой воркера
-        run: npx wrangler deploy
+        run: |
+          node scripts/write-secrets.mjs "$RUNNER_TEMP/worker-secrets.json"
+          npx wrangler deploy --secrets-file "$RUNNER_TEMP/worker-secrets.json"
         working-directory: worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+
+      - name: Удаление файла с секретами
+        if: always()
+        run: rm -f "$RUNNER_TEMP/worker-secrets.json"
+
+      - name: Бот — вебхук, кнопка меню, команды
+        run: node scripts/setup-bot.mjs
+        working-directory: worker
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          BOT_USERNAME: ${{ vars.VITE_BOT_USERNAME || 'PFPFISJFOIJBOT' }}
+
+      - name: Проверка после деплоя
+        run: node scripts/smoke.mjs
+        working-directory: worker
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}

@@ -1,49 +1,69 @@
 #!/usr/bin/env node
 /**
- * Одноразовая настройка бота после деплоя воркера.
+ * Настройка бота после деплоя воркера (в GitHub Actions запускается автоматически).
  *
- *   BOT_TOKEN=… WEBHOOK_SECRET=… APP_URL=https://krok.<you>.workers.dev npm run bot:setup
+ *   BOT_TOKEN=… APP_URL=https://krok.<you>.workers.dev [WEBHOOK_SECRET=…] [BOT_USERNAME=…] npm run bot:setup
  *
  * Делает четыре вещи: ставит вебхук (с секретом), кнопку меню «Открыть Крок»,
  * список команд и описание бота. Повторный запуск безопасен.
+ *
+ * WEBHOOK_SECRET по желанию: если не задан, он выводится из токена бота — так же,
+ * как при деплое через GitHub Actions (scripts/write-secrets.mjs).
+ * BOT_USERNAME — ожидаемое имя бота: если токен от другого бота, будет предупреждение.
  */
-const { BOT_TOKEN, WEBHOOK_SECRET, APP_URL } = process.env
-if (!BOT_TOKEN || !WEBHOOK_SECRET || !APP_URL) {
-  console.error('Нужны переменные BOT_TOKEN, WEBHOOK_SECRET и APP_URL')
+import { webhookSecret } from './lib.mjs'
+
+const { BOT_TOKEN, APP_URL, BOT_USERNAME } = process.env
+if (!BOT_TOKEN || !APP_URL) {
+  console.error('Нужны переменные BOT_TOKEN и APP_URL (WEBHOOK_SECRET — по желанию)')
   process.exit(1)
 }
+const secret = process.env.WEBHOOK_SECRET || webhookSecret(BOT_TOKEN)
 const app = APP_URL.replace(/\/+$/, '')
+const telegram = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org'
 
-async function call(method, body) {
-  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+async function call(method, body = {}) {
+  const res = await fetch(`${telegram}/bot${BOT_TOKEN}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  const data = await res.json()
-  if (!data.ok) throw new Error(`${method}: ${data.description}`)
+  const data = await res.json().catch(() => ({}))
+  if (!data.ok) throw new Error(`${method}: ${data.description ?? `HTTP ${res.status}`}`)
   console.log(`✓ ${method}`)
   return data.result
 }
 
-await call('setWebhook', {
-  url: `${app}/bot/webhook`,
-  secret_token: WEBHOOK_SECRET,
-  allowed_updates: ['message'],
-  drop_pending_updates: true,
-})
-await call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Открыть Крок', web_app: { url: app } } })
-await call('setMyCommands', {
-  commands: [
-    { command: 'start', description: 'Открыть приложение' },
-    { command: 'remind', description: 'Напоминания: вкл/выкл' },
-    { command: 'stats', description: 'Моя серия и повторения' },
-    { command: 'help', description: 'Справка' },
-  ],
-})
-await call('setMyShortDescription', { short_description: 'ИИ-репетитор для ЦЭ и ЦТ: 14 предметов, разбор ошибок, повторение по науке.' })
-await call('setMyDescription', {
-  description:
-    'Крок — подготовка к ЦЭ и ЦТ в Беларуси.\n\n• задания в формате РИКЗ по 14 предметам\n• ИИ-репетитор: объясняет, разбирает ошибки, проверяет решения по фото\n• интервальное повторение FSRS и прогноз балла\n• календарь РТ, ЦЭ и ЦТ, антистресс',
-})
-console.log(`\nГотово. Откройте бота и нажмите «Открыть Крок». Мини-апп: ${app}`)
+try {
+  const me = await call('getMe')
+  console.log(`  бот: @${me.username}`)
+  const expected = (BOT_USERNAME ?? '').replace(/^@/, '').toLowerCase()
+  if (expected && me.username.toLowerCase() !== expected) {
+    console.log(`::warning title=Другой бот::Токен принадлежит @${me.username}, а в настройках указан @${expected}`)
+  }
+
+  await call('setWebhook', {
+    url: `${app}/bot/webhook`,
+    secret_token: secret,
+    allowed_updates: ['message'],
+    drop_pending_updates: true,
+  })
+  await call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Открыть Крок', web_app: { url: app } } })
+  await call('setMyCommands', {
+    commands: [
+      { command: 'start', description: 'Открыть приложение' },
+      { command: 'remind', description: 'Напоминания: вкл/выкл' },
+      { command: 'stats', description: 'Моя серия и повторения' },
+      { command: 'help', description: 'Справка' },
+    ],
+  })
+  await call('setMyShortDescription', { short_description: 'ИИ-репетитор для ЦЭ и ЦТ: 14 предметов, разбор ошибок, повторение по науке.' })
+  await call('setMyDescription', {
+    description:
+      'Крок — подготовка к ЦЭ и ЦТ в Беларуси.\n\n• задания в формате РИКЗ по 14 предметам\n• ИИ-репетитор: объясняет, разбирает ошибки, проверяет решения по фото\n• интервальное повторение FSRS и прогноз балла\n• календарь РТ, ЦЭ и ЦТ, антистресс',
+  })
+  console.log(`\nГотово. Откройте бота и нажмите «Открыть Крок». Мини-апп: ${app}`)
+} catch (e) {
+  console.error(`::error title=Настройка бота::${String(e.message ?? e)}`)
+  process.exit(1)
+}
