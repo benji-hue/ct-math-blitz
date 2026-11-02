@@ -69,7 +69,7 @@ npm run build:pwa    # продакшен-сборка с офлайн-кэше�
 
 ```bash
 npm run worker:install
-npm run worker:test  # 44 теста: подпись Telegram, SSE, промпты, цепочка моделей, скрипты деплоя
+npm run worker:test  # 46 тестов: подпись Telegram, SSE, промпты, цепочка моделей, скрипты деплоя
 npm run worker:dev   # локально с заглушкой ИИ (см. worker/.dev.vars.example)
 npm run worker:deploy
 ```
