@@ -21,7 +21,7 @@ import {
 import { topicById, useSubject, loadSubject } from '../content'
 import { SUBJECT_LIST, SUBJECTS } from '../domain/subjects'
 import type { SubjectId } from '../domain/types'
-import { AiError, compressImage, isAiUnavailable, streamChat, type ChatTurn, type TaskContext } from '../lib/ai'
+import { AiError, compressImage, isAiUnavailable, modelLabel, streamChat, type ChatTurn, type TaskContext } from '../lib/ai'
 import { demoAnswer } from '../lib/demoAi'
 import { referencesFor } from '../lib/retrieval'
 import { useStore, type AiMode, type ChatMessage } from '../lib/store'
@@ -152,7 +152,7 @@ export default function TutorScreen() {
               patchMessage(id, { content: acc })
             }
           } else if (ev.type === 'meta') {
-            patchMessage(id, { provider: ev.provider })
+            patchMessage(id, { provider: ev.provider, model: ev.model })
           } else if (ev.type === 'error') {
             throw new AiError(ev.message)
           }
@@ -476,7 +476,7 @@ function Bubble({ message, streaming, onRetry }: { message: ChatMessage; streami
                 <Copy size={13} /> Копировать
               </button>
             )}
-            {message.provider && <span>· {message.provider === 'demo' ? 'демо' : message.provider}</span>}
+            {message.provider && <span>· {message.provider === 'demo' ? 'демо' : modelLabel(message.model, message.provider)}</span>}
           </div>
         )}
       </div>

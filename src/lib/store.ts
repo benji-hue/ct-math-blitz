@@ -86,6 +86,8 @@ export interface ChatMessage {
   image?: string
   error?: boolean
   provider?: string
+  /** Какая модель ответила (например, gemini-3.6-flash) — показывается под ответом. */
+  model?: string
 }
 
 export interface ChatState {

@@ -73,6 +73,19 @@ export function describeStatus(status: number, body = ''): string {
 }
 
 /** Сервер ИИ не отвечает или не подключён к этой сборке (например, статика на GitHub Pages). */
+/** Понятное имя модели для подписи под ответом: «Gemini 3.6 Flash», «Qwen 3.8». */
+export function modelLabel(model: string | undefined, provider: string): string {
+  const id = (model ?? '').toLowerCase().replace(/^models\//, '')
+  const gemini = /^gemini-(\d+(?:\.\d+)?)-(flash-lite|flash|pro)/.exec(id)
+  if (gemini) return `Gemini ${gemini[1]} ${gemini[2] === 'flash-lite' ? 'Flash-Lite' : gemini[2] === 'flash' ? 'Flash' : 'Pro'}`
+  const qwen = /qwen(\d+(?:\.\d+)?)/.exec(id)
+  if (qwen) return `Qwen ${qwen[1]}`
+  if (id.includes('gpt-oss')) return `GPT-OSS ${/(\d+)b/.exec(id)?.[1] ?? ''}B`.replace(' B', '')
+  if (id.includes('llama-4-scout')) return 'Llama 4 Scout'
+  if (id.includes('deepseek')) return 'DeepSeek'
+  return model || provider
+}
+
 export function isAiUnavailable(e: unknown): boolean {
   const status = (e as AiError | undefined)?.status
   return status === 0 || status === 404 || status === 405 || status === 501 || status === 502 || status === 503

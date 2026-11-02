@@ -8,6 +8,7 @@ import { buildIndex, referencesFor, search, stem } from '../lib/retrieval'
 import { gradeFromAnswer, review } from '../lib/srs'
 import { applyAttempt, EMPTY_PROGRESS, updateMastery, updateStreak, type Attempt } from '../lib/store'
 import { normalizeMath, parseBlocks } from '../ui/Rich'
+import { modelLabel } from '../lib/ai'
 
 const task = (id: string, topic: string, extra: Partial<Task> = {}): Task => ({
   id,
@@ -260,5 +261,16 @@ describe('разбор прогресса без ИИ', async () => {
     expect(isAiUnavailable(new AiError('x', 405))).toBe(true)
     expect(isAiUnavailable(new AiError('x', 429))).toBe(false)
     expect(isAiUnavailable(new AiError('x', 401))).toBe(false)
+  })
+})
+
+describe('подпись модели под ответом', () => {
+  it('понятные имена вместо технических', () => {
+    expect(modelLabel('gemini-3.6-flash', 'gemini')).toBe('Gemini 3.6 Flash')
+    expect(modelLabel('gemini-3.5-flash-lite', 'gemini')).toBe('Gemini 3.5 Flash-Lite')
+    expect(modelLabel('@cf/qwen/qwen3.8-27b', 'workers-ai')).toBe('Qwen 3.8')
+    expect(modelLabel('@cf/openai/gpt-oss-120b', 'workers-ai')).toBe('GPT-OSS 120B')
+    expect(modelLabel('@cf/meta/llama-4-scout-17b-16e-instruct', 'workers-ai')).toBe('Llama 4 Scout')
+    expect(modelLabel(undefined, 'workers-ai')).toBe('workers-ai')
   })
 })
