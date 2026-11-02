@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildSystemPrompt, buildGeneratePrompt } from '../src/ai/prompts'
 import { openStream, type ChatInput } from '../src/ai/providers'
+import { asNumber, sameAnswer, screenTask, verifyTasks, type DraftTask } from '../src/ai/verify'
 import type { Env } from '../src/env'
 import { createThinkFilter, extractDelta, parseJsonLoose, readSse } from '../src/ai/sse'
 import { localHour, reminderText } from '../src/cron'
@@ -146,5 +147,46 @@ describe('цепочка моделей', () => {
     expect((await openStream(env, input, undefined, { provider: 'mock', model: 'mock-tutor' })).provider).toBe('mock')
     await expect(openStream(env, input, undefined, { provider: 'workers-ai', model: '@cf/x/y' })).rejects.toThrow(/5035/)
     await expect(openStream(env, input, undefined, { provider: 'gemini', model: 'g' })).rejects.toThrow(/не настроен/)
+  })
+})
+
+describe('перепроверка сгенерированных заданий', () => {
+  // Реальные задания из второго прогона пробного варианта (docs/ПРОБНЫЙ-ВАРИАНТ.md).
+  const wrongKey: DraftTask = { q: 'Вычислите $\\log_2 8 + \\log_2 4$.', options: ['6', '12', '32', '1', '5'], answer: 0, explain: '$\\log_2(8 \\cdot 4) = \\log_2 32 = 5$.' }
+  const good: DraftTask = { q: 'Решите уравнение $\\log_3 (x+2) - \\log_3 (x-1) = 1$.', options: ['$\\frac{5}{2}$', '$5$', '$1$', '$\\frac{1}{2}$', '$-1$'], answer: 0, explain: '$x + 2 = 3(x - 1)$, $x = 2{,}5$.' }
+  const rambling = { q: 'Вычислите $\\log_5 25^{\\log_5 3}$.', answer: '9', explain: 'Выражение принимает вид $2(\\log_5 3)^2$? Нет, это неверный путь. Давайте проще: $25^{\\log_5 3} = 9$.' }
+  const rewritten = { q: 'Найдите $\\frac{\\lg 5}{\\lg 2} + \\log_2 4$.', answer: '4', explain: 'Это иррациональное. Заменю на: $\\log_2 5 + \\log_2 0{,}8$. Ответ 2.' }
+
+  it('отсеивает задания с «рассуждениями вслух» и битым форматом', () => {
+    expect(screenTask(rambling)).toBeNull()
+    expect(screenTask(rewritten)).toBeNull()
+    expect(screenTask({ ...good, answer: 7 })).toBeNull()
+    expect(screenTask({ q: 'x', explain: 'y', answer: '' })).toBeNull()
+    expect(screenTask(good)).not.toBeNull()
+    expect(screenTask(wrongKey)).not.toBeNull()
+  })
+
+  it('сравнивает ответы в разной записи', () => {
+    expect(asNumber('$\\frac{5}{2}$')).toBe(2.5)
+    expect(asNumber('2,5')).toBe(2.5)
+    expect(asNumber('-3')).toBe(-3)
+    expect(asNumber('пять')).toBeNull()
+    expect(sameAnswer(good, 1)).toBe(true)
+    expect(sameAnswer(good, 2)).toBe(false)
+    expect(sameAnswer({ q: 'x', explain: 'y', answer: ['2,5'] }, '5/2')).toBe(true)
+    expect(sameAnswer({ q: 'x', explain: 'y', answer: 'Стеклянный' }, 'стеклянный')).toBe(true)
+    expect(sameAnswer({ q: 'x', explain: 'y', answer: '4' }, null)).toBe(false)
+  })
+
+  it('пропускает только задания, подтверждённые другой моделью', async () => {
+    const ai = { run: async () => ({ response: JSON.stringify({ answers: [5, 1] }) }) }
+    const env = { AI: ai, AI_PROVIDERS: 'workers-ai' } as unknown as Env
+    const result = await verifyTasks(env, [wrongKey, good], 'Математика')
+    expect(result?.ok).toEqual([false, true])
+  })
+
+  it('если проверить не удалось — задания не отдаются', async () => {
+    const env = { AI: { run: async () => ({ response: 'не JSON' }) }, AI_PROVIDERS: 'workers-ai' } as unknown as Env
+    expect(await verifyTasks(env, [good], 'Математика')).toBeNull()
   })
 })

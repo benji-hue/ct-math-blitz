@@ -23,6 +23,8 @@ export interface Env {
   /** Любой OpenAI-совместимый API: DeepSeek, OpenRouter, Groq, Mistral… */
   OPENAI_BASE_URL?: string
   OPENAI_MODEL?: string
+  /** Модель, которая перепроверяет сгенерированные задания (по умолчанию GPT-OSS 120B). */
+  VERIFY_MODEL?: string
 
   /** Откуда разрешены запросы (CORS), через запятую. Тот же домен разрешён всегда. */
   ALLOWED_ORIGINS?: string

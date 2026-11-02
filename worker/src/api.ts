@@ -1,6 +1,7 @@
 import { describeProviders, openStream, complete, ProviderError, type ChatMessage, type ForcedModel } from './ai/providers'
 import { buildAnalyzePrompt, buildGeneratePrompt, buildSystemPrompt, MODES, type Mode, type Reference, type TaskContext } from './ai/prompts'
 import { parseJsonLoose } from './ai/sse'
+import { screenTask, verifyTasks } from './ai/verify'
 import { minskDay, num, VERSION, type Env } from './env'
 import { consume, limitFor, track, usage, type Kind } from './limits'
 import { deriveSecret, safeEqual, validateInitData, type TgUser } from './telegram'
@@ -232,7 +233,17 @@ async function generate(req: Request, env: Env, caller: Caller): Promise<Respons
     )
     const data = parseJsonLoose(text) as { tasks?: unknown }
     if (!Array.isArray(data.tasks)) return json({ error: 'ИИ вернул задания в неверном формате', ...(caller.eval ? { raw: text.slice(0, 3000), provider, model } : {}) }, 502)
-    return json({ tasks: data.tasks.slice(0, count), provider, model, ...(caller.eval ? { skipped } : {}) })
+
+    // Ученику отдаём только задания, ключ которых независимо подтвердила другая модель.
+    const drafts = data.tasks.slice(0, count)
+    const screened = drafts.map(screenTask).filter((t): t is NonNullable<typeof t> => t !== null)
+    const verdict = screened.length ? await verifyTasks(env, screened, subjectTitle) : null
+    const tasks = verdict ? screened.filter((_, i) => verdict.ok[i]) : []
+    const audit = caller.eval ? { skipped, drafts: drafts.length, screened: screened.length, verifier: verdict?.model ?? null, rejected: drafts.filter((d) => !tasks.includes(d as never)) } : {}
+    if (!screened.length) return json({ error: 'ИИ составил задания с ошибками. Попробуйте ещё раз.', ...audit }, 502)
+    if (!verdict) return json({ error: 'Не удалось перепроверить задания. Попробуйте ещё раз.', ...audit }, 503)
+    if (!tasks.length) return json({ error: 'Перепроверка не подтвердила ни одного задания. Попробуйте ещё раз.', ...audit }, 502)
+    return json({ tasks, provider, model, ...audit })
   } catch (e) {
     console.error('generate failed', (e as Error).message)
     const status = e instanceof ProviderError && e.status === 503 ? 503 : 502

@@ -217,6 +217,13 @@ const mock: Provider = {
 
 const PROVIDERS: Record<string, Provider> = { 'workers-ai': workersAi, gemini, openai: openaiCompatible, mock }
 
+/** Провайдеры, для которых на сервере есть всё нужное (ключи, привязка AI). */
+export function availableProviders(env: Env): string[] {
+  return Object.values(PROVIDERS)
+    .filter((p) => p.available(env))
+    .map((p) => p.id)
+}
+
 export function providerChain(env: Env): Provider[] {
   const order = list(env.AI_PROVIDERS, ['workers-ai'])
   if (env.ALLOW_MOCK_AI === 'true' && !order.includes('mock')) order.push('mock')

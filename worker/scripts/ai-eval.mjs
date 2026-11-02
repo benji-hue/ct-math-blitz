@@ -132,9 +132,8 @@ function structuralChecks(scenario, data) {
       return t.answer !== undefined && String(t.answer).trim() !== ''
     })
     return [
-      ['вернул 4 задания', tasks.length === 4],
+      ['перепроверку прошли хотя бы 2 задания', tasks.length >= 2],
       ['все задания в верном формате', tasks.length > 0 && valid.length === tasks.length],
-      ['есть и часть A, и часть B', tasks.some((t) => Array.isArray(t.options)) && tasks.some((t) => !Array.isArray(t.options))],
     ]
   }
   const weak = ['логарифм', 'неравенств', 'тригонометр', 'кинематик', 'н и нн', 'количество вещества']
@@ -150,12 +149,15 @@ function structuralChecks(scenario, data) {
 
 function formatGenerate(data) {
   const tasks = Array.isArray(data?.tasks) ? data.tasks : []
-  return tasks
+  const rejected = Array.isArray(data?.rejected) ? data.rejected : []
+  const audit = data?.drafts ? `Черновиков: ${data.drafts}, прошли первичный отсев: ${data.screened}, подтверждены проверяющей моделью (${data.verifier ?? '—'}): ${tasks.length}.\n` : ''
+  const dropped = rejected.length ? `\nОтклонены:\n${rejected.map((t) => `- ${t?.q ?? '?'} (ключ: ${Array.isArray(t?.options) ? `вариант ${Number(t.answer) + 1}` : t?.answer})`).join('\n')}` : ''
+  return audit + tasks
     .map((t, i) => {
       const options = Array.isArray(t.options) ? `\n   Варианты: ${t.options.map((o, j) => `${j + 1}) ${o}`).join('; ')}\n   Ответ: вариант ${Number(t.answer) + 1}` : `\n   Ответ: ${Array.isArray(t.answer) ? t.answer.join(' / ') : t.answer}`
       return `${i + 1}. [${Array.isArray(t.options) ? 'A' : 'B'}, уровень ${t.level}] ${t.q}${options}\n   Решение: ${t.explain}`
     })
-    .join('\n')
+    .join('\n') + dropped
 }
 
 function formatAnalysis(data) {
