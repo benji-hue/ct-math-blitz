@@ -260,33 +260,11 @@ for (const [model, list] of byModel) {
 // Обезличенная статистика маршрута ИИ за неделю (какая модель отвечала ученикам и откуда).
 try {
   const res = await fetch(`${base}/api/admin/stats`, { headers: headers() })
-  const events = res.ok ? ((await res.json()).events ?? []).filter((e) => /^(route|gemini):/.test(e.name)) : []
+  const events = res.ok ? ((await res.json()).events ?? []).filter((e) => /^(route|gemini|failover):/.test(e.name)) : []
   lines.push('', '## Маршрут ИИ у учеников за неделю', '', events.length ? '| День | Событие | Сколько |\n| --- | --- | --- |' : '_Пока нет данных._')
   for (const e of events) lines.push(`| ${e.day} | \`${e.name}\` | ${e.count} |`)
 } catch {
   lines.push('', '_Статистику получить не удалось._')
-}
-
-// Какие модели Gemini видит ключ — чтобы расширять цепочку проверенными названиями.
-try {
-  const res = await fetch(`${base}/api/admin/gemini-models`, { headers: headers() })
-  const data = res.ok ? await res.json() : null
-  if (data?.models?.length) {
-    const flash = data.models.filter((m) => /flash|lite/i.test(m.id) && !/image|tts|live|audio|embed|thinking-exp|robotics|computer|native/i.test(m.id))
-    lines.push('', '## Модели Gemini, доступные ключу (текстовые Flash и Lite)', '', '| Модель | Вход, токенов | Выход, токенов |', '| --- | --- | --- |')
-    for (const m of flash) lines.push(`| \`${m.id}\` | ${m.input ?? '—'} | ${m.output ?? '—'} |`)
-    if (process.env.PROBE === '1') {
-      lines.push('', '### Есть ли сейчас бесплатная квота (один короткий запрос к каждой)', '', '| Модель | Итог | Время |', '| --- | --- | --- |')
-      for (const m of flash) {
-        const started = Date.now()
-        const r = await runChat({ mode: 'tutor', message: 'Ответь одним словом: сколько будет 2+2?' }, `gemini:${m.id}`)
-        const verdict = r.error ? `❌ ${r.error.replace(/\s+/g, ' ').slice(0, 90)}` : `✅ «${r.text.trim().slice(0, 30)}»`
-        lines.push(`| \`${m.id}\` | ${verdict.replaceAll('|', '/')} | ${((Date.now() - started) / 1000).toFixed(1)} с |`)
-      }
-    }
-  }
-} catch {
-  lines.push('', '_Список моделей Gemini получить не удалось._')
 }
 
 const report = lines.join('\n')

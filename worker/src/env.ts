@@ -15,7 +15,7 @@ export interface Env {
   GEMINI_API_KEY?: string
   OPENAI_API_KEY?: string
 
-  /** Порядок провайдеров: например "workers-ai" или "gemini,workers-ai". */
+  /** Порядок провайдеров, по умолчанию "gemini,workers-ai" (без ключа Gemini пропускается). */
   AI_PROVIDERS?: string
   /** Порядок провайдеров для фото решений (по умолчанию — как AI_PROVIDERS). */
   AI_VISION_PROVIDERS?: string
@@ -25,8 +25,6 @@ export interface Env {
   /** Любой OpenAI-совместимый API: DeepSeek, OpenRouter, Groq, Mistral… */
   OPENAI_BASE_URL?: string
   OPENAI_MODEL?: string
-  /** Модель, которая перепроверяет сгенерированные задания (по умолчанию GPT-OSS 120B). */
-  VERIFY_MODEL?: string
 
   /** Откуда разрешены запросы (CORS), через запятую. Тот же домен разрешён всегда. */
   ALLOWED_ORIGINS?: string

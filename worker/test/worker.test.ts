@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { routeEvents } from '../src/api'
 import { buildSystemPrompt, buildGeneratePrompt } from '../src/ai/prompts'
-import { complete, geminiThinking, openStream, providerChain, streamWithFailover, type ChatInput, type StreamPart } from '../src/ai/providers'
-import { asNumber, sameAnswer, screenTask, verifyTasks, type DraftTask } from '../src/ai/verify'
+import { complete, DEFAULT_PROVIDERS, describeProviders, geminiThinking, openStream, providerChain, streamWithFailover, type ChatInput, type StreamPart } from '../src/ai/providers'
+import { asNumber, sameAnswer, screenTask, verifiers, verifyTasks, type DraftTask } from '../src/ai/verify'
 import type { Env } from '../src/env'
 import { createThinkFilter, extractDelta, parseJsonLoose, readSse } from '../src/ai/sse'
 import { localHour, reminderText } from '../src/cron'
@@ -190,23 +190,81 @@ describe('перепроверка сгенерированных заданий
     const env = { AI: { run: async () => ({ response: 'не JSON' }) }, AI_PROVIDERS: 'workers-ai' } as unknown as Env
     expect(await verifyTasks(env, [good], 'Математика')).toBeNull()
   })
+
+  const gemini = { provider: 'gemini', model: 'gemini-3.5-flash-lite' }
+  const qwen = { provider: 'workers-ai', model: '@cf/qwen/qwen3.8-27b' }
+
+  it('проверяет вторая модель пары: задания Gemini — Qwen, задания Qwen — Gemini', () => {
+    const env = { AI: { run: async () => ({}) }, GEMINI_API_KEY: 'k' } as unknown as Env
+    expect(verifiers(env, gemini)).toEqual([qwen, gemini])
+    expect(verifiers(env, qwen)).toEqual([gemini, qwen])
+    // Без ключа Gemini вторую модель взять негде — задания заново решает та же Qwen.
+    expect(verifiers({ AI: { run: async () => ({}) } } as unknown as Env, qwen)).toEqual([qwen])
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('Qwen решает без рассуждений; если её лимит кончился — перепроверяет Gemini', async () => {
+    const qwenInputs: Record<string, unknown>[] = []
+    const ai = {
+      run: async (_model: string, inputs: Record<string, unknown>) => {
+        qwenInputs.push(inputs)
+        throw new Error('4006: you have used up your daily free allocation of 10,000 neurons')
+      },
+    }
+    const answer = { candidates: [{ content: { parts: [{ text: JSON.stringify({ answers: [5, 1] }) }] } }] }
+    vi.stubGlobal('fetch', async () => new Response(`data: ${JSON.stringify(answer)}\n\n`))
+    const env = { AI: ai, GEMINI_API_KEY: 'k' } as unknown as Env
+    const result = await verifyTasks(env, [wrongKey, good], 'Математика', gemini)
+    expect(qwenInputs[0].chat_template_kwargs).toEqual({ enable_thinking: false })
+    expect(result).toEqual({ ok: [false, true], model: 'gemini-3.5-flash-lite' })
+  })
 })
 
 describe('маршрутизация моделей', () => {
-  const env = { AI: { run: async () => ({}) }, GEMINI_API_KEY: 'k', AI_PROVIDERS: 'workers-ai,gemini', AI_VISION_PROVIDERS: 'gemini,workers-ai' } as unknown as Env
+  const ai = { run: async () => ({}) }
+  const photo = { image: { mime: 'image/png', data: 'x' } }
 
-  it('текст — сначала Workers AI, фото — сначала Gemini', () => {
-    expect(providerChain(env).map((p) => p.id)).toEqual(['workers-ai', 'gemini'])
-    expect(providerChain(env, { image: { mime: 'image/png', data: 'x' } }).map((p) => p.id)).toEqual(['gemini', 'workers-ai'])
+  it('две модели: Gemini 3.5 Flash-Lite, при отказе — Qwen 3.8; для текста и фото одинаково', () => {
+    const env = { AI: ai, GEMINI_API_KEY: 'k' } as unknown as Env
+    expect(providerChain(env).map((p) => p.id)).toEqual(['gemini', 'workers-ai'])
+    expect(providerChain(env, photo).map((p) => p.id)).toEqual(['gemini', 'workers-ai'])
+    expect(describeProviders(env)).toEqual([
+      { id: 'gemini', model: 'gemini-3.5-flash-lite' },
+      { id: 'workers-ai', model: '@cf/qwen/qwen3.8-27b' },
+    ])
   })
 
-  it('без отдельной цепочки фото идут по общей', () => {
+  it('без ключа Gemini отвечает только Qwen на Workers AI', () => {
+    const env = { AI: ai } as unknown as Env
+    expect(providerChain(env).map((p) => p.id)).toEqual(['workers-ai'])
+    expect(providerChain(env, photo).map((p) => p.id)).toEqual(['workers-ai'])
+  })
+
+  it('порядок можно задать вручную, для фото — отдельно', () => {
+    const env = { AI: ai, GEMINI_API_KEY: 'k', AI_PROVIDERS: 'workers-ai,gemini', AI_VISION_PROVIDERS: 'gemini,workers-ai' } as unknown as Env
+    expect(providerChain(env).map((p) => p.id)).toEqual(['workers-ai', 'gemini'])
+    expect(providerChain(env, photo).map((p) => p.id)).toEqual(['gemini', 'workers-ai'])
     const plain = { ...env, AI_VISION_PROVIDERS: undefined } as unknown as Env
-    expect(providerChain(plain, { image: { mime: 'image/png', data: 'x' } }).map((p) => p.id)).toEqual(['workers-ai', 'gemini'])
+    expect(providerChain(plain, photo).map((p) => p.id)).toEqual(['workers-ai', 'gemini'])
+  })
+
+  it('заглушка для разработки не портит порядок по умолчанию', () => {
+    expect(providerChain({ AI: ai, ALLOW_MOCK_AI: 'true' } as unknown as Env).map((p) => p.id)).toEqual(['workers-ai', 'mock'])
+    expect(DEFAULT_PROVIDERS).toEqual(['gemini', 'workers-ai'])
+  })
+
+  it('Qwen рассуждает при проверке решения, но не в JSON-ответах', async () => {
+    const seen: Record<string, unknown>[] = []
+    const env = { AI: { run: async (_m: string, inputs: Record<string, unknown>) => (seen.push(inputs), { response: 'ok' }) } } as unknown as Env
+    const base: ChatInput = { system: 's', messages: [{ role: 'user', content: 'u' }], maxTokens: 10, temperature: 0, reasoning: 'low' }
+    await openStream(env, base)
+    await openStream(env, { ...base, json: true })
+    expect(seen.map((i) => i.chat_template_kwargs)).toEqual([{ enable_thinking: true }, { enable_thinking: false }])
   })
 
   it('Gemini «думает» по минимуму, при проверке решения — немного', () => {
-    expect(geminiThinking('gemini-3.6-flash', { reasoning: 'none' })).toEqual({ thinkingLevel: 'minimal' })
+    expect(geminiThinking('gemini-3.5-flash-lite', { reasoning: 'none' })).toEqual({ thinkingLevel: 'minimal' })
     expect(geminiThinking('gemini-3.5-flash-lite', { reasoning: 'low' })).toEqual({ thinkingLevel: 'low' })
     expect(geminiThinking('gemini-2.5-flash', {})).toEqual({ thinkingBudget: 0 })
     expect(geminiThinking('some-other-model', {})).toBeNull()
@@ -219,7 +277,7 @@ describe('статистика маршрута ИИ', () => {
   })
 
   it('отмечает отказ Gemini по региону и исчерпанную квоту', () => {
-    const skipped = ['gemini/gemini-3.6-flash: Gemini 400: {"error":{"message":"User location is not supported for the API use."}}', 'gemini/gemini-3.5-flash-lite: Gemini 429: {"error":{"code":429}}']
+    const skipped = ['gemini/gemini-3.5-flash-lite: Gemini 400: {"error":{"message":"User location is not supported for the API use."}}', 'gemini/gemini-3.5-flash-lite: Gemini 429: {"error":{"code":429}}']
     expect(routeEvents({ image: true, provider: 'workers-ai', skipped, country: 'BY', colo: 'MSQ' })).toEqual([
       'route:photo:workers-ai:BY/MSQ',
       'gemini:region-refused:BY/MSQ',
@@ -267,7 +325,7 @@ describe('смена модели на ходу: контекст разгово
     })
     const calls: { model: string; messages: { role: string; content: string }[] }[] = []
     const ai = { run: async (model: string, inputs: { messages: { role: string; content: string }[] }) => (calls.push({ model, messages: inputs.messages }), stream(['Давай через дискриминант: ', 'D = 1.'])) }
-    const env = { GEMINI_API_KEY: 'k', GEMINI_MODEL: 'gemini-3.6-flash', AI: ai, AI_PROVIDERS: 'gemini,workers-ai', WORKERS_AI_MODELS: 'q' } as unknown as Env
+    const env = { GEMINI_API_KEY: 'k', AI: ai, WORKERS_AI_MODELS: 'q' } as unknown as Env
 
     const parts = await collect(streamWithFailover(env, input))
     expect(parts.filter((p) => p.type === 'delta').map((p) => (p as { text: string }).text).join('')).toBe('Давай через дискриминант: D = 1.')

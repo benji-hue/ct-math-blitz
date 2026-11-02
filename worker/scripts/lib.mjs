@@ -36,23 +36,21 @@ export function signInitData(fields, botToken) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
+ * Порядок провайдеров по ключам из секретов репозитория. Моделей две: Gemini 3.5
+ * Flash-Lite — основная (если есть ключ), Qwen 3.8 на Workers AI — запасная; свой
+ * OpenAI-совместимый API, если задан, — в самом конце. Для текста и фото одинаково.
+ * Переменные репозитория AI_PROVIDERS / AI_VISION_PROVIDERS задают порядок вручную.
+ * Пустая строка — оставить как в wrangler.jsonc.
+ */
+export function providerOrder({ hasGemini = false, hasOpenai = false, text = '', vision = '' } = {}) {
+  const auto = hasGemini || hasOpenai ? [hasGemini && 'gemini', 'workers-ai', hasOpenai && 'openai'].filter(Boolean).join(',') : ''
+  return { text: text || auto, vision: vision || auto }
+}
+
+/**
  * Подставляет данные деплоя в wrangler.jsonc. Меняется только рабочая копия
  * в CI — в git это не попадает, а комментарии и форматирование сохраняются.
  */
-/**
- * Порядок провайдеров по ключам из секретов репозитория — по итогам пробного варианта:
- * текст первой отвечает Qwen на Workers AI (быстро, без квот на минуту), внешние модели —
- * запасные; фото первой проверяет Gemini (быстрее и точнее на рукописных решениях).
- * Переменные репозитория AI_PROVIDERS / AI_VISION_PROVIDERS задают порядок вручную.
- */
-export function providerOrder({ hasGemini = false, hasOpenai = false, text = '', vision = '' } = {}) {
-  const external = [hasOpenai && 'openai', hasGemini && 'gemini'].filter(Boolean)
-  return {
-    text: text || (external.length ? ['workers-ai', ...external].join(',') : ''),
-    vision: vision || (hasGemini ? ['gemini', 'workers-ai', ...(hasOpenai ? ['openai'] : [])].join(',') : ''),
-  }
-}
-
 export function rewriteWranglerConfig(text, { databaseId, appUrl, allowedOrigins = '', allowAnonymous = false, aiProviders = '', aiVisionProviders = '' }) {
   if (!UUID.test(databaseId)) throw new Error(`database_id должен быть UUID, получено: ${databaseId}`)
   if (!/^https:\/\/[a-z0-9.-]+$/i.test(appUrl)) throw new Error(`Некорректный адрес приложения: ${appUrl}`)

@@ -6,7 +6,7 @@ name: Deploy to Cloudflare
 #   CLOUDFLARE_API_TOKEN   — токен Cloudflare: шаблон «Edit Cloudflare Workers» + Account → D1 → Edit
 #   BOT_TOKEN              — токен бота из @BotFather (/mybots → бот → API Token)
 #   CLOUDFLARE_ACCOUNT_ID  — по желанию; без него берётся единственный аккаунт токена
-#   GEMINI_API_KEY         — по желанию: Gemini проверяет фото решений и подстраховывает текст
+#   GEMINI_API_KEY         — по желанию: Gemini 3.5 Flash-Lite становится основной моделью (Qwen — запасной)
 #   OPENAI_API_KEY         — по желанию: любой OpenAI-совместимый API (адрес и модель — в wrangler.jsonc)
 #
 # Что делает: создаёт базу D1 и поддомен workers.dev (если их нет), применяет
@@ -36,10 +36,6 @@ on:
         description: 'Сценарии пробного варианта через запятую, например generate,check:photo (пусто — все)'
         type: string
         default: ''
-      probe_models:
-        description: 'В отчёте eval: проверить, у каких моделей Gemini сейчас есть бесплатная квота'
-        type: boolean
-        default: false
       e2e:
         description: 'После деплоя пройти путь ученика в настоящем браузере (скриншоты)'
         type: boolean
@@ -162,7 +158,6 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           MODELS: ${{ inputs.eval_models }}
           SCENARIOS: ${{ inputs.eval_scenarios }}
-          PROBE: ${{ inputs.probe_models && '1' || '' }}
           EVAL_IMAGE: ${{ runner.temp }}/solution.png
           EVAL_OUT: ${{ runner.temp }}/eval
 

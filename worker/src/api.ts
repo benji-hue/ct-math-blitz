@@ -258,8 +258,9 @@ async function generate(req: Request, env: Env, caller: Caller): Promise<Respons
         maxTokens: 3000,
         temperature: 0.8,
         json: true,
-        // С рассуждениями Qwen 3.8 тратил весь лимит токенов на «мысли» и возвращал пустой ответ.
-        reasoning: 'none',
+        // Gemini составляет задания с короткими рассуждениями — так ключи точнее. Qwen
+        // в JSON-ответах рассуждает без них: иначе тратит весь лимит и отвечает пустотой.
+        reasoning: 'low',
       },
       undefined,
       force,
@@ -267,10 +268,10 @@ async function generate(req: Request, env: Env, caller: Caller): Promise<Respons
     const data = parseJsonLoose(text) as { tasks?: unknown }
     if (!Array.isArray(data.tasks)) return json({ error: 'ИИ вернул задания в неверном формате', ...(caller.eval ? { raw: text.slice(0, 3000), provider, model } : {}) }, 502)
 
-    // Ученику отдаём только задания, ключ которых независимо подтвердила другая модель.
+    // Ученику отдаём только задания, ключ которых независимо подтвердила вторая модель пары.
     const drafts = data.tasks.slice(0, count)
     const screened = drafts.map(screenTask).filter((t): t is NonNullable<typeof t> => t !== null)
-    const verdict = screened.length ? await verifyTasks(env, screened, subjectTitle) : null
+    const verdict = screened.length ? await verifyTasks(env, screened, subjectTitle, { provider, model }) : null
     const tasks = verdict ? screened.filter((_, i) => verdict.ok[i]) : []
     const audit = caller.eval ? { skipped, drafts: drafts.length, screened: screened.length, verifier: verdict?.model ?? null, rejected: drafts.filter((d) => !tasks.includes(d as never)) } : {}
     if (!screened.length) return json({ error: 'ИИ составил задания с ошибками. Попробуйте ещё раз.', ...audit }, 502)
@@ -370,18 +371,6 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, p
 
   const caller = await identify(req, env)
   if (path === '/api/ai/status' && req.method === 'GET') return status(env, caller instanceof Response ? null : caller)
-  if (path === '/api/admin/gemini-models' && req.method === 'GET') {
-    if (caller instanceof Response || !caller.eval) return fail(403, 'Нет доступа')
-    if (!env.GEMINI_API_KEY) return json({ models: [] })
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000', { headers: { 'x-goog-api-key': env.GEMINI_API_KEY } })
-    const data = (await res.json().catch(() => ({}))) as { models?: { name?: string; displayName?: string; inputTokenLimit?: number; outputTokenLimit?: number; supportedGenerationMethods?: string[] }[] }
-    if (!res.ok) return json({ error: `Google ответил HTTP ${res.status}`, detail: JSON.stringify(data).slice(0, 500) }, 502)
-    return json({
-      models: (data.models ?? [])
-        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
-        .map((m) => ({ id: String(m.name).replace(/^models\//, ''), name: m.displayName, input: m.inputTokenLimit, output: m.outputTokenLimit })),
-    })
-  }
   if (path === '/api/admin/stats' && req.method === 'GET') {
     if (caller instanceof Response || !caller.eval) return fail(403, 'Нет доступа')
     if (!env.DB) return json({ events: [] })

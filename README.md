@@ -69,7 +69,7 @@ npm run build:pwa    # продакшен-сборка с офлайн-кэше�
 
 ```bash
 npm run worker:install
-npm run worker:test  # 51 тест: подпись Telegram, SSE, промпты, цепочка моделей, скрипты деплоя
+npm run worker:test  # 56 тестов: подпись Telegram, SSE, промпты, цепочка моделей, скрипты деплоя
 npm run worker:dev   # локально с заглушкой ИИ (см. worker/.dev.vars.example)
 npm run worker:deploy
 ```
@@ -81,9 +81,10 @@ npm run worker:deploy
 
 - **Клиент:** React 19, TypeScript (strict), Vite 8, Tailwind CSS v4, motion,
   zustand, ts-fsrs, KaTeX (ленивая загрузка), шрифт Onest, Telegram Mini Apps API.
-- **Сервер:** Cloudflare Workers (статика + API + вебхук + cron), Workers AI
-  (Qwen 3.8 — текст и фото, gpt-oss-120b, Llama 4 Scout; перепроверка заданий второй моделью),
-  опционально Gemini и любой OpenAI-совместимый API, D1 (SQLite).
+- **Сервер:** Cloudflare Workers (статика + API + вебхук + cron), две модели ИИ:
+  Gemini 3.5 Flash-Lite — основная (при наличии ключа), Qwen 3.8 на Workers AI —
+  запасная; смена модели без потери контекста, перепроверка заданий второй моделью
+  пары; опционально любой OpenAI-совместимый API; D1 (SQLite).
 - **Качество:** vitest, oxlint, GitHub Actions (CI, деплой на Cloudflare,
   GitHub Pages, сборка iOS).
 

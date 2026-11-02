@@ -71,11 +71,12 @@ describe('wrangler.jsonc в CI', () => {
     expect(config.vars.AI_VISION_PROVIDERS).toBe('gemini,workers-ai')
   })
 
-  it('порядок моделей по ключам: текст — Workers AI, фото — Gemini', () => {
+  it('порядок моделей по ключам: Gemini основная, Qwen на Workers AI запасная', () => {
     expect(providerOrder()).toEqual({ text: '', vision: '' })
-    expect(providerOrder({ hasGemini: true })).toEqual({ text: 'workers-ai,gemini', vision: 'gemini,workers-ai' })
-    expect(providerOrder({ hasGemini: true, hasOpenai: true })).toEqual({ text: 'workers-ai,openai,gemini', vision: 'gemini,workers-ai,openai' })
-    expect(providerOrder({ hasGemini: true, text: 'gemini,workers-ai' }).text).toBe('gemini,workers-ai')
+    expect(providerOrder({ hasGemini: true })).toEqual({ text: 'gemini,workers-ai', vision: 'gemini,workers-ai' })
+    expect(providerOrder({ hasGemini: true, hasOpenai: true })).toEqual({ text: 'gemini,workers-ai,openai', vision: 'gemini,workers-ai,openai' })
+    expect(providerOrder({ hasOpenai: true })).toEqual({ text: 'workers-ai,openai', vision: 'workers-ai,openai' })
+    expect(providerOrder({ hasGemini: true, text: 'workers-ai,gemini' })).toEqual({ text: 'workers-ai,gemini', vision: 'gemini,workers-ai' })
   })
 
   it('по умолчанию анонимный доступ выключен', () => {

@@ -4,11 +4,11 @@ import { createThinkFilter, extractDelta, readSse } from './sse'
 /**
  * Провайдеры нейросетей с автоматическим переключением.
  *
- * Порядок задаёт AI_PROVIDERS. Если провайдер отказал ДО первого фрагмента
- * ответа (нет ключа, лимит, регион не поддерживается, модель снята), берём
- * следующий — ученик этого даже не заметит. По умолчанию работает
- * Cloudflare Workers AI: он не требует внешних ключей и не зависит от того,
- * в какой стране находится пользователь.
+ * Моделей две (docs/ВЫБОР-МОДЕЛИ.md): Gemini 3.5 Flash-Lite — основная, если есть
+ * ключ GEMINI_API_KEY; Qwen 3.8 на Cloudflare Workers AI — запасная. Qwen не требует
+ * внешних ключей и не зависит от страны ученика, поэтому отвечает, когда у Gemini
+ * кончилась квота, перегрузка или Google не обслуживает регион (Беларусь).
+ * Обе понимают фото решений. Порядок можно поменять переменной AI_PROVIDERS.
  */
 
 export interface ChatMessage {
@@ -50,12 +50,16 @@ export class ProviderError extends Error {
 }
 
 /**
- * Модели Workers AI, доступные на бесплатном тарифе, в порядке качества по итогам
- * пробного варианта (docs/ПРОБНЫЙ-ВАРИАНТ.md). Qwen 3.8 понимает и фото решений.
+ * Gemini 3.5 Flash-Lite: ответ за 1–3 с, хорошо читает фото, бесплатная квота заметно
+ * больше, чем у Gemini 3.6 Flash: та умнее, но в наших прогонах её дневная квота на
+ * бесплатном ключе кончалась примерно за 20 запросов.
+ * Qwen 3.8 — лучшая модель бесплатного тарифа Workers AI (текст и фото).
  */
-export const DEFAULT_WORKERS_MODELS = ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/meta/llama-4-scout-17b-16e-instruct']
-export const DEFAULT_VISION_MODELS = ['@cf/qwen/qwen3.8-27b', '@cf/meta/llama-4-scout-17b-16e-instruct']
-export const DEFAULT_GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash-lite']
+export const DEFAULT_GEMINI_MODELS = ['gemini-3.5-flash-lite']
+export const DEFAULT_WORKERS_MODELS = ['@cf/qwen/qwen3.8-27b']
+export const DEFAULT_VISION_MODELS = ['@cf/qwen/qwen3.8-27b']
+/** Порядок по умолчанию: Gemini, а без её ключа (или при отказе) — Workers AI. */
+export const DEFAULT_PROVIDERS = ['gemini', 'workers-ai']
 
 /** Запас токенов на скрытые рассуждения Gemini — сверх лимита на сам ответ. */
 const GEMINI_THINKING_ALLOWANCE = 2048
@@ -120,7 +124,9 @@ interface LooseAi {
 
 function modelOptions(model: string, input: ChatInput): Record<string, unknown> {
   if (model.includes('deepseek-v4')) return { reasoning_effort: input.reasoning ?? 'none' }
-  if (/qwen3|glm-|kimi/.test(model)) return { chat_template_kwargs: { enable_thinking: input.reasoning === 'low' } }
+  // В JSON-ответах (задания, их перепроверка) Qwen с рассуждениями тратил весь лимит
+  // токенов на «мысли» и возвращал пустой ответ — там она отвечает без них.
+  if (/qwen3|glm-|kimi/.test(model)) return { chat_template_kwargs: { enable_thinking: input.reasoning === 'low' && !input.json } }
   if (model.includes('gpt-oss')) return { reasoning_effort: 'low' }
   return {}
 }
@@ -242,19 +248,13 @@ const mock: Provider = {
 
 const PROVIDERS: Record<string, Provider> = { 'workers-ai': workersAi, gemini, openai: openaiCompatible, mock }
 
-/** Провайдеры, для которых на сервере есть всё нужное (ключи, привязка AI). */
-export function availableProviders(env: Env): string[] {
-  return Object.values(PROVIDERS)
-    .filter((p) => p.available(env))
-    .map((p) => p.id)
-}
-
 /**
- * Цепочка провайдеров. Для фото — своя (AI_VISION_PROVIDERS): по пробному варианту
- * Gemini проверяет фото быстрее и точнее, а текст быстрее отвечает Qwen на Workers AI.
+ * Цепочка провайдеров: только те, для которых есть ключ или привязка. Для фото
+ * можно задать отдельный порядок (AI_VISION_PROVIDERS), по умолчанию он общий.
  */
 export function providerChain(env: Env, input?: Pick<ChatInput, 'image'>): Provider[] {
-  const order = input?.image ? list(env.AI_VISION_PROVIDERS, list(env.AI_PROVIDERS, ['workers-ai'])) : list(env.AI_PROVIDERS, ['workers-ai'])
+  // Копия: list() может вернуть сам DEFAULT_PROVIDERS, а ниже в порядок дописывается заглушка.
+  const order = [...(input?.image ? list(env.AI_VISION_PROVIDERS, list(env.AI_PROVIDERS, DEFAULT_PROVIDERS)) : list(env.AI_PROVIDERS, DEFAULT_PROVIDERS))]
   if (env.ALLOW_MOCK_AI === 'true' && !order.includes('mock')) order.push('mock')
   return order.map((id) => PROVIDERS[id]).filter((p): p is Provider => Boolean(p) && p.available(env))
 }

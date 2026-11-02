@@ -33,14 +33,14 @@
   "triggers": { "crons": ["5 * * * *"] },
 
   "vars": {
-    "AI_PROVIDERS": "workers-ai",
-    // Для фото решений — своя цепочка: с ключом Gemini деплой ставит её первой.
-    "AI_VISION_PROVIDERS": "workers-ai",
-    // Порядок — по итогам пробного варианта (docs/ПРОБНЫЙ-ВАРИАНТ.md). DeepSeek V4 Flash на Workers AI
-    // доступен только на платном тарифе Workers Paid, Gemma 3 закрыта для аккаунта.
-    "WORKERS_AI_MODELS": "@cf/qwen/qwen3.8-27b,@cf/openai/gpt-oss-120b,@cf/meta/llama-4-scout-17b-16e-instruct",
-    "WORKERS_AI_VISION_MODELS": "@cf/qwen/qwen3.8-27b,@cf/meta/llama-4-scout-17b-16e-instruct",
-    "GEMINI_MODEL": "gemini-3.6-flash,gemini-3.5-flash-lite",
+    // Две модели (docs/ВЫБОР-МОДЕЛИ.md): Gemini 3.5 Flash-Lite — основная, если задан
+    // секрет GEMINI_API_KEY; Qwen 3.8 на Workers AI — запасная и единственная без ключа.
+    // Обе понимают фото решений. Порядок для фото можно задать отдельно.
+    "AI_PROVIDERS": "gemini,workers-ai",
+    "AI_VISION_PROVIDERS": "gemini,workers-ai",
+    "WORKERS_AI_MODELS": "@cf/qwen/qwen3.8-27b",
+    "WORKERS_AI_VISION_MODELS": "@cf/qwen/qwen3.8-27b",
+    "GEMINI_MODEL": "gemini-3.5-flash-lite",
     // Любой OpenAI-совместимый API (нужен секрет OPENAI_API_KEY), например
     // Groq: https://api.groq.com/openai/v1, DeepSeek: https://api.deepseek.com/v1.
     "OPENAI_BASE_URL": "",
