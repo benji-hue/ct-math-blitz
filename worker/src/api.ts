@@ -197,12 +197,14 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
           system,
           messages,
           image,
-          maxTokens: mode === 'plan' ? 1400 : 1000,
+          // Объяснение темы — пять частей с примером: на 1000 токенах ответ обрывался.
+          maxTokens: mode === 'plan' || mode === 'explain' ? 1600 : 1000,
           temperature: mode === 'calm' ? 0.7 : 0.4,
           // Скрытые рассуждения — только при проверке решения без эталона. В разборе ошибки
           // эталонное решение уже в промпте, а рассуждения задерживали первый токен до 70 с.
           // В служебной проверке уровень можно задать явно — для экспериментов.
-          reasoning: caller.eval && (body.reasoning === 'none' || body.reasoning === 'low') ? body.reasoning : mode === 'check' ? 'low' : 'none',
+          // Фото — без рассуждений: Qwen без них проверила фото за 8 с вместо 11–52 с и так же точно.
+          reasoning: caller.eval && (body.reasoning === 'none' || body.reasoning === 'low') ? body.reasoning : mode === 'check' && !image ? 'low' : 'none',
         },
         req.signal,
         force,
