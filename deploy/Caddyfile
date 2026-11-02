@@ -1,0 +1,13 @@
+# HTTPS для «Крока»: Caddy сам получает и продлевает сертификат Let's Encrypt
+# для домена из KROK_DOMAIN (порты 80 и 443 должны быть открыты).
+{$KROK_DOMAIN} {
+	# Сжимаем только статику: поток ответа ИИ (SSE) должен идти без буферизации.
+	@static not path /api/* /bot/*
+	encode @static zstd gzip
+
+	request_body {
+		max_size 4MB
+	}
+
+	reverse_proxy app:8080
+}

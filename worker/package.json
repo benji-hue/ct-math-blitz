@@ -3,10 +3,12 @@
   "private": true,
   "version": "2.0.0",
   "type": "module",
-  "description": "Cloudflare Worker для мини-аппа «Крок»: раздача приложения, ИИ-прокси, Telegram-бот, напоминания.",
+  "description": "Сервер мини-аппа «Крок»: раздача приложения, ИИ-прокси, Telegram-бот, напоминания. Работает в Cloudflare Workers или на своём сервере (Node.js, Docker).",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "build:server": "esbuild node/server.mjs --bundle --platform=node --format=esm --target=node22 --outfile=dist-server/server.mjs --log-level=warning",
+    "start:server": "node --disable-warning=ExperimentalWarning dist-server/server.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:init": "wrangler d1 migrations apply krok --remote",
@@ -15,6 +17,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261101.1",
+    "esbuild": "0.28.2",
     "typescript": "^6.0.2",
     "vitest": "^5.0.5",
     "wrangler": "^4.156.0"

@@ -29,3 +29,7 @@ android/
 
 # Local build output
 build/
+
+# Сервер на Node.js: сборка и локальная база
+worker/dist-server/
+worker/data/

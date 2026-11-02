@@ -51,5 +51,7 @@ jobs:
       - run: npm ci
       - name: Типы
         run: npx tsc --noEmit
-      - name: Тесты (подпись Telegram, SSE, промпты, напоминания)
+      - name: Тесты (подпись Telegram, SSE, промпты, напоминания, свой сервер)
         run: npx vitest run
+      - name: Сборка сервера для своего хостинга
+        run: npm run build:server

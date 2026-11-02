@@ -48,6 +48,54 @@ export function providerOrder({ hasGemini = false, hasOpenai = false, text = '',
 }
 
 /**
+ * JSON с комментариями (wrangler.jsonc): убирает комментарии // и /* *\/ и висячие
+ * запятые — только вне строк, поэтому адреса вида "https://…" не ломаются.
+ */
+export function parseJsonc(text) {
+  let out = ''
+  let i = 0
+  const copyString = () => {
+    let j = i + 1
+    while (j < text.length && text[j] !== '"') j += text[j] === '\\' ? 2 : 1
+    out += text.slice(i, j + 1)
+    i = j + 1
+  }
+  while (i < text.length) {
+    const c = text[i]
+    if (c === '"') copyString()
+    else if (c === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++
+    } else if (c === '/' && text[i + 1] === '*') {
+      const end = text.indexOf('*/', i + 2)
+      if (end < 0) throw new Error('Незакрытый комментарий /* в JSONC')
+      i = end + 2
+    } else if (c === ',' && /^\s*[}\]]/.test(text.slice(i + 1).replace(/^\s*(\/\/[^\n]*\n\s*|\/\*[\s\S]*?\*\/\s*)*/, ''))) {
+      i++
+    } else {
+      out += c
+      i++
+    }
+  }
+  return JSON.parse(out)
+}
+
+/**
+ * Файл .env для своего сервера (deploy/compose.yml). Значения проверяются: перевод
+ * строки, кавычка или «$» сломали бы файл или подстановку переменных в Docker Compose.
+ */
+export function serverEnvFile(values) {
+  const lines = []
+  for (const [key, raw] of Object.entries(values)) {
+    if (raw === undefined || raw === null || raw === '') continue
+    const value = String(raw)
+    if (!/^[A-Z][A-Z0-9_]*$/.test(key)) throw new Error(`Недопустимое имя переменной: ${key}`)
+    if (/[\n\r"'$`\\]/.test(value)) throw new Error(`Недопустимые символы в значении ${key}`)
+    lines.push(`${key}=${value}`)
+  }
+  return `${lines.join('\n')}\n`
+}
+
+/**
  * Подставляет данные деплоя в wrangler.jsonc. Меняется только рабочая копия
  * в CI — в git это не попадает, а комментарии и форматирование сохраняются.
  */
@@ -114,20 +162,23 @@ const isNoSubdomain = (e) => e instanceof CloudflareError && (e.status === 404 |
  * Готовит аккаунт Cloudflare: находит аккаунт, создаёт базу D1 и поддомен
  * workers.dev, если их ещё нет. Повторный запуск ничего не ломает.
  */
-export async function prepareCloudflare(api, { accountId, workerName = 'krok', databaseName = 'krok', log = () => {} } = {}) {
-  let account = accountId?.trim()
-  if (!account) {
-    const accounts = await api.get('/accounts?per_page=50')
-    if (!accounts?.length) {
-      throw new Error('Токен не видит ни одного аккаунта Cloudflare. Добавьте токену право «Account Settings: Read» или задайте секрет CLOUDFLARE_ACCOUNT_ID.')
-    }
-    if (accounts.length > 1) {
-      // Имена аккаунтов не печатаем: в них часто email, а логи Actions у публичного репозитория видны всем.
-      throw new Error(`У токена ${accounts.length} аккаунта Cloudflare. Задайте секрет CLOUDFLARE_ACCOUNT_ID — ID виден в адресе панели: dash.cloudflare.com/<ID>/…`)
-    }
-    account = accounts[0].id
-    log('Аккаунт Cloudflare найден')
+/** ID аккаунта Cloudflare: заданный явно или единственный, который видит токен. */
+export async function findAccountId(api, accountId) {
+  if (accountId?.trim()) return accountId.trim()
+  const accounts = await api.get('/accounts?per_page=50')
+  if (!accounts?.length) {
+    throw new Error('Токен не видит ни одного аккаунта Cloudflare. Добавьте токену право «Account Settings: Read» или задайте секрет CLOUDFLARE_ACCOUNT_ID.')
   }
+  if (accounts.length > 1) {
+    // Имена аккаунтов не печатаем: в них часто email, а логи Actions у публичного репозитория видны всем.
+    throw new Error(`У токена ${accounts.length} аккаунта Cloudflare. Задайте секрет CLOUDFLARE_ACCOUNT_ID — ID виден в адресе панели: dash.cloudflare.com/<ID>/…`)
+  }
+  return accounts[0].id
+}
+
+export async function prepareCloudflare(api, { accountId, workerName = 'krok', databaseName = 'krok', log = () => {} } = {}) {
+  const account = await findAccountId(api, accountId)
+  if (!accountId?.trim()) log('Аккаунт Cloudflare найден')
 
   const found = await api.get(`/accounts/${account}/d1/database?name=${encodeURIComponent(databaseName)}`)
   let database = (found ?? []).find((d) => d.name === databaseName)

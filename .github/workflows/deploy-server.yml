@@ -1,0 +1,208 @@
+name: Deploy to own server
+
+# «Крок» на своём сервере вместо Cloudflare Workers. GitHub собирает Docker-образ, проверяет
+# его тут же (приложение, API, поток ответа ИИ), по SSH загружает на сервер вместе с
+# deploy/compose.yml и deploy/Caddyfile, перезапускает и переключает на сервер бота.
+# Пошагово — docs/ДЕПЛОЙ.md, раздел «Свой сервер».
+#
+# Секреты (Settings → Secrets and variables → Actions → Secrets):
+#   SERVER_HOST          — IP или имя сервера
+#   SERVER_USER          — пользователь SSH: root или пользователь из группы docker
+#   SERVER_SSH_KEY       — закрытый ключ; открытый лежит в ~/.ssh/authorized_keys на сервере
+#   SERVER_KNOWN_HOSTS   — вывод `ssh-keyscan <SERVER_HOST>`: защита от подмены сервера
+#   SERVER_PORT          — по желанию, если SSH не на 22-м порту
+#   BOT_TOKEN            — токен бота; GEMINI_API_KEY — по желанию
+#   CLOUDFLARE_AI_TOKEN  — по желанию: Qwen через Workers AI (токен с правом «Workers AI: Read»)
+# Переменная (вкладка Variables): KROK_DOMAIN — домен с записью A на IP сервера.
+#
+# Без секретов сервера запуск только собирает и проверяет образ.
+
+on:
+  workflow_dispatch:
+    inputs:
+      allow_anonymous:
+        description: 'Пускать к ИИ из обычного браузера (показ с ноутбука; лимиты для анонимов строже)'
+        type: boolean
+        default: false
+      switch_bot:
+        description: 'Переключить бота на сервер и выключить напоминания старого воркера Cloudflare'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-server
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      KROK_IMAGE: krok:${{ github.sha }}
+      KROK_DOMAIN: ${{ vars.KROK_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Сборка образа
+        run: docker build --build-arg VITE_BOT_USERNAME="${{ vars.VITE_BOT_USERNAME || 'PFPFISJFOIJBOT' }}" -t "$KROK_IMAGE" .
+
+      - name: Проверка образа
+        run: |
+          docker run -d --name krok-check -p 8080:8080 -e ALLOW_MOCK_AI=true -e ALLOW_ANONYMOUS=true "$KROK_IMAGE" >/dev/null
+          ok=0
+          node worker/scripts/container-check.mjs http://127.0.0.1:8080 || ok=1
+          if [ "$(docker exec krok-check id -u)" = "0" ]; then echo "✗ контейнер работает от root"; ok=1; else echo "✓ контейнер работает не от root"; fi
+          if docker exec krok-check test -f /data/krok.sqlite; then echo "✓ база создана в томе /data"; else echo "✗ база не создана в /data"; ok=1; fi
+          [ "$ok" = 0 ] || docker logs krok-check
+          docker rm -f krok-check >/dev/null
+          exit "$ok"
+
+      - name: Доступ к серверу
+        id: target
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          missing=""
+          for name in SERVER_HOST SERVER_USER SERVER_SSH_KEY SERVER_KNOWN_HOSTS BOT_TOKEN KROK_DOMAIN; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::notice title=Образ собран и проверен::На сервер не выкладывали — не хватает:$missing. Как их получить — docs/ДЕПЛОЙ.md, раздел «Свой сервер»."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: SSH
+        if: steps.target.outputs.ready == 'true'
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/krok
+          chmod 600 ~/.ssh/krok
+          printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          {
+            echo "Host krok"
+            echo "  HostName $SERVER_HOST"
+            echo "  User $SERVER_USER"
+            echo "  Port ${SERVER_PORT:-22}"
+            echo "  IdentityFile ~/.ssh/krok"
+            echo "  IdentitiesOnly yes"
+            echo "  StrictHostKeyChecking yes"
+            echo "  ServerAliveInterval 30"
+          } > ~/.ssh/config
+          if ! ssh krok true; then
+            echo "::error title=Нет доступа по SSH::Проверьте SERVER_HOST, SERVER_USER, SERVER_SSH_KEY и SERVER_KNOWN_HOSTS (вывод ssh-keyscan для того же адреса и порта)"
+            exit 1
+          fi
+          echo "SSH: подключение есть"
+
+      - name: Docker на сервере
+        if: steps.target.outputs.ready == 'true'
+        run: |
+          ssh krok 'bash -s' <<'EOF'
+          set -e
+          if ! (command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1); then
+            if [ "$(id -u)" != 0 ]; then
+              echo "::error title=На сервере нет Docker::Установите его один раз от root: curl -fsSL https://get.docker.com | sh — и добавьте пользователя в группу docker"
+              exit 1
+            fi
+            echo "Docker не найден — ставлю официальным скриптом get.docker.com"
+            curl -fsSL https://get.docker.com | sh
+          fi
+          docker --version
+          docker compose version
+          # Порты 80 и 443 нужны Caddy; на повторном деплое их держит он сам.
+          if command -v ss >/dev/null 2>&1 && [ -n "$(ss -H -ltn '( sport = :80 or sport = :443 )')" ]; then
+            if ! (cd ~/krok 2>/dev/null && [ -n "$(docker compose ps -q caddy 2>/dev/null)" ]); then
+              echo "::error title=Порты 80 и 443 заняты::На сервере уже работает другой веб-сервер (например, nginx). Освободите порты или настройте его проксировать домен на «Крок» — см. docs/ДЕПЛОЙ.md"
+              exit 1
+            fi
+          fi
+          EOF
+
+      - name: Загрузка образа на сервер
+        if: steps.target.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          ssh krok 'mkdir -p ~/krok'
+          scp -q deploy/compose.yml deploy/Caddyfile krok:krok/
+          docker save "$KROK_IMAGE" | gzip -1 | ssh krok 'gunzip | docker load'
+
+      - name: Запуск на сервере
+        if: steps.target.outputs.ready == 'true'
+        working-directory: worker
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CLOUDFLARE_AI_TOKEN: ${{ secrets.CLOUDFLARE_AI_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ALLOWED_ORIGINS: https://${{ github.repository_owner }}.github.io
+          ALLOW_ANONYMOUS: ${{ inputs.allow_anonymous }}
+          AI_PROVIDERS: ${{ vars.AI_PROVIDERS }}
+          AI_VISION_PROVIDERS: ${{ vars.AI_VISION_PROVIDERS }}
+        run: |
+          set -o pipefail
+          # Секреты уходят прямо на сервер (файл .env только для владельца) и в лог не попадают.
+          node scripts/server-env.mjs | ssh krok 'umask 077 && cat > krok/.env'
+          ssh krok 'cd krok && docker compose up -d --remove-orphans && docker compose ps'
+          # Старые версии образа не копятся: оставляем только текущую.
+          ssh krok "docker image ls krok --format '{{.Repository}}:{{.Tag}}' | grep -vx '$KROK_IMAGE' | xargs -r docker image rm >/dev/null 2>&1 || true"
+
+      - name: Ждём HTTPS
+        if: steps.target.outputs.ready == 'true'
+        run: |
+          # Первый запуск: Caddy получает сертификат Let's Encrypt — это до минуты-двух.
+          for i in $(seq 1 36); do
+            if curl -fsS --max-time 10 "https://$KROK_DOMAIN/api/health" >/dev/null 2>&1; then
+              echo "https://$KROK_DOMAIN отвечает"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error title=Сайт не открылся по HTTPS::Проверьте, что запись A домена $KROK_DOMAIN указывает на сервер, а порты 80 и 443 открыты в файрволе хостинга"
+          ssh krok 'cd krok && docker compose logs --tail=40 caddy app' || true
+          exit 1
+
+      - name: Бот — вебхук, кнопка меню, команды
+        if: steps.target.outputs.ready == 'true' && inputs.switch_bot
+        run: node scripts/setup-bot.mjs
+        working-directory: worker
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          APP_URL: https://${{ vars.KROK_DOMAIN }}
+          BOT_USERNAME: ${{ vars.VITE_BOT_USERNAME || 'PFPFISJFOIJBOT' }}
+
+      - name: Старый воркер Cloudflare — без напоминаний
+        if: steps.target.outputs.ready == 'true' && inputs.switch_bot
+        run: node scripts/cloudflare-retire.mjs
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Проверка после деплоя
+        if: steps.target.outputs.ready == 'true'
+        run: node scripts/smoke.mjs
+        working-directory: worker
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          APP_URL: https://${{ vars.KROK_DOMAIN }}

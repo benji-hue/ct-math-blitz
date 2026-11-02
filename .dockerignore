@@ -1,0 +1,11 @@
+.git
+.github
+**/node_modules
+dist
+worker/dist-server
+worker/data
+ios
+android
+build
+docs
+*.log
