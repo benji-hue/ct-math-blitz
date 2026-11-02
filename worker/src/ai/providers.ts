@@ -52,7 +52,7 @@ export class ProviderError extends Error {
 /** Актуальные модели каталога Workers AI (осень 2026): сильные в русском и математике. */
 export const DEFAULT_WORKERS_MODELS = ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/meta/llama-4-scout-17b-16e-instruct']
 export const DEFAULT_VISION_MODELS = ['@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/google/gemma-3-12b-it']
-export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite'
+export const DEFAULT_GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash-lite']
 
 type Opener = (env: Env, model: string, input: ChatInput, signal?: AbortSignal) => Promise<AsyncGenerator<string>>
 
@@ -144,7 +144,8 @@ const workersAi: Provider = {
 const gemini: Provider = {
   id: 'gemini',
   available: (env) => Boolean(env.GEMINI_API_KEY),
-  models: (env) => [env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL],
+  // Через запятую: если у первой модели кончилась бесплатная квота, берётся следующая.
+  models: (env) => list(env.GEMINI_MODEL, DEFAULT_GEMINI_MODELS),
   open: async (env, model, input, signal) => {
     const contents = input.messages.map((m, i) => {
       const parts: Record<string, unknown>[] = [{ text: m.content }]
@@ -175,7 +176,7 @@ const gemini: Provider = {
 const openaiCompatible: Provider = {
   id: 'openai',
   available: (env) => Boolean(env.OPENAI_API_KEY && env.OPENAI_BASE_URL && env.OPENAI_MODEL),
-  models: (env) => [env.OPENAI_MODEL ?? ''],
+  models: (env) => list(env.OPENAI_MODEL, []),
   open: async (env, model, input, signal) => {
     const res = await fetch(`${env.OPENAI_BASE_URL!.replace(/\/+$/, '')}/chat/completions`, {
       method: 'POST',

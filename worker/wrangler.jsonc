@@ -36,7 +36,11 @@
     "AI_PROVIDERS": "workers-ai",
     "WORKERS_AI_MODELS": "@cf/deepseek-ai/deepseek-v4-flash-0731,@cf/qwen/qwen3.8-27b,@cf/openai/gpt-oss-120b,@cf/meta/llama-4-scout-17b-16e-instruct",
     "WORKERS_AI_VISION_MODELS": "@cf/meta/llama-4-scout-17b-16e-instruct,@cf/google/gemma-3-12b-it",
-    "GEMINI_MODEL": "gemini-3.5-flash-lite",
+    "GEMINI_MODEL": "gemini-3.6-flash,gemini-3.5-flash-lite",
+    // Любой OpenAI-совместимый API (нужен секрет OPENAI_API_KEY), например
+    // Groq: https://api.groq.com/openai/v1, DeepSeek: https://api.deepseek.com/v1.
+    "OPENAI_BASE_URL": "",
+    "OPENAI_MODEL": "",
     "MINI_APP_URL": "",
     "ALLOWED_ORIGINS": "",
     "ALLOW_ANONYMOUS": "false",
