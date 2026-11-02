@@ -22,12 +22,24 @@ const secret = process.env.WEBHOOK_SECRET || webhookSecret(BOT_TOKEN)
 const app = APP_URL.replace(/\/+$/, '')
 const telegram = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org'
 
+/** Сетевые сбои между GitHub и Telegram бывают разовыми — повторяем до трёх раз. */
+async function post(method, body) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetch(`${telegram}/bot${BOT_TOKEN}/${method}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    } catch (e) {
+      if (attempt >= 3) throw new Error(`${method}: ${e.message} (после ${attempt} попыток)`)
+      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt))
+    }
+  }
+}
+
 async function call(method, body = {}) {
-  const res = await fetch(`${telegram}/bot${BOT_TOKEN}/${method}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  const res = await post(method, body)
   const data = await res.json().catch(() => ({}))
   if (!data.ok) throw new Error(`${method}: ${data.description ?? `HTTP ${res.status}`}`)
   console.log(`✓ ${method}`)
