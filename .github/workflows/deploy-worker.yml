@@ -32,6 +32,10 @@ on:
         description: 'Модели для пробного варианта через запятую: @cf/… , gemini:… , openai:… (пусто — как у учеников)'
         type: string
         default: ''
+      eval_scenarios:
+        description: 'Сценарии пробного варианта через запятую, например generate,check:photo (пусто — все)'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -147,6 +151,7 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           MODELS: ${{ inputs.eval_models }}
+          SCENARIOS: ${{ inputs.eval_scenarios }}
           EVAL_IMAGE: ${{ runner.temp }}/solution.png
           EVAL_OUT: ${{ runner.temp }}/eval
 
