@@ -208,6 +208,16 @@ describe('пробный вариант', () => {
     }
   })
 
+  it('сценарий «смена модели» проходит свои проверки на образцовом ответе и ловит ответ без контекста', () => {
+    const s = SCENARIOS.find((x) => x.id === 'continuity')
+    const ideal = 'Через дискриминант: $D = 7^2 - 4 \\cdot 12 = 49 - 48 = 1$, поэтому $x = (7 \\pm 1)/2$, корни 3 и 4.'
+    expect(s.checks.filter(([, test]) => !test(ideal))).toEqual([])
+    const amnesia = 'Конечно! Какое уравнение будем решать? Пришли уравнение, и я покажу, как работает дискриминант.'
+    expect(s.checks.filter(([, test]) => !test(amnesia)).length).toBeGreaterThanOrEqual(2)
+    expect(s.history[0].role).toBe('user')
+    expect(s.history.at(-1).role).toBe('assistant')
+  })
+
   it('id сценариев уникальны', () => {
     expect(new Set(SCENARIOS.map((s) => s.id)).size).toBe(SCENARIOS.length)
   })

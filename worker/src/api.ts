@@ -1,4 +1,4 @@
-import { describeProviders, openStream, complete, ProviderError, type ChatMessage, type ForcedModel } from './ai/providers'
+import { describeProviders, streamWithFailover, complete, ProviderError, type ChatMessage, type ForcedModel } from './ai/providers'
 import { buildAnalyzePrompt, buildGeneratePrompt, buildSystemPrompt, MODES, type Mode, type Reference, type TaskContext } from './ai/prompts'
 import { parseJsonLoose } from './ai/sse'
 import { screenTask, verifyTasks } from './ai/verify'
@@ -190,29 +190,36 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
   }
 
   const pump = async () => {
+    let route: { provider: string; skipped: string[] } | null = null
     try {
-      const stream = await openStream(
-        env,
-        {
-          system,
-          messages,
-          image,
-          // Объяснение темы — пять частей с примером: на 1000 токенах ответ обрывался.
-          maxTokens: mode === 'plan' || mode === 'explain' ? 1600 : 1000,
-          temperature: mode === 'calm' ? 0.7 : 0.4,
-          // Скрытые рассуждения — только при проверке решения без эталона. В разборе ошибки
-          // эталонное решение уже в промпте, а рассуждения задерживали первый токен до 70 с.
-          // В служебной проверке уровень можно задать явно — для экспериментов.
-          // Фото — без рассуждений: Qwen без них проверила фото за 8 с вместо 11–52 с и так же точно.
-          reasoning: caller.eval && (body.reasoning === 'none' || body.reasoning === 'low') ? body.reasoning : mode === 'check' && !image ? 'low' : 'none',
-        },
-        req.signal,
-        force,
-      )
-      await send({ type: 'meta', provider: stream.provider, model: stream.model, ...(caller.eval ? { skipped: stream.skipped } : {}) })
-      trackRoute(stream.provider, stream.skipped)
-      for await (const text of stream.chunks) await send({ type: 'delta', text })
+      const input = {
+        system,
+        messages,
+        image,
+        // Объяснение темы — пять частей с примером: на 1000 токенах ответ обрывался.
+        maxTokens: mode === 'plan' || mode === 'explain' ? 1600 : 1000,
+        temperature: mode === 'calm' ? 0.7 : 0.4,
+        // Скрытые рассуждения — только при проверке решения без эталона. В разборе ошибки
+        // эталонное решение уже в промпте, а рассуждения задерживали первый токен до 70 с.
+        // В служебной проверке уровень можно задать явно — для экспериментов.
+        // Фото — без рассуждений: Qwen без них проверила фото за 8 с вместо 11–52 с и так же точно.
+        reasoning: caller.eval && (body.reasoning === 'none' || body.reasoning === 'low') ? (body.reasoning as 'none' | 'low') : mode === 'check' && !image ? ('low' as const) : ('none' as const),
+      }
+      // История диалога и системный промпт одни и те же для любой модели: если ответ перешёл
+      // на запасную модель (кончился лимит, обрыв посреди ответа), она знает весь разговор.
+      for await (const part of streamWithFailover(env, input, req.signal, force)) {
+        if (part.type === 'meta') {
+          route = { provider: part.provider, skipped: part.skipped }
+          await send({ type: 'meta', provider: part.provider, model: part.model, ...(caller.eval ? { skipped: part.skipped } : {}) })
+        } else if (part.type === 'delta') {
+          await send({ type: 'delta', text: part.text })
+        } else {
+          await send({ type: 'reset', ...(caller.eval ? { reason: part.reason } : {}) })
+          ctx.waitUntil(track(env, `failover:${route?.provider ?? '?'}`).catch(() => {}))
+        }
+      }
       await send({ type: 'done' })
+      if (route) trackRoute(route.provider, route.skipped)
       ctx.waitUntil(track(env, `ai_${mode}`).catch(() => {}))
     } catch (e) {
       const message = e instanceof ProviderError && e.status === 503 ? 'Все модели ИИ сейчас недоступны. Попробуйте через минуту.' : 'Ответ прервался. Попробуйте ещё раз.'
@@ -363,6 +370,18 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, p
 
   const caller = await identify(req, env)
   if (path === '/api/ai/status' && req.method === 'GET') return status(env, caller instanceof Response ? null : caller)
+  if (path === '/api/admin/gemini-models' && req.method === 'GET') {
+    if (caller instanceof Response || !caller.eval) return fail(403, 'Нет доступа')
+    if (!env.GEMINI_API_KEY) return json({ models: [] })
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000', { headers: { 'x-goog-api-key': env.GEMINI_API_KEY } })
+    const data = (await res.json().catch(() => ({}))) as { models?: { name?: string; displayName?: string; inputTokenLimit?: number; outputTokenLimit?: number; supportedGenerationMethods?: string[] }[] }
+    if (!res.ok) return json({ error: `Google ответил HTTP ${res.status}`, detail: JSON.stringify(data).slice(0, 500) }, 502)
+    return json({
+      models: (data.models ?? [])
+        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m) => ({ id: String(m.name).replace(/^models\//, ''), name: m.displayName, input: m.inputTokenLimit, output: m.outputTokenLimit })),
+    })
+  }
   if (path === '/api/admin/stats' && req.method === 'GET') {
     if (caller instanceof Response || !caller.eval) return fail(403, 'Нет доступа')
     if (!env.DB) return json({ events: [] })

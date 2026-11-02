@@ -8,7 +8,7 @@ import { buildIndex, referencesFor, search, stem } from '../lib/retrieval'
 import { gradeFromAnswer, review } from '../lib/srs'
 import { applyAttempt, EMPTY_PROGRESS, updateMastery, updateStreak, type Attempt } from '../lib/store'
 import { normalizeMath, parseBlocks } from '../ui/Rich'
-import { modelLabel } from '../lib/ai'
+import { modelLabel, reduceStream } from '../lib/ai'
 
 const task = (id: string, topic: string, extra: Partial<Task> = {}): Task => ({
   id,
@@ -276,5 +276,23 @@ describe('подпись модели под ответом', () => {
     expect(modelLabel('@cf/openai/gpt-oss-120b', 'workers-ai')).toBe('GPT-OSS 120B')
     expect(modelLabel('@cf/meta/llama-4-scout-17b-16e-instruct', 'workers-ai')).toBe('Llama 4 Scout')
     expect(modelLabel(undefined, 'workers-ai')).toBe('workers-ai')
+  })
+})
+
+describe('поток ответа ИИ', () => {
+  it('reset стирает недописанный текст — дальше пишет запасная модель', () => {
+    let acc = ''
+    for (const ev of [
+      { type: 'meta', provider: 'gemini', model: 'gemini-3.6-flash' },
+      { type: 'delta', text: 'Решим уравнение. Сначала ' },
+      { type: 'reset' },
+      { type: 'meta', provider: 'workers-ai', model: '@cf/qwen/qwen3.8-27b' },
+      { type: 'delta', text: 'Давай разберём ' },
+      { type: 'delta', text: 'по шагам.' },
+      { type: 'done' },
+    ] as const) {
+      acc = reduceStream(acc, ev)
+    }
+    expect(acc).toBe('Давай разберём по шагам.')
   })
 })

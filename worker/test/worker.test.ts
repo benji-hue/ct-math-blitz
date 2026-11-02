@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { routeEvents } from '../src/api'
 import { buildSystemPrompt, buildGeneratePrompt } from '../src/ai/prompts'
-import { geminiThinking, openStream, providerChain, type ChatInput } from '../src/ai/providers'
+import { complete, geminiThinking, openStream, providerChain, streamWithFailover, type ChatInput, type StreamPart } from '../src/ai/providers'
 import { asNumber, sameAnswer, screenTask, verifyTasks, type DraftTask } from '../src/ai/verify'
 import type { Env } from '../src/env'
 import { createThinkFilter, extractDelta, parseJsonLoose, readSse } from '../src/ai/sse'
@@ -226,5 +226,85 @@ describe('статистика маршрута ИИ', () => {
       'gemini:quota:BY/MSQ',
     ])
     expect(routeEvents({ image: false, provider: 'workers-ai', skipped: [] })).toEqual(['route:text:workers-ai:??/???'])
+  })
+})
+
+describe('смена модели на ходу: контекст разговора не теряется', () => {
+  const enc = new TextEncoder()
+  /** Поток Workers AI: отдаёт куски, а потом (если задано) обрывается — как при перегрузке посреди ответа. */
+  function stream(parts: string[], breakWith?: Error): ReadableStream<Uint8Array> {
+    let n = 0
+    return new ReadableStream({
+      pull(controller) {
+        if (n < parts.length) controller.enqueue(enc.encode(`data: ${JSON.stringify({ response: parts[n++] })}\n\n`))
+        else if (breakWith) controller.error(breakWith)
+        else {
+          controller.enqueue(enc.encode('data: [DONE]\n\n'))
+          controller.close()
+        }
+      },
+    })
+  }
+  const history: ChatInput['messages'] = [
+    { role: 'user', content: 'Объясни, как решить $x^2 - 7x + 12 = 0$' },
+    { role: 'assistant', content: 'Через теорему Виета: ищем два числа с суммой 7 и произведением 12.' },
+    { role: 'user', content: 'А можно через дискриминант? Покажи на том же уравнении.' },
+  ]
+  const input: ChatInput = { system: 'Ты — Крок, репетитор.', messages: history, maxTokens: 200, temperature: 0 }
+  const collect = async (gen: AsyncGenerator<StreamPart>) => {
+    const parts: StreamPart[] = []
+    for await (const p of gen) parts.push(p)
+    return parts
+  }
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('Gemini отказала (квота) — запасная модель получает тот же системный промпт и всю историю', async () => {
+    const seen: { url: string; contents: { role: string }[] }[] = []
+    vi.stubGlobal('fetch', async (url: string, init: { body: string }) => {
+      seen.push({ url, contents: JSON.parse(init.body).contents })
+      return new Response('{"error":{"code":429,"message":"You exceeded your current quota"}}', { status: 429 })
+    })
+    const calls: { model: string; messages: { role: string; content: string }[] }[] = []
+    const ai = { run: async (model: string, inputs: { messages: { role: string; content: string }[] }) => (calls.push({ model, messages: inputs.messages }), stream(['Давай через дискриминант: ', 'D = 1.'])) }
+    const env = { GEMINI_API_KEY: 'k', GEMINI_MODEL: 'gemini-3.6-flash', AI: ai, AI_PROVIDERS: 'gemini,workers-ai', WORKERS_AI_MODELS: 'q' } as unknown as Env
+
+    const parts = await collect(streamWithFailover(env, input))
+    expect(parts.filter((p) => p.type === 'delta').map((p) => (p as { text: string }).text).join('')).toBe('Давай через дискриминант: D = 1.')
+    expect(seen[0].contents).toHaveLength(3) // Gemini получила все три реплики…
+    expect(calls[0].messages[0]).toEqual({ role: 'system', content: input.system })
+    expect(calls[0].messages.slice(1)).toEqual(history) // …и запасная модель — те же три
+  })
+
+  it('обрыв посреди ответа: reset и новая модель с самого начала, история та же', async () => {
+    const calls: { model: string; messages: unknown }[] = []
+    const ai = {
+      run: async (model: string, inputs: { messages: unknown }) => {
+        calls.push({ model, messages: inputs.messages })
+        return model === 'a' ? stream(['Решим уравнение. Сначала '], new Error('model overloaded')) : stream(['Через дискриминант: ', 'D = 1, корни 3 и 4.'])
+      },
+    }
+    const env = { AI: ai, AI_PROVIDERS: 'workers-ai', WORKERS_AI_MODELS: 'a,b' } as unknown as Env
+    const parts = await collect(streamWithFailover(env, input))
+    expect(parts.map((p) => p.type)).toEqual(['meta', 'delta', 'reset', 'meta', 'delta', 'delta'])
+    expect((parts[3] as { model: string }).model).toBe('b')
+    expect(calls.map((c) => c.model)).toEqual(['a', 'b'])
+    expect(calls[1].messages).toEqual(calls[0].messages)
+  })
+
+  it('complete() возвращает только ответ последней модели, без обрывка первой', async () => {
+    const ai = { run: async (model: string) => (model === 'a' ? stream(['обрывок '], new Error('boom')) : stream(['полный ', 'ответ'])) }
+    const env = { AI: ai, AI_PROVIDERS: 'workers-ai', WORKERS_AI_MODELS: 'a,b' } as unknown as Env
+    const result = await complete(env, input)
+    expect(result).toMatchObject({ text: 'полный ответ', model: 'b' })
+  })
+
+  it('заменить некем — пробрасывается исходная ошибка; в служебной проверке модель не меняется', async () => {
+    const ai = { run: async () => stream(['начало '], new Error('model overloaded')) }
+    const one = { AI: ai, AI_PROVIDERS: 'workers-ai', WORKERS_AI_MODELS: 'a' } as unknown as Env
+    await expect(collect(streamWithFailover(one, input))).rejects.toThrow('model overloaded')
+    const two = { AI: ai, AI_PROVIDERS: 'workers-ai', WORKERS_AI_MODELS: 'a,b' } as unknown as Env
+    const forced = await collect(streamWithFailover(two, input, undefined, { provider: 'workers-ai', model: 'a' })).catch((e) => e)
+    expect(forced).toBeInstanceOf(Error)
   })
 })

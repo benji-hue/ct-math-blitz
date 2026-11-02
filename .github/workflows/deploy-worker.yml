@@ -36,6 +36,10 @@ on:
         description: 'Сценарии пробного варианта через запятую, например generate,check:photo (пусто — все)'
         type: string
         default: ''
+      probe_models:
+        description: 'В отчёте eval: проверить, у каких моделей Gemini сейчас есть бесплатная квота'
+        type: boolean
+        default: false
       e2e:
         description: 'После деплоя пройти путь ученика в настоящем браузере (скриншоты)'
         type: boolean
@@ -158,6 +162,7 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           MODELS: ${{ inputs.eval_models }}
           SCENARIOS: ${{ inputs.eval_scenarios }}
+          PROBE: ${{ inputs.probe_models && '1' || '' }}
           EVAL_IMAGE: ${{ runner.temp }}/solution.png
           EVAL_OUT: ${{ runner.temp }}/eval
 

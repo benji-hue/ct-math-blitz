@@ -267,7 +267,7 @@ export function describeProviders(env: Env): { id: string; model: string }[] {
  * Открывает поток у первого провайдера, который реально начал отвечать.
  * Ошибки до первого фрагмента — повод попробовать следующую модель.
  */
-export async function openStream(env: Env, input: ChatInput, signal?: AbortSignal, force?: ForcedModel): Promise<OpenedStream> {
+export async function openStream(env: Env, input: ChatInput, signal?: AbortSignal, force?: ForcedModel, exclude: ReadonlySet<string> = new Set()): Promise<OpenedStream> {
   const errors: string[] = []
   let chain = providerChain(env, input)
   if (force) {
@@ -277,7 +277,7 @@ export async function openStream(env: Env, input: ChatInput, signal?: AbortSigna
   }
   for (const provider of chain) {
     for (const model of force ? [force.model] : provider.models(env, input)) {
-      if (!model) continue
+      if (!model || exclude.has(`${provider.id}/${model}`)) continue
       try {
         const chunks = await provider.open(env, model, input, signal)
         const first = await chunks.next()
@@ -303,14 +303,67 @@ export async function openStream(env: Env, input: ChatInput, signal?: AbortSigna
   throw new ProviderError(errors.length ? `Все модели недоступны: ${errors.join(' | ')}` : 'Не настроен ни один провайдер ИИ', 503)
 }
 
+export type StreamPart =
+  | { type: 'meta'; provider: string; model: string; skipped: string[] }
+  | { type: 'delta'; text: string }
+  /** Модель оборвалась посреди ответа: недописанный текст надо стереть, дальше отвечает другая. */
+  | { type: 'reset'; reason: string }
+
+/** Сколько раз за один ответ можно сменить модель, если она оборвалась уже после первого фрагмента. */
+const MAX_SWITCHES = 3
+
+/**
+ * Потоковый ответ с запасным вариантом «на лету».
+ *
+ * openStream переключается на следующую модель, если та отказала ДО первого фрагмента
+ * (квота, регион, 503). Но бывает и хуже: Gemini начинает отвечать и обрывается
+ * посреди ответа («высокая нагрузка»). Тогда берём следующую модель с самого начала —
+ * ей уходит тот же системный промпт и та же история диалога, поэтому контекст не
+ * теряется, — а клиент получает reset и стирает недописанный текст.
+ * Если замены нет, пробрасываем исходную ошибку.
+ */
+export async function* streamWithFailover(env: Env, input: ChatInput, signal?: AbortSignal, force?: ForcedModel): AsyncGenerator<StreamPart> {
+  const failed = new Set<string>()
+  let stream = await openStream(env, input, signal, force, failed)
+  for (let switches = 0; ; switches++) {
+    yield { type: 'meta', provider: stream.provider, model: stream.model, skipped: stream.skipped }
+    try {
+      for await (const text of stream.chunks) yield { type: 'delta', text }
+      return
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') throw e
+      const name = `${stream.provider}/${stream.model}`
+      failed.add(name)
+      if (force || switches >= MAX_SWITCHES) throw e
+      try {
+        stream = await openStream(env, input, signal, undefined, failed)
+      } catch {
+        throw e
+      }
+      yield { type: 'reset', reason: `${name}: ${(e as Error).message}`.slice(0, 400) }
+    }
+  }
+}
+
+/** Ответ целиком (задания, разбор прогресса, проверка ключей): с тем же переключением «на лету». */
 export async function complete(
   env: Env,
   input: ChatInput,
   signal?: AbortSignal,
   force?: ForcedModel,
 ): Promise<{ text: string; provider: string; model: string; skipped: string[] }> {
-  const stream = await openStream(env, input, signal, force)
   let text = ''
-  for await (const chunk of stream.chunks) text += chunk
-  return { text, provider: stream.provider, model: stream.model, skipped: stream.skipped }
+  let provider = ''
+  let model = ''
+  let skipped: string[] = []
+  for await (const part of streamWithFailover(env, input, signal, force)) {
+    if (part.type === 'meta') {
+      provider = part.provider
+      model = part.model
+      skipped = part.skipped
+      text = ''
+    } else if (part.type === 'delta') text += part.text
+    else text = ''
+  }
+  return { text, provider, model, skipped }
 }

@@ -21,7 +21,7 @@ import {
 import { topicById, useSubject, loadSubject } from '../content'
 import { SUBJECT_LIST, SUBJECTS } from '../domain/subjects'
 import type { SubjectId } from '../domain/types'
-import { AiError, compressImage, isAiUnavailable, modelLabel, streamChat, type ChatTurn, type TaskContext } from '../lib/ai'
+import { AiError, compressImage, isAiUnavailable, modelLabel, reduceStream, streamChat, type ChatTurn, type TaskContext } from '../lib/ai'
 import { demoAnswer } from '../lib/demoAi'
 import { referencesFor } from '../lib/retrieval'
 import { useStore, type AiMode, type ChatMessage } from '../lib/store'
@@ -144,10 +144,10 @@ export default function TutorScreen() {
           controller.signal,
         )
         for await (const ev of stream) {
-          if (ev.type === 'delta') {
-            acc += ev.text
+          if (ev.type === 'delta' || ev.type === 'reset') {
+            acc = reduceStream(acc, ev)
             const t = performance.now()
-            if (t - lastPaint > 40) {
+            if (ev.type === 'reset' || t - lastPaint > 40) {
               lastPaint = t
               patchMessage(id, { content: acc })
             }

@@ -39,8 +39,17 @@ export interface ChatRequest {
 export type StreamEvent =
   | { type: 'delta'; text: string }
   | { type: 'meta'; provider: string; model: string }
+  /** Модель оборвалась посреди ответа: недописанный текст стираем, дальше пишет запасная. */
+  | { type: 'reset' }
   | { type: 'done' }
   | { type: 'error'; message: string }
+
+/** Накопленный текст ответа после очередного события потока. */
+export function reduceStream(acc: string, ev: StreamEvent): string {
+  if (ev.type === 'delta') return acc + ev.text
+  if (ev.type === 'reset') return ''
+  return acc
+}
 
 export class AiError extends Error {
   status: number
