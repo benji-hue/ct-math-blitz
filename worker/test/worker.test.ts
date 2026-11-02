@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { routeEvents } from '../src/api'
 import { buildSystemPrompt, buildGeneratePrompt } from '../src/ai/prompts'
 import { geminiThinking, openStream, providerChain, type ChatInput } from '../src/ai/providers'
 import { asNumber, sameAnswer, screenTask, verifyTasks, type DraftTask } from '../src/ai/verify'
@@ -209,5 +210,21 @@ describe('маршрутизация моделей', () => {
     expect(geminiThinking('gemini-3.5-flash-lite', { reasoning: 'low' })).toEqual({ thinkingLevel: 'low' })
     expect(geminiThinking('gemini-2.5-flash', {})).toEqual({ thinkingBudget: 0 })
     expect(geminiThinking('some-other-model', {})).toBeNull()
+  })
+})
+
+describe('статистика маршрута ИИ', () => {
+  it('страна, дата-центр и модель — без идентификаторов', () => {
+    expect(routeEvents({ image: true, provider: 'gemini', skipped: [], country: 'US', colo: 'IAD' })).toEqual(['route:photo:gemini:US/IAD'])
+  })
+
+  it('отмечает отказ Gemini по региону и исчерпанную квоту', () => {
+    const skipped = ['gemini/gemini-3.6-flash: Gemini 400: {"error":{"message":"User location is not supported for the API use."}}', 'gemini/gemini-3.5-flash-lite: Gemini 429: {"error":{"code":429}}']
+    expect(routeEvents({ image: true, provider: 'workers-ai', skipped, country: 'BY', colo: 'MSQ' })).toEqual([
+      'route:photo:workers-ai:BY/MSQ',
+      'gemini:region-refused:BY/MSQ',
+      'gemini:quota:BY/MSQ',
+    ])
+    expect(routeEvents({ image: false, provider: 'workers-ai', skipped: [] })).toEqual(['route:text:workers-ai:??/???'])
   })
 })

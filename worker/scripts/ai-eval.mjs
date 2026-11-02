@@ -71,7 +71,9 @@ async function runChat(scenario, model) {
     task: scenario.task,
     refs: scenario.refs,
     ...(scenario.image ? { image: { mime: 'image/png', data: image } } : {}),
-    ...(model ? { model } : {}),
+    // У сценария может быть своя модель и уровень рассуждений (эксперименты).
+    ...((scenario.model ?? model) ? { model: scenario.model ?? model } : {}),
+    ...(scenario.reasoning ? { reasoning: scenario.reasoning } : {}),
   }
   const started = Date.now()
   const controller = new AbortController()
@@ -253,6 +255,16 @@ for (const [model, list] of byModel) {
     if (run.checks.length) lines.push('', `**Автопроверки ${run.passed}/${run.total}:** ${run.checks.map(([name, ok]) => `${ok ? '✅' : '❌'} ${name}`).join('; ')}`)
     lines.push('', '<details open><summary>Ответ ИИ</summary>', '', '```text', run.text.trim().slice(0, 6000), '```', '', '</details>')
   }
+}
+
+// Обезличенная статистика маршрута ИИ за неделю (какая модель отвечала ученикам и откуда).
+try {
+  const res = await fetch(`${base}/api/admin/stats`, { headers: headers() })
+  const events = res.ok ? ((await res.json()).events ?? []).filter((e) => /^(route|gemini):/.test(e.name)) : []
+  lines.push('', '## Маршрут ИИ у учеников за неделю', '', events.length ? '| День | Событие | Сколько |\n| --- | --- | --- |' : '_Пока нет данных._')
+  for (const e of events) lines.push(`| ${e.day} | \`${e.name}\` | ${e.count} |`)
+} catch {
+  lines.push('', '_Статистику получить не удалось._')
 }
 
 const report = lines.join('\n')

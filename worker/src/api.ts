@@ -126,6 +126,20 @@ function sanitizeImage(raw: unknown): { mime: string; data: string } | undefined
   return { mime: img.mime, data: img.data }
 }
 
+/**
+ * Обезличенные счётчики маршрута ИИ: какая модель ответила, из какой страны пришёл
+ * запрос и через какой дата-центр Cloudflare. Нужны, чтобы видеть, доходят ли запросы
+ * учеников до Gemini (Google не обслуживает часть стран) и не кончаются ли квоты.
+ * Никаких идентификаторов — только код страны и код дата-центра.
+ */
+export function routeEvents(r: { image: boolean; provider: string; skipped: string[]; country?: string; colo?: string }): string[] {
+  const where = `${(r.country || '??').slice(0, 2)}/${(r.colo || '???').slice(0, 4)}`
+  const events = [`route:${r.image ? 'photo' : 'text'}:${r.provider}:${where}`]
+  if (r.skipped.some((s) => /location is not supported/i.test(s))) events.push(`gemini:region-refused:${where}`)
+  if (r.skipped.some((s) => s.startsWith('gemini') && /\b429\b/.test(s))) events.push(`gemini:quota:${where}`)
+  return events
+}
+
 /** Выбор конкретной модели — только в служебной проверке: «@cf/…», «gemini:…» или «openai:…». */
 function forcedModel(caller: Caller, raw: unknown): ForcedModel | undefined | Response {
   if (!caller.eval || typeof raw !== 'string' || !raw.trim()) return undefined
@@ -168,6 +182,13 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
   const encoder = new TextEncoder()
   const send = (event: Record<string, unknown>) => writer.write(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
 
+  const cf = (req as unknown as { cf?: { country?: string; colo?: string } }).cf
+  const trackRoute = (provider: string, skipped: string[]) => {
+    if (caller.eval) return
+    const names = routeEvents({ image: Boolean(image), provider, skipped, country: cf?.country, colo: cf?.colo })
+    ctx.waitUntil(Promise.all(names.map((name) => track(env, name))).catch(() => {}))
+  }
+
   const pump = async () => {
     try {
       const stream = await openStream(
@@ -180,18 +201,21 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
           temperature: mode === 'calm' ? 0.7 : 0.4,
           // Скрытые рассуждения — только при проверке решения без эталона. В разборе ошибки
           // эталонное решение уже в промпте, а рассуждения задерживали первый токен до 70 с.
-          reasoning: mode === 'check' ? 'low' : 'none',
+          // В служебной проверке уровень можно задать явно — для экспериментов.
+          reasoning: caller.eval && (body.reasoning === 'none' || body.reasoning === 'low') ? body.reasoning : mode === 'check' ? 'low' : 'none',
         },
         req.signal,
         force,
       )
       await send({ type: 'meta', provider: stream.provider, model: stream.model, ...(caller.eval ? { skipped: stream.skipped } : {}) })
+      trackRoute(stream.provider, stream.skipped)
       for await (const text of stream.chunks) await send({ type: 'delta', text })
       await send({ type: 'done' })
       ctx.waitUntil(track(env, `ai_${mode}`).catch(() => {}))
     } catch (e) {
       const message = e instanceof ProviderError && e.status === 503 ? 'Все модели ИИ сейчас недоступны. Попробуйте через минуту.' : 'Ответ прервался. Попробуйте ещё раз.'
       console.error('chat failed', (e as Error).message)
+      if (e instanceof ProviderError && e.status === 503) trackRoute('failed', [(e as Error).message])
       await send({ type: 'error', message, ...(caller.eval ? { detail: (e as Error).message.slice(0, 1500) } : {}) }).catch(() => {})
     } finally {
       await writer.close().catch(() => {})
@@ -337,6 +361,13 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, p
 
   const caller = await identify(req, env)
   if (path === '/api/ai/status' && req.method === 'GET') return status(env, caller instanceof Response ? null : caller)
+  if (path === '/api/admin/stats' && req.method === 'GET') {
+    if (caller instanceof Response || !caller.eval) return fail(403, 'Нет доступа')
+    if (!env.DB) return json({ events: [] })
+    const since = minskDay(Date.now() - 7 * 86_400_000)
+    const rows = await env.DB.prepare('SELECT day, name, count FROM events WHERE day >= ?1 ORDER BY day DESC, count DESC LIMIT 500').bind(since).all()
+    return json({ events: rows.results ?? [] })
+  }
   if (caller instanceof Response) return caller
   if (req.method !== 'POST') return fail(405, 'Метод не поддерживается')
 
