@@ -32,11 +32,20 @@ function toHex(buffer: ArrayBuffer): string {
 }
 
 /** Сравнение за постоянное время — не даём подобрать подпись по таймингу. */
-function safeEqual(a: string, b: string): boolean {
+export function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   let diff = 0
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
   return diff === 0
+}
+
+/**
+ * Производный секрет из токена бота: hex(HMAC_SHA256(key = токен, data = метка)).
+ * Так считаются секрет вебхука и ключ служебной проверки ИИ — отдельно их хранить
+ * не нужно, а без токена бота их не подобрать. Тот же расчёт — в scripts/lib.mjs.
+ */
+export async function deriveSecret(botToken: string, label: string): Promise<string> {
+  return toHex(await hmac(encoder.encode(botToken), label))
 }
 
 export async function validateInitData(initData: string, botToken: string, maxAgeSeconds = 86400, now = Date.now()): Promise<InitDataResult> {

@@ -31,6 +31,14 @@ export interface OpenedStream {
   provider: string
   model: string
   chunks: AsyncGenerator<string>
+  /** Модели, которые отказали до первого фрагмента, с причиной — для диагностики. */
+  skipped: string[]
+}
+
+/** Конкретная модель вместо цепочки (служебная проверка ИИ). */
+export interface ForcedModel {
+  provider: string
+  model: string
 }
 
 export class ProviderError extends Error {
@@ -219,10 +227,16 @@ export function describeProviders(env: Env): { id: string; model: string }[] {
  * Открывает поток у первого провайдера, который реально начал отвечать.
  * Ошибки до первого фрагмента — повод попробовать следующую модель.
  */
-export async function openStream(env: Env, input: ChatInput, signal?: AbortSignal): Promise<OpenedStream> {
+export async function openStream(env: Env, input: ChatInput, signal?: AbortSignal, force?: ForcedModel): Promise<OpenedStream> {
   const errors: string[] = []
-  for (const provider of providerChain(env)) {
-    for (const model of provider.models(env, input)) {
+  let chain = providerChain(env)
+  if (force) {
+    const provider = PROVIDERS[force.provider]
+    if (!provider || !provider.available(env)) throw new ProviderError(`Провайдер ${force.provider} не настроен на сервере`, 503)
+    chain = [provider]
+  }
+  for (const provider of chain) {
+    for (const model of force ? [force.model] : provider.models(env, input)) {
       if (!model) continue
       try {
         const chunks = await provider.open(env, model, input, signal)
@@ -234,6 +248,7 @@ export async function openStream(env: Env, input: ChatInput, signal?: AbortSigna
         return {
           provider: provider.id,
           model,
+          skipped: errors,
           chunks: (async function* () {
             yield first.value
             yield* chunks
@@ -248,9 +263,14 @@ export async function openStream(env: Env, input: ChatInput, signal?: AbortSigna
   throw new ProviderError(errors.length ? `Все модели недоступны: ${errors.join(' | ')}` : 'Не настроен ни один провайдер ИИ', 503)
 }
 
-export async function complete(env: Env, input: ChatInput, signal?: AbortSignal): Promise<{ text: string; provider: string; model: string }> {
-  const stream = await openStream(env, input, signal)
+export async function complete(
+  env: Env,
+  input: ChatInput,
+  signal?: AbortSignal,
+  force?: ForcedModel,
+): Promise<{ text: string; provider: string; model: string; skipped: string[] }> {
+  const stream = await openStream(env, input, signal, force)
   let text = ''
   for await (const chunk of stream.chunks) text += chunk
-  return { text, provider: stream.provider, model: stream.model }
+  return { text, provider: stream.provider, model: stream.model, skipped: stream.skipped }
 }

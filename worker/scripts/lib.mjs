@@ -13,6 +13,14 @@ export function webhookSecret(botToken) {
   return createHmac('sha256', botToken).update('krok-telegram-webhook').digest('hex')
 }
 
+/**
+ * Ключ служебной проверки ИИ (заголовок X-Krok-Eval): снимает дневные лимиты и
+ * разрешает выбрать модель. Считается так же, как deriveSecret в src/telegram.ts.
+ */
+export function evalKey(botToken) {
+  return createHmac('sha256', botToken).update('krok-eval').digest('hex')
+}
+
 /** Подпись initData — тот же алгоритм, что в worker/src/telegram.ts (для проверки после деплоя). */
 export function signInitData(fields, botToken) {
   const pairs = Object.entries(fields)
@@ -31,10 +39,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
  * Подставляет данные деплоя в wrangler.jsonc. Меняется только рабочая копия
  * в CI — в git это не попадает, а комментарии и форматирование сохраняются.
  */
-export function rewriteWranglerConfig(text, { databaseId, appUrl, allowedOrigins = '', allowAnonymous = false }) {
+export function rewriteWranglerConfig(text, { databaseId, appUrl, allowedOrigins = '', allowAnonymous = false, aiProviders = '' }) {
   if (!UUID.test(databaseId)) throw new Error(`database_id должен быть UUID, получено: ${databaseId}`)
   if (!/^https:\/\/[a-z0-9.-]+$/i.test(appUrl)) throw new Error(`Некорректный адрес приложения: ${appUrl}`)
   if (/["\\\n]/.test(allowedOrigins)) throw new Error('ALLOWED_ORIGINS содержит недопустимые символы')
+  if (aiProviders && !/^[a-z-]+(,[a-z-]+)*$/.test(aiProviders)) throw new Error(`Некорректный список провайдеров: ${aiProviders}`)
 
   let out = text
   const set = (key, value) => {
@@ -46,6 +55,7 @@ export function rewriteWranglerConfig(text, { databaseId, appUrl, allowedOrigins
   set('MINI_APP_URL', appUrl)
   set('ALLOWED_ORIGINS', allowedOrigins)
   set('ALLOW_ANONYMOUS', allowAnonymous ? 'true' : 'false')
+  if (aiProviders) set('AI_PROVIDERS', aiProviders)
   return out
 }
 

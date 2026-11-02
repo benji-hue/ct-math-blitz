@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { CloudflareError, cloudflare, prepareCloudflare, rewriteWranglerConfig, signInitData, webhookSecret } from '../scripts/lib.mjs'
-import { validateInitData } from '../src/telegram'
+import { SCENARIOS } from '../scripts/eval/variant.mjs'
+import { CloudflareError, cloudflare, evalKey, prepareCloudflare, rewriteWranglerConfig, signInitData, webhookSecret } from '../scripts/lib.mjs'
+import { deriveSecret, validateInitData } from '../src/telegram'
 
 const TOKEN = '1234567890:TEST-token-for-unit-tests'
 const DB_ID = '0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b'
@@ -13,6 +14,14 @@ describe('секрет вебхука', () => {
     expect(secret).toBe(webhookSecret(TOKEN))
     expect(secret).not.toBe(webhookSecret(`${TOKEN}x`))
     expect(secret).toMatch(/^[A-Za-z0-9_-]{1,256}$/)
+  })
+})
+
+describe('производные секреты совпадают в скриптах и воркере', () => {
+  it('секрет вебхука и ключ служебной проверки', async () => {
+    expect(await deriveSecret(TOKEN, 'krok-telegram-webhook')).toBe(webhookSecret(TOKEN))
+    expect(await deriveSecret(TOKEN, 'krok-eval')).toBe(evalKey(TOKEN))
+    expect(evalKey(TOKEN)).not.toBe(webhookSecret(TOKEN))
   })
 })
 
@@ -48,6 +57,12 @@ describe('wrangler.jsonc в CI', () => {
     expect(config.vars.AI_PROVIDERS).toBe(before.vars.AI_PROVIDERS)
     expect(config.triggers).toEqual(before.triggers)
     expect(out).toContain('// Cloudflare Workers AI')
+  })
+
+  it('ставит внешнюю модель первой, если есть её ключ', () => {
+    expect(parse(rewriteWranglerConfig(original, { ...values, aiProviders: 'gemini,workers-ai' })).vars.AI_PROVIDERS).toBe('gemini,workers-ai')
+    expect(parse(rewriteWranglerConfig(original, values)).vars.AI_PROVIDERS).toBe(parse(original).vars.AI_PROVIDERS)
+    expect(() => rewriteWranglerConfig(original, { ...values, aiProviders: 'gemini","x' })).toThrow(/провайдеров/)
   })
 
   it('по умолчанию анонимный доступ выключен', () => {
@@ -157,5 +172,30 @@ describe('подготовка аккаунта Cloudflare', () => {
       },
     })
     await expect(prepareCloudflare(api, { accountId: ACCOUNT })).rejects.toThrow(/нет прав/)
+  })
+})
+
+describe('пробный вариант', () => {
+  const mistakes = SCENARIOS.filter((s) => s.mode === 'mistake')
+
+  it('семь ошибок разных типов, у каждой есть эталон и проверки', () => {
+    expect(mistakes).toHaveLength(7)
+    for (const s of mistakes) {
+      expect(s.task.given).not.toBe(s.task.correct)
+      expect(s.task.explain.length).toBeGreaterThan(20)
+      expect(s.checks.length).toBeGreaterThanOrEqual(5)
+    }
+  })
+
+  it('проверки не ломаются: образцовый разбор проходит их все', () => {
+    for (const s of mistakes) {
+      const ideal = `**Где ошибка** ${s.task.trap}\n\n**Почему так вышло** Невнимательность.\n\n**Как правильно** ${s.task.explain}\n\n**Проверь себя** Реши похожее задание. Что получится?`
+      const failed = s.checks.filter(([, test]) => !test(ideal)).map(([name]) => name)
+      expect(failed, s.id).toEqual([])
+    }
+  })
+
+  it('id сценариев уникальны', () => {
+    expect(new Set(SCENARIOS.map((s) => s.id)).size).toBe(SCENARIOS.length)
   })
 })

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildSystemPrompt, buildGeneratePrompt } from '../src/ai/prompts'
+import { openStream, type ChatInput } from '../src/ai/providers'
+import type { Env } from '../src/env'
 import { createThinkFilter, extractDelta, parseJsonLoose, readSse } from '../src/ai/sse'
 import { localHour, reminderText } from '../src/cron'
 import { minskDay } from '../src/env'
@@ -124,5 +126,25 @@ describe('напоминания', () => {
   it('текст зависит от серии и повторений', () => {
     expect(reminderText({ first_name: 'Аня', streak: 5, due: 3 })).toContain('серия 5')
     expect(reminderText({ first_name: null, streak: 0, due: 4 })).toContain('4 заданий')
+  })
+})
+
+describe('цепочка моделей', () => {
+  const input: ChatInput = { system: 'sys', messages: [{ role: 'user', content: 'Привет' }], maxTokens: 50, temperature: 0 }
+  const failingAi = { run: async () => Promise.reject(new Error('5035: model requires Workers Paid plan')) }
+
+  it('переходит к следующей модели и запоминает причины отказа', async () => {
+    const env = { AI: failingAi, AI_PROVIDERS: 'workers-ai', ALLOW_MOCK_AI: 'true' } as unknown as Env
+    const stream = await openStream(env, input)
+    expect(stream.provider).toBe('mock')
+    expect(stream.skipped.length).toBeGreaterThan(0)
+    expect(stream.skipped[0]).toContain('5035')
+  })
+
+  it('в служебной проверке берёт ровно указанную модель', async () => {
+    const env = { AI: failingAi, AI_PROVIDERS: 'workers-ai', ALLOW_MOCK_AI: 'true' } as unknown as Env
+    expect((await openStream(env, input, undefined, { provider: 'mock', model: 'mock-tutor' })).provider).toBe('mock')
+    await expect(openStream(env, input, undefined, { provider: 'workers-ai', model: '@cf/x/y' })).rejects.toThrow(/5035/)
+    await expect(openStream(env, input, undefined, { provider: 'gemini', model: 'g' })).rejects.toThrow(/не настроен/)
   })
 })

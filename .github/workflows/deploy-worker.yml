@@ -6,11 +6,16 @@ name: Deploy to Cloudflare
 #   CLOUDFLARE_API_TOKEN   — токен Cloudflare: шаблон «Edit Cloudflare Workers» + Account → D1 → Edit
 #   BOT_TOKEN              — токен бота из @BotFather (/mybots → бот → API Token)
 #   CLOUDFLARE_ACCOUNT_ID  — по желанию; без него берётся единственный аккаунт токена
+#   GEMINI_API_KEY         — по желанию: Gemini станет основной моделью, Workers AI — запасной
+#   OPENAI_API_KEY         — по желанию: любой OpenAI-совместимый API (адрес и модель — в wrangler.jsonc)
 #
 # Что делает: создаёт базу D1 и поддомен workers.dev (если их нет), применяет
 # миграции, собирает и публикует воркер, кладёт секреты, ставит вебхук, кнопку меню
 # и команды бота, затем проверяет всё живым запросом. Повторный запуск безопасен.
 # Секреты воркера в git не попадают; секрет вебхука выводится из токена бота.
+#
+# Галочка eval после деплоя прогоняет «пробный вариант» (worker/scripts/ai-eval.mjs):
+# ученик решает задания с ошибками, ИИ их разбирает; отчёт — в сводке и артефакте.
 
 on:
   workflow_dispatch:
@@ -19,6 +24,14 @@ on:
         description: 'Пускать к ИИ из обычного браузера (показ с ноутбука; лимиты для анонимов строже)'
         type: boolean
         default: false
+      eval:
+        description: 'После деплоя прогнать пробный вариант (проверка качества ИИ)'
+        type: boolean
+        default: false
+      eval_models:
+        description: 'Модели для пробного варианта через запятую: @cf/… , gemini:… , openai:… (пусто — как у учеников)'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -72,6 +85,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ALLOWED_ORIGINS: https://${{ github.repository_owner }}.github.io
           ALLOW_ANONYMOUS: ${{ inputs.allow_anonymous }}
+          HAS_GEMINI: ${{ secrets.GEMINI_API_KEY != '' }}
+          HAS_OPENAI: ${{ secrets.OPENAI_API_KEY != '' }}
 
       - name: Миграции D1
         run: npx wrangler d1 migrations apply krok --remote
@@ -87,6 +102,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Удаление файла с секретами
         if: always()
@@ -104,3 +121,40 @@ jobs:
         working-directory: worker
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+
+  eval:
+    needs: deploy
+    if: ${{ inputs.eval }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Фото решения для проверки по фото
+        run: |
+          google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
+            --window-size=900,560 --screenshot="$RUNNER_TEMP/solution.png" \
+            "file://$GITHUB_WORKSPACE/worker/scripts/eval/solution.html"
+          ls -l "$RUNNER_TEMP/solution.png"
+
+      - name: Пробный вариант
+        run: node scripts/ai-eval.mjs
+        working-directory: worker
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          MODELS: ${{ inputs.eval_models }}
+          EVAL_IMAGE: ${{ runner.temp }}/solution.png
+          EVAL_OUT: ${{ runner.temp }}/eval
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-eval
+          path: |
+            ${{ runner.temp }}/eval
+            ${{ runner.temp }}/solution.png
+          if-no-files-found: ignore

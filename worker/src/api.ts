@@ -1,9 +1,9 @@
-import { describeProviders, openStream, complete, ProviderError, type ChatMessage } from './ai/providers'
+import { describeProviders, openStream, complete, ProviderError, type ChatMessage, type ForcedModel } from './ai/providers'
 import { buildAnalyzePrompt, buildGeneratePrompt, buildSystemPrompt, MODES, type Mode, type Reference, type TaskContext } from './ai/prompts'
 import { parseJsonLoose } from './ai/sse'
 import { minskDay, num, VERSION, type Env } from './env'
 import { consume, limitFor, track, usage, type Kind } from './limits'
-import { validateInitData, type TgUser } from './telegram'
+import { deriveSecret, safeEqual, validateInitData, type TgUser } from './telegram'
 
 /**
  * HTTP API мини-аппа. Каждый запрос к ИИ:
@@ -19,6 +19,12 @@ interface Caller {
   key: string
   anonymous: boolean
   user?: TgUser
+  /**
+   * Служебная проверка ИИ (scripts/ai-eval.mjs): без дневных лимитов, с выбором
+   * модели и причинами переключения на запасную. Нужен заголовок X-Krok-Eval —
+   * секрет, выведенный из токена бота, поэтому обычный клиент так не умеет.
+   */
+  eval?: boolean
 }
 
 export function json(data: unknown, status = 200, headers: HeadersInit = {}): Response {
@@ -35,7 +41,9 @@ async function identify(req: Request, env: Env): Promise<Caller | Response> {
     if (!env.BOT_TOKEN) return fail(500, 'На сервере не задан BOT_TOKEN')
     const result = await validateInitData(auth.slice(4), env.BOT_TOKEN, num(env.INIT_DATA_TTL, 86400))
     if (!result.ok) return fail(401, 'Подпись Telegram недействительна или устарела')
-    return { key: `tg:${result.user.id}`, anonymous: false, user: result.user }
+    const evalKey = req.headers.get('X-Krok-Eval')
+    const isEval = Boolean(evalKey) && safeEqual(evalKey ?? '', await deriveSecret(env.BOT_TOKEN, 'krok-eval'))
+    return { key: `tg:${result.user.id}`, anonymous: false, user: result.user, eval: isEval }
   }
   if (env.ALLOW_ANONYMOUS === 'true') {
     return { key: `ip:${req.headers.get('CF-Connecting-IP') ?? 'local'}`, anonymous: true }
@@ -57,6 +65,7 @@ async function readBody(req: Request): Promise<Record<string, unknown> | Respons
 }
 
 async function spend(env: Env, caller: Caller, kind: Kind): Promise<Response | null> {
+  if (caller.eval) return null
   const used = await consume(env, caller.key, kind)
   const limit = limitFor(env, kind, caller.anonymous)
   if (used > limit) {
@@ -116,6 +125,16 @@ function sanitizeImage(raw: unknown): { mime: string; data: string } | undefined
   return { mime: img.mime, data: img.data }
 }
 
+/** Выбор конкретной модели — только в служебной проверке: «@cf/…», «gemini:…» или «openai:…». */
+function forcedModel(caller: Caller, raw: unknown): ForcedModel | undefined | Response {
+  if (!caller.eval || typeof raw !== 'string' || !raw.trim()) return undefined
+  const value = raw.trim().slice(0, 200)
+  if (value.startsWith('@cf/')) return { provider: 'workers-ai', model: value }
+  const match = /^(gemini|openai):(.+)$/.exec(value)
+  if (match) return { provider: match[1], model: match[2] }
+  return fail(400, 'Неизвестная модель: ожидается «@cf/…», «gemini:…» или «openai:…»')
+}
+
 // ---------- /api/ai/chat — потоковый ответ ----------
 
 const SSE_HEADERS = { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' }
@@ -127,6 +146,8 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
   const messages = sanitizeMessages(body.messages)
   if (!messages.length) return fail(400, 'Пустой вопрос')
   const image = sanitizeImage(body.image)
+  const force = forcedModel(caller, body.model)
+  if (force instanceof Response) return force
   const limited = await spend(env, caller, image ? 'vision' : 'chat')
   if (limited) return limited
 
@@ -159,15 +180,16 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
           reasoning: mode === 'check' || mode === 'mistake' ? 'low' : 'none',
         },
         req.signal,
+        force,
       )
-      await send({ type: 'meta', provider: stream.provider, model: stream.model })
+      await send({ type: 'meta', provider: stream.provider, model: stream.model, ...(caller.eval ? { skipped: stream.skipped } : {}) })
       for await (const text of stream.chunks) await send({ type: 'delta', text })
       await send({ type: 'done' })
       ctx.waitUntil(track(env, `ai_${mode}`).catch(() => {}))
     } catch (e) {
       const message = e instanceof ProviderError && e.status === 503 ? 'Все модели ИИ сейчас недоступны. Попробуйте через минуту.' : 'Ответ прервался. Попробуйте ещё раз.'
       console.error('chat failed', (e as Error).message)
-      await send({ type: 'error', message }).catch(() => {})
+      await send({ type: 'error', message, ...(caller.eval ? { detail: (e as Error).message.slice(0, 1500) } : {}) }).catch(() => {})
     } finally {
       await writer.close().catch(() => {})
     }
@@ -184,26 +206,34 @@ async function generate(req: Request, env: Env, caller: Caller): Promise<Respons
   const subjectTitle = str(body.subjectTitle, 100)
   const topic = str(body.topic, 160)
   if (!subjectTitle || !topic) return fail(400, 'Не указаны предмет и тема')
+  const force = forcedModel(caller, body.model)
+  if (force instanceof Response) return force
   const limited = await spend(env, caller, 'generate')
   if (limited) return limited
   const count = Math.min(8, Math.max(3, Number(body.count) || 5))
   const part = body.part === 'A' || body.part === 'B' ? body.part : 'mixed'
   const facts = Array.isArray(body.topicFacts) ? body.topicFacts.filter((f): f is string => typeof f === 'string').slice(0, 8) : []
   try {
-    const { text, provider, model } = await complete(env, {
-      system: buildGeneratePrompt({ subjectTitle, topic, topicFacts: facts, count, part }),
-      messages: [{ role: 'user', content: `Составь ${count} заданий по теме «${topic}».` }],
-      maxTokens: 3000,
-      temperature: 0.8,
-      json: true,
-      reasoning: 'low',
-    })
+    const { text, provider, model, skipped } = await complete(
+      env,
+      {
+        system: buildGeneratePrompt({ subjectTitle, topic, topicFacts: facts, count, part }),
+        messages: [{ role: 'user', content: `Составь ${count} заданий по теме «${topic}».` }],
+        maxTokens: 3000,
+        temperature: 0.8,
+        json: true,
+        reasoning: 'low',
+      },
+      undefined,
+      force,
+    )
     const data = parseJsonLoose(text) as { tasks?: unknown }
-    if (!Array.isArray(data.tasks)) return fail(502, 'ИИ вернул задания в неверном формате')
-    return json({ tasks: data.tasks.slice(0, count), provider, model })
+    if (!Array.isArray(data.tasks)) return json({ error: 'ИИ вернул задания в неверном формате', ...(caller.eval ? { raw: text.slice(0, 3000), provider, model } : {}) }, 502)
+    return json({ tasks: data.tasks.slice(0, count), provider, model, ...(caller.eval ? { skipped } : {}) })
   } catch (e) {
     console.error('generate failed', (e as Error).message)
-    return fail(e instanceof ProviderError && e.status === 503 ? 503 : 502, 'Не удалось сгенерировать задания. Попробуйте ещё раз.')
+    const status = e instanceof ProviderError && e.status === 503 ? 503 : 502
+    return json({ error: 'Не удалось сгенерировать задания. Попробуйте ещё раз.', ...(caller.eval ? { detail: (e as Error).message.slice(0, 1500) } : {}) }, status)
   }
 }
 
@@ -212,22 +242,30 @@ async function generate(req: Request, env: Env, caller: Caller): Promise<Respons
 async function analyze(req: Request, env: Env, caller: Caller): Promise<Response> {
   const body = await readBody(req)
   if (body instanceof Response) return body
+  const force = forcedModel(caller, body.model)
+  if (force instanceof Response) return force
   const limited = await spend(env, caller, 'analyze')
   if (limited) return limited
   // Клиент присылает только агрегаты; сериализуем их компактно и с ограничением размера.
   const summary = JSON.stringify({ profile: body.profile, streak: body.streak, daysToExam: body.daysToExam, subjects: body.subjects }).slice(0, 12_000)
   try {
-    const { text } = await complete(env, {
-      system: buildAnalyzePrompt(),
-      messages: [{ role: 'user', content: `<student>\n${summary}\n</student>` }],
-      maxTokens: 1600,
-      temperature: 0.4,
-      json: true,
-    })
-    return json(parseJsonLoose(text))
+    const { text, provider, model, skipped } = await complete(
+      env,
+      {
+        system: buildAnalyzePrompt(),
+        messages: [{ role: 'user', content: `<student>\n${summary}\n</student>` }],
+        maxTokens: 1600,
+        temperature: 0.4,
+        json: true,
+      },
+      undefined,
+      force,
+    )
+    const data = parseJsonLoose(text) as Record<string, unknown>
+    return json(caller.eval ? { ...data, _eval: { provider, model, skipped } } : data)
   } catch (e) {
     console.error('analyze failed', (e as Error).message)
-    return fail(502, 'Не удалось подготовить разбор. Попробуйте ещё раз.')
+    return json({ error: 'Не удалось подготовить разбор. Попробуйте ещё раз.', ...(caller.eval ? { detail: (e as Error).message.slice(0, 1500) } : {}) }, 502)
   }
 }
 

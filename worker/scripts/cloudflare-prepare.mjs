@@ -13,6 +13,15 @@
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
 import { cloudflare, prepareCloudflare, rewriteWranglerConfig } from './lib.mjs'
 
+/**
+ * Если в секретах репозитория есть ключ внешней модели (GEMINI_API_KEY, OPENAI_API_KEY),
+ * она идёт первой, а Workers AI остаётся запасной. Без ключей — как в wrangler.jsonc.
+ */
+function providersFromKeys() {
+  const external = ['gemini', 'openai'].filter((id) => process.env[`HAS_${id.toUpperCase()}`] === 'true')
+  return external.length ? [...external, 'workers-ai'].join(',') : ''
+}
+
 const token = process.env.CLOUDFLARE_API_TOKEN
 if (!token) {
   console.error('::error title=Нет секрета CLOUDFLARE_API_TOKEN::Создайте токен в Cloudflare и добавьте его в Settings → Secrets and variables → Actions')
@@ -31,6 +40,7 @@ try {
     appUrl: result.appUrl,
     allowedOrigins: (process.env.ALLOWED_ORIGINS ?? '').trim().toLowerCase(),
     allowAnonymous: process.env.ALLOW_ANONYMOUS === 'true',
+    aiProviders: providersFromKeys(),
   })
   writeFileSync(configPath, updated)
 
