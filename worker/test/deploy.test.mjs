@@ -132,9 +132,22 @@ describe('подготовка аккаунта Cloudflare', () => {
     expect((await prepareCloudflare(api, { accountId: ACCOUNT })).subdomain).toBe(`krok-${ACCOUNT.slice(0, 10)}`)
   })
 
-  it('просит указать аккаунт, если их несколько', async () => {
-    const { api } = fake({ 'GET /accounts': [{ id: 'a', name: 'Один' }, { id: 'b', name: 'Два' }] })
-    await expect(prepareCloudflare(api)).rejects.toThrow(/CLOUDFLARE_ACCOUNT_ID.*Один — a.*Два — b/)
+  it('просит указать аккаунт, если их несколько, не раскрывая имён и ID', async () => {
+    const { api } = fake({ 'GET /accounts': [{ id: 'acc-1', name: 'me@example.com' }, { id: 'acc-2', name: 'Два' }] })
+    const error = await prepareCloudflare(api).catch((e) => e)
+    expect(error.message).toContain('CLOUDFLARE_ACCOUNT_ID')
+    expect(error.message).not.toMatch(/me@example\.com|acc-1|acc-2/)
+  })
+
+  it('не пишет имя аккаунта в лог', async () => {
+    const lines = []
+    const { api } = fake({
+      'GET /accounts': [{ id: ACCOUNT, name: 'me@example.com' }],
+      [`GET /accounts/${ACCOUNT}/d1/database`]: [{ uuid: DB_ID, name: 'krok' }],
+      [`GET /accounts/${ACCOUNT}/workers/subdomain`]: { subdomain: 'demo' },
+    })
+    await prepareCloudflare(api, { log: (line) => lines.push(line) })
+    expect(lines.join('\n')).not.toMatch(/example\.com|a1b2c3d4e5f6/)
   })
 
   it('не глотает ошибку прав доступа', async () => {

@@ -97,10 +97,11 @@ export async function prepareCloudflare(api, { accountId, workerName = 'krok', d
       throw new Error('Токен не видит ни одного аккаунта Cloudflare. Добавьте токену право «Account Settings: Read» или задайте секрет CLOUDFLARE_ACCOUNT_ID.')
     }
     if (accounts.length > 1) {
-      throw new Error(`У токена несколько аккаунтов. Задайте секрет CLOUDFLARE_ACCOUNT_ID одним из значений: ${accounts.map((a) => `${a.name} — ${a.id}`).join('; ')}`)
+      // Имена аккаунтов не печатаем: в них часто email, а логи Actions у публичного репозитория видны всем.
+      throw new Error(`У токена ${accounts.length} аккаунта Cloudflare. Задайте секрет CLOUDFLARE_ACCOUNT_ID — ID виден в адресе панели: dash.cloudflare.com/<ID>/…`)
     }
     account = accounts[0].id
-    log(`Аккаунт Cloudflare: ${accounts[0].name}`)
+    log('Аккаунт Cloudflare найден')
   }
 
   const found = await api.get(`/accounts/${account}/d1/database?name=${encodeURIComponent(databaseName)}`)

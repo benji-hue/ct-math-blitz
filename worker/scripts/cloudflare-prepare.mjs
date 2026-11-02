@@ -36,6 +36,7 @@ try {
 
   console.log(`Адрес приложения: ${result.appUrl}`)
   if (process.env.GITHUB_ENV) {
+    console.log(`::add-mask::${result.accountId}`)
     appendFileSync(process.env.GITHUB_ENV, `CLOUDFLARE_ACCOUNT_ID=${result.accountId}\nAPP_URL=${result.appUrl}\n`)
   }
 } catch (e) {
