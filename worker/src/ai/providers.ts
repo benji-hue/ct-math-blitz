@@ -49,9 +49,12 @@ export class ProviderError extends Error {
   }
 }
 
-/** Актуальные модели каталога Workers AI (осень 2026): сильные в русском и математике. */
-export const DEFAULT_WORKERS_MODELS = ['@cf/deepseek-ai/deepseek-v4-flash-0731', '@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/meta/llama-4-scout-17b-16e-instruct']
-export const DEFAULT_VISION_MODELS = ['@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/google/gemma-3-12b-it']
+/**
+ * Модели Workers AI, доступные на бесплатном тарифе, в порядке качества по итогам
+ * пробного варианта (docs/ПРОБНЫЙ-ВАРИАНТ.md). Qwen 3.8 понимает и фото решений.
+ */
+export const DEFAULT_WORKERS_MODELS = ['@cf/qwen/qwen3.8-27b', '@cf/openai/gpt-oss-120b', '@cf/meta/llama-4-scout-17b-16e-instruct']
+export const DEFAULT_VISION_MODELS = ['@cf/qwen/qwen3.8-27b', '@cf/meta/llama-4-scout-17b-16e-instruct']
 export const DEFAULT_GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-3.5-flash-lite']
 
 type Opener = (env: Env, model: string, input: ChatInput, signal?: AbortSignal) => Promise<AsyncGenerator<string>>

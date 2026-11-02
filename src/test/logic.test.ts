@@ -7,7 +7,7 @@ import { buildQueue, checkInput, interleave, isCorrect, normalizeAnswer } from '
 import { buildIndex, referencesFor, search, stem } from '../lib/retrieval'
 import { gradeFromAnswer, review } from '../lib/srs'
 import { applyAttempt, EMPTY_PROGRESS, updateMastery, updateStreak, type Attempt } from '../lib/store'
-import { parseBlocks } from '../ui/Rich'
+import { normalizeMath, parseBlocks } from '../ui/Rich'
 
 const task = (id: string, topic: string, extra: Partial<Task> = {}): Task => ({
   id,
@@ -219,6 +219,11 @@ describe('markdown-парсер', () => {
   it('не теряет незакрытую формулу при стриминге', () => {
     const blocks = parseBlocks('Начало $\\frac{1}{2')
     expect(blocks).toHaveLength(1)
+  })
+  it('понимает формулы в \\( \\) и \\[ \\] — так пишет часть моделей', () => {
+    expect(normalizeMath('Скорость \\(v = 20\\ \\text{м/с}\\) и путь')).toBe('Скорость $v = 20\\ \\text{м/с}$ и путь')
+    const blocks = parseBlocks('Решение:\n\\[\nx = 4 - 1 = 3\n\\]\nОтвет: 3')
+    expect(blocks.map((b) => b.kind)).toEqual(['p', 'math', 'p'])
   })
 })
 

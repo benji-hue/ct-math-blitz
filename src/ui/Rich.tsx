@@ -74,7 +74,22 @@ function MathSpan({ source, display }: { source: string; display: boolean }) {
 
 // ---------- Строчные элементы ----------
 
-const INLINE = /(\$\$[^$]+\$\$|\$[^$\n]+\$|\*\*[^*\n]+\*\*|`[^`\n]+`|\[[^\]\n]+\]\(https?:\/\/[^)\s]+\)|(?<![*\w])\*[^*\n]+\*(?!\*)|(?<![_\w])_[^_\n]+_(?!\w))/g
+const INLINE_BASE = String.raw`\$\$[^$]+\$\$|\$[^$\n]+\$|\*\*[^*\n]+\*\*|` + '`[^`\\n]+`' + String.raw`|\[[^\]\n]+\]\(https?:\/\/[^)\s]+\)`
+
+/**
+ * Курсив *так* и _так_ не должен срабатывать внутри слов и на «**». Для этого нужен
+ * lookbehind, которого нет в Safari до 16.4: регэксп-литерал с ним уронил бы весь модуль
+ * ещё при загрузке. Поэтому собираем регэксп в рантайме и при ошибке берём упрощённый.
+ */
+function buildInline(): RegExp {
+  try {
+    return new RegExp(`(${INLINE_BASE}|(?<![*\\w])\\*[^*\\n]+\\*(?!\\*)|(?<![_\\w])_[^_\\n]+_(?!\\w))`, 'g')
+  } catch {
+    return new RegExp(`(${INLINE_BASE}|\\*[^*\\n]+\\*(?!\\*)|_[^_\\n]+_(?!\\w))`, 'g')
+  }
+}
+
+const INLINE = buildInline()
 
 export function renderInline(text: string, keyPrefix = 'i'): ReactNode[] {
   const parts = text.split(INLINE)
@@ -132,8 +147,13 @@ const cells = (line: string) =>
     .split('|')
     .map((c) => c.trim())
 
+/** Часть моделей пишет формулы как \(…\) и \[…\] — приводим к $…$ и $$…$$. */
+export function normalizeMath(md: string): string {
+  return md.replace(/\\\[([\s\S]+?)\\\]/g, (_m, body: string) => `$$${body}$$`).replace(/\\\(([\s\S]+?)\\\)/g, (_m, body: string) => `$${body.trim()}$`)
+}
+
 export function parseBlocks(md: string): Block[] {
-  const lines = md.replace(/\r\n?/g, '\n').split('\n')
+  const lines = normalizeMath(md).replace(/\r\n?/g, '\n').split('\n')
   const blocks: Block[] = []
   let i = 0
   while (i < lines.length) {

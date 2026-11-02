@@ -67,6 +67,7 @@ async function runChat(scenario, model) {
     topic: scenario.topic,
     profile: STUDENT,
     task: scenario.task,
+    refs: scenario.refs,
     ...(scenario.image ? { image: { mime: 'image/png', data: image } } : {}),
     ...(model ? { model } : {}),
   }

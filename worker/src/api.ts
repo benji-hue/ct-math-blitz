@@ -177,7 +177,9 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
           image,
           maxTokens: mode === 'plan' ? 1400 : 1000,
           temperature: mode === 'calm' ? 0.7 : 0.4,
-          reasoning: mode === 'check' || mode === 'mistake' ? 'low' : 'none',
+          // Скрытые рассуждения — только при проверке решения без эталона. В разборе ошибки
+          // эталонное решение уже в промпте, а рассуждения задерживали первый токен до 70 с.
+          reasoning: mode === 'check' ? 'low' : 'none',
         },
         req.signal,
         force,
@@ -222,7 +224,8 @@ async function generate(req: Request, env: Env, caller: Caller): Promise<Respons
         maxTokens: 3000,
         temperature: 0.8,
         json: true,
-        reasoning: 'low',
+        // С рассуждениями Qwen 3.8 тратил весь лимит токенов на «мысли» и возвращал пустой ответ.
+        reasoning: 'none',
       },
       undefined,
       force,
