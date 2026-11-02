@@ -35,7 +35,7 @@ async function check(name, fn, { soft = false } = {}) {
   if (!row.ok) console.log(`::${row.soft ? 'warning' : 'error'} title=${name}::${row.detail.replaceAll('\n', ' ')}`)
 }
 
-/** Новый поддомен workers.dev может открываться не сразу — пробуем несколько раз. */
+/** Новый поддомен workers.dev получает сертификат не сразу (до нескольких минут) — пробуем долго. */
 async function retry(fn, attempts, delayMs) {
   let last
   for (let i = 0; i < attempts; i++) {
@@ -71,8 +71,8 @@ await check('Воркер запущен', () =>
       const data = await res.json()
       return `версия ${data.version}`
     },
-    18,
-    5000,
+    40,
+    6000,
   ),
 )
 
