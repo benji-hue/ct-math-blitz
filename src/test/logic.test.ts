@@ -221,6 +221,10 @@ describe('markdown-парсер', () => {
     const blocks = parseBlocks('Начало $\\frac{1}{2')
     expect(blocks).toHaveLength(1)
   })
+  it('сохраняет номер пункта, если список продолжается после абзаца', () => {
+    const blocks = parseBlocks('1. Интуиция\n\nТекст\n\n4. **Типичная ловушка**\n\nТекст\n\n5. Вопрос')
+    expect(blocks.filter((b) => b.kind === 'ol').map((b) => (b.kind === 'ol' ? (b.start ?? 1) : 0))).toEqual([1, 4, 5])
+  })
   it('понимает формулы в \\( \\) и \\[ \\] — так пишет часть моделей', () => {
     expect(normalizeMath('Скорость \\(v = 20\\ \\text{м/с}\\) и путь')).toBe('Скорость $v = 20\\ \\text{м/с}$ и путь')
     const blocks = parseBlocks('Решение:\n\\[\nx = 4 - 1 = 3\n\\]\nОтвет: 3')

@@ -133,7 +133,7 @@ export function renderInline(text: string, keyPrefix = 'i'): ReactNode[] {
 type Block =
   | { kind: 'p'; lines: string[] }
   | { kind: 'h'; level: number; text: string }
-  | { kind: 'ul' | 'ol'; items: string[] }
+  | { kind: 'ul' | 'ol'; items: string[]; start?: number }
   | { kind: 'quote'; lines: string[] }
   | { kind: 'code'; text: string }
   | { kind: 'math'; text: string }
@@ -211,9 +211,11 @@ export function parseBlocks(md: string): Block[] {
       continue
     }
     if (/^\d+[.)]\s+/.test(trimmed)) {
+      // Модели часто пишут пункты «4. …», «5. …» отдельными абзацами — номер сохраняем.
+      const start = Number(/^(\d+)/.exec(trimmed)?.[1] ?? 1)
       const items: string[] = []
       while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*\d+[.)]\s+/, ''))
-      blocks.push({ kind: 'ol', items })
+      blocks.push({ kind: 'ol', items, ...(start > 1 ? { start } : {}) })
       continue
     }
     if (trimmed.startsWith('>')) {
@@ -257,7 +259,7 @@ function renderBlock(block: Block, key: string): ReactNode {
     case 'ol': {
       const Tag = block.kind
       return (
-        <Tag key={key}>
+        <Tag key={key} start={block.kind === 'ol' ? block.start : undefined}>
           {block.items.map((item, j) => (
             <li key={j}>{renderInline(item, `${key}li${j}`)}</li>
           ))}
