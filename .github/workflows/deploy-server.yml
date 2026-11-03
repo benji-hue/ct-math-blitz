@@ -15,7 +15,8 @@ name: Deploy to own server
 #   SERVER_PORT          — по желанию, если SSH не на 22-м порту
 #   BOT_TOKEN            — токен бота; GEMINI_API_KEY — по желанию
 #   CLOUDFLARE_AI_TOKEN  — по желанию: Qwen через Workers AI (токен с правом «Workers AI: Read»)
-# Переменная (вкладка Variables): KROK_DOMAIN — домен с записью A на IP сервера.
+# Домен: переменная KROK_DOMAIN (вкладка Variables, можно и в Secrets) с записью A на IP сервера;
+# без неё — krok-ct.duckdns.org.
 #
 # Без секретов сервера запуск только собирает и проверяет образ.
 
@@ -44,7 +45,8 @@ jobs:
     timeout-minutes: 30
     env:
       KROK_IMAGE: krok:${{ github.sha }}
-      KROK_DOMAIN: ${{ vars.KROK_DOMAIN }}
+      # Домен: переменная или секрет KROK_DOMAIN, иначе — адрес «Крока» по умолчанию.
+      KROK_DOMAIN: ${{ vars.KROK_DOMAIN || secrets.KROK_DOMAIN || 'krok-ct.duckdns.org' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -173,7 +175,7 @@ jobs:
         working-directory: worker
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          APP_URL: https://${{ vars.KROK_DOMAIN }}
+          APP_URL: https://${{ env.KROK_DOMAIN }}
           BOT_USERNAME: ${{ vars.VITE_BOT_USERNAME || 'PFPFISJFOIJBOT' }}
 
       - name: Старый воркер Cloudflare — без напоминаний
@@ -190,4 +192,4 @@ jobs:
         working-directory: worker
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          APP_URL: https://${{ vars.KROK_DOMAIN }}
+          APP_URL: https://${{ env.KROK_DOMAIN }}
