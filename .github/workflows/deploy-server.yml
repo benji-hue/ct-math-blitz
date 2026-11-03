@@ -86,35 +86,15 @@ jobs:
         # Одно соединение на весь деплой: пароль вводится один раз, остальные шаги идут через него.
         run: bash deploy/ssh-setup.sh
 
-      - name: Docker на сервере
+      - name: Сервер — Docker и HTTPS
+        id: server
         if: steps.target.outputs.ready == 'true'
         run: |
-          ssh krok 'bash -s' <<'EOF'
-          set -e
-          if ! (command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1); then
-            if [ "$(id -u)" != 0 ]; then
-              echo "::error title=На сервере нет Docker::Установите его один раз от root: curl -fsSL https://get.docker.com | sh — и добавьте пользователя в группу docker"
-              exit 1
-            fi
-            echo "Docker не найден — ставлю официальным скриптом get.docker.com"
-            curl -fsSL https://get.docker.com | sh
-          fi
-          docker --version
-          docker compose version
-          # Порты 80 и 443 нужны Caddy; на повторном деплое их держит он сам.
-          busy=""
-          if command -v ss >/dev/null 2>&1; then busy="$(ss -H -ltnp '( sport = :80 or sport = :443 )' || true)"; fi
-          if [ -n "$busy" ] && ! (cd ~/krok 2>/dev/null && [ -n "$(docker compose ps -q caddy 2>/dev/null)" ]); then
-            # Только имена программ и образов — без конфигов и адресов сайтов: лог публичный.
-            echo "Порты 80/443 уже заняты:"
-            echo "$busy" | grep -o 'users:(("[^"]*"' | sed 's/^users:(("//; s/"$//' | sort -u | sed 's/^/  программа: /'
-            docker ps --filter publish=80 --filter publish=443 --format '  контейнер: {{.Image}}' 2>/dev/null || true
-            if command -v nginx >/dev/null 2>&1; then echo "  nginx: блоков server_name — $(nginx -T 2>/dev/null | grep -cE '^[[:space:]]*server_name' || true)"; fi
-            if command -v apache2ctl >/dev/null 2>&1; then echo "  apache: сайтов — $(apache2ctl -S 2>/dev/null | grep -c 'namevhost' || true)"; fi
-            echo "::error title=Порты 80 и 443 заняты::На сервере уже работает другой веб-сервер (какой — выше). Его нужно освободить или настроить проксировать домен на «Крок» — см. docs/ДЕПЛОЙ.md"
-            exit 1
-          fi
-          EOF
+          set -o pipefail
+          ssh krok 'bash -s' < deploy/server-prepare.sh | tee "$RUNNER_TEMP/prepare.log"
+          mode="$(sed -n 's/^KROK_MODE=//p' "$RUNNER_TEMP/prepare.log" | tail -n 1)"
+          [ "$mode" = caddy ] || [ "$mode" = nginx ]
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
 
       - name: Сборка образа
         run: docker build --build-arg VITE_BOT_USERNAME="${{ vars.VITE_BOT_USERNAME || 'PFPFISJFOIJBOT' }}" -t "$KROK_IMAGE" .
@@ -152,11 +132,17 @@ jobs:
           ALLOW_ANONYMOUS: ${{ inputs.allow_anonymous }}
           AI_PROVIDERS: ${{ vars.AI_PROVIDERS }}
           AI_VISION_PROVIDERS: ${{ vars.AI_VISION_PROVIDERS }}
+          KROK_MODE: ${{ steps.server.outputs.mode }}
         run: |
           set -o pipefail
           # Секреты уходят прямо на сервер (файл .env только для владельца) и в лог не попадают.
           node scripts/server-env.mjs | ssh krok 'umask 077 && cat > krok/.env'
-          ssh krok 'cd krok && docker compose up -d --remove-orphans && docker compose ps'
+          ssh krok "KROK_MODE=$KROK_MODE bash -s" < ../deploy/server-up.sh | tee "$RUNNER_TEMP/up.log"
+          port="$(sed -n 's/^KROK_PORT=//p' "$RUNNER_TEMP/up.log" | tail -n 1)"
+          # Сервер уже с nginx и другими сайтами — добавляем ему свой сайт с сертификатом.
+          if [ "$KROK_MODE" = nginx ]; then
+            ssh krok "KROK_DOMAIN=$KROK_DOMAIN KROK_PORT=$port bash -s" < ../deploy/nginx-site.sh
+          fi
           # Старые версии образа не копятся: оставляем только текущую.
           ssh krok "docker image ls krok --format '{{.Repository}}:{{.Tag}}' | grep -vx '$KROK_IMAGE' | xargs -r docker image rm >/dev/null 2>&1 || true"
 
@@ -172,7 +158,7 @@ jobs:
             sleep 5
           done
           echo "::error title=Сайт не открылся по HTTPS::Проверьте, что запись A домена $KROK_DOMAIN указывает на сервер, а порты 80 и 443 открыты в файрволе хостинга"
-          ssh krok 'cd krok && docker compose logs --tail=40 caddy app' || true
+          ssh krok 'cd krok && docker compose --profile caddy logs --tail=40' || true
           exit 1
 
       - name: Бот — вебхук, кнопка меню, команды

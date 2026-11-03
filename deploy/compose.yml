@@ -1,20 +1,24 @@
-# «Крок» на своём сервере: приложение + Caddy (HTTPS с автоматическим сертификатом).
+# «Крок» на своём сервере: приложение + HTTPS. HTTPS даёт Caddy (профиль caddy) или, если на
+# сервере уже работает nginx с другими сайтами, этот nginx (deploy/nginx-site.sh).
 # Рядом с этим файлом лежат Caddyfile и .env — их кладёт на сервер GitHub Actions
-# (.github/workflows/deploy-server.yml). Вручную: docker compose up -d
+# (.github/workflows/deploy-server.yml). Вручную: docker compose --profile caddy up -d
 services:
   app:
     image: ${KROK_IMAGE:?Укажите KROK_IMAGE в .env}
     restart: unless-stopped
     env_file: .env
     environment:
-      # Запросы приходят только через Caddy: ему можно верить в X-Forwarded-For.
+      # Запросы приходят только через Caddy или nginx: им можно верить в X-Forwarded-For.
       TRUST_PROXY: '1'
     volumes:
       - data:/data
-    # Порт наружу не открыт — только через Caddy.
+    # Порт открыт только на самом сервере (для nginx); снаружи — только через HTTPS.
+    ports:
+      - '127.0.0.1:${KROK_PORT:-8090}:8080'
 
   caddy:
     image: caddy:2
+    profiles: ['caddy']
     restart: unless-stopped
     depends_on:
       - app
