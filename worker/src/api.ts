@@ -1,6 +1,8 @@
 import { describeProviders, streamWithFailover, complete, ProviderError, type ChatMessage, type ForcedModel } from './ai/providers'
 import { buildAnalyzePrompt, buildGeneratePrompt, buildSystemPrompt, MODES, type Mode, type Reference, type TaskContext } from './ai/prompts'
 import { parseJsonLoose } from './ai/sse'
+import { pickFacts } from './ai/facts'
+import { assemble, buildGradePrompt, buildSelfTestPrompt, parseSelfTest, POINTS, sanitizeGrade, toDraft, type GradeTask, type SelfTestSize, type SelfTestTask } from './ai/selftest'
 import { screenTask, verifyTasks } from './ai/verify'
 import { minskDay, num, VERSION, type Env } from './env'
 import { consume, limitFor, track, usage, type Kind } from './limits'
@@ -167,14 +169,22 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
   if (limited) return limited
 
   const profile = body.profile as { grade?: unknown; exam?: unknown; target?: unknown } | undefined
+  const topic = str(body.topic, 160)
+  // Урок: проверенные истории по теме (бета). Выбор зависит от первой реплики урока —
+  // на всех шагах одного урока модель видит одни и те же факты.
+  const facts =
+    mode === 'lesson' && body.history !== false
+      ? pickFacts(str(body.subject, 10), `${topic ?? ''} ${messages[0].content} ${messages[messages.length - 1].content}`, 2, seeded(messages[0].content))
+      : []
   const system = buildSystemPrompt({
     mode,
     subjectTitle: str(body.subjectTitle, 100),
-    topic: str(body.topic, 160),
+    topic,
     profile: profile ? { grade: str(profile.grade, 10), exam: str(profile.exam, 10), target: Number(profile.target) || undefined } : undefined,
     refs: sanitizeRefs(body.refs),
     task: sanitizeTask(body.task),
     hasImage: Boolean(image),
+    facts,
   })
 
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
@@ -197,8 +207,8 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
         messages,
         image,
         // Объяснение темы — пять частей с примером: на 1000 токенах ответ обрывался.
-        maxTokens: mode === 'plan' || mode === 'explain' ? 1600 : 1000,
-        temperature: mode === 'calm' ? 0.7 : 0.4,
+        maxTokens: mode === 'plan' || mode === 'explain' || mode === 'lesson' ? 1600 : 1000,
+        temperature: mode === 'calm' ? 0.7 : mode === 'lesson' ? 0.5 : 0.4,
         // Скрытые рассуждения — только при проверке решения без эталона. В разборе ошибки
         // эталонное решение уже в промпте, а рассуждения задерживали первый токен до 70 с.
         // В служебной проверке уровень можно задать явно — для экспериментов.
@@ -317,6 +327,155 @@ async function analyze(req: Request, env: Env, caller: Caller): Promise<Response
   }
 }
 
+// ---------- /api/ai/selftest — самостоятельная работа «как в школе РБ» ----------
+
+/** Детерминированный «случай» от строки: на всех шагах урока — одни и те же факты. */
+function seeded(text: string): () => number {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619)
+  return () => {
+    h = Math.imul(h ^ (h >>> 15), 2246822507)
+    h = Math.imul(h ^ (h >>> 13), 3266489909)
+    return ((h ^= h >>> 16) >>> 0) / 4294967296
+  }
+}
+
+async function selftest(req: Request, env: Env, caller: Caller): Promise<Response> {
+  const body = await readBody(req)
+  if (body instanceof Response) return body
+  const subjectTitle = str(body.subjectTitle, 100)
+  const topic = str(body.topic, 200)
+  if (!subjectTitle || !topic) return fail(400, 'Не указаны предмет и тема')
+  const size: SelfTestSize = Number(body.size) === 10 ? 10 : 5
+  const image = sanitizeImage(body.image)
+  const force = forcedModel(caller, body.model)
+  if (force instanceof Response) return force
+  const limited = await spend(env, caller, image ? 'vision' : 'generate')
+  if (limited) return limited
+  const need = size === 5 ? 1 : 2
+  const base = {
+    subjectTitle,
+    grade: str(body.grade, 20),
+    topic,
+    size,
+    hasImage: Boolean(image),
+    lesson: str(body.lesson, 3000),
+    topicFacts: Array.isArray(body.topicFacts) ? body.topicFacts.filter((f): f is string => typeof f === 'string').slice(0, 8) : [],
+  }
+
+  // Кандидатов больше, чем нужно: задания с неверным ключом отсеет перепроверка.
+  const round = async (levels: number[]) => {
+    const { text, provider, model } = await complete(
+      env,
+      {
+        system: buildSelfTestPrompt({ ...base, perLevel: need + 1, levels }),
+        messages: [{ role: 'user', content: `Составь задания по теме «${topic}».` }],
+        image,
+        maxTokens: size === 10 ? 6000 : 4000,
+        temperature: 0.6,
+        json: true,
+        // Gemini составляет с короткими рассуждениями; Qwen в JSON-ответах — без них.
+        reasoning: 'low',
+      },
+      undefined,
+      force,
+    )
+    const draft = parseSelfTest(text)
+    const tasks = draft.tasks.filter((t) => levels.includes(t.level))
+    // Заглушка для локальной разработки не умеет перепроверять — её задания верны по построению.
+    if (provider === 'mock') return { title: draft.title, provider, model, verifier: null, verified: tasks, drafts: tasks.length }
+    const verdict = tasks.length ? await verifyTasks(env, tasks.map(toDraft), subjectTitle, { provider, model }) : null
+    if (!verdict) throw new ProviderError('Не удалось перепроверить задания', 503)
+    return { title: draft.title, provider, model, verifier: verdict.model, verified: tasks.filter((_, i) => verdict.ok[i]), drafts: tasks.length }
+  }
+
+  try {
+    const first = await round([1, 2, 3, 4, 5])
+    let verified: SelfTestTask[] = first.verified
+    let built = assemble(size, verified)
+    let drafts = first.drafts
+    if (built.missing.length) {
+      // Повторная попытка только для уровней, где не хватило подтверждённых заданий.
+      const second = await round(built.missing)
+      verified = [...verified, ...second.verified]
+      drafts += second.drafts
+      built = assemble(size, verified)
+    }
+    const audit = caller.eval ? { drafts, verified: verified.length, missing: built.missing } : {}
+    if (built.missing.length) return json({ error: 'Не удалось составить полную работу: часть заданий не прошла перепроверку. Попробуйте ещё раз.', ...audit }, 502)
+    return json({
+      title: first.title || `Самостоятельная работа: ${topic}`,
+      size,
+      tasks: built.tasks.map((t, i) => ({ ...t, n: i + 1, points: POINTS[size][i] })),
+      provider: first.provider,
+      model: first.model,
+      verifier: first.verifier,
+      ...audit,
+    })
+  } catch (e) {
+    console.error('selftest failed', (e as Error).message)
+    const status = e instanceof ProviderError && e.status === 503 ? 503 : 502
+    return json({ error: 'Не удалось составить самостоятельную. Попробуйте ещё раз.', ...(caller.eval ? { detail: (e as Error).message.slice(0, 1500) } : {}) }, status)
+  }
+}
+
+// ---------- /api/ai/grade — проверка самостоятельной по фото тетради ----------
+
+function sanitizeGradeTasks(raw: unknown): GradeTask[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .slice(0, 10)
+    .map((t, i) => {
+      const item = t as Record<string, unknown>
+      return {
+        n: Math.round(Number(item?.n)) || i + 1,
+        level: Math.min(5, Math.max(1, Math.round(Number(item?.level)) || 1)),
+        max: Math.min(10, Math.max(1, Math.round(Number(item?.max)) || 1)),
+        q: str(item?.q, 1500) ?? '',
+        answer: str(item?.answer, 200) ?? '',
+        solution: str(item?.solution, 1500) ?? '',
+      }
+    })
+    .filter((t) => t.q && t.answer)
+}
+
+async function grade(req: Request, env: Env, caller: Caller): Promise<Response> {
+  const body = await readBody(req)
+  if (body instanceof Response) return body
+  const subjectTitle = str(body.subjectTitle, 100)
+  const tasks = sanitizeGradeTasks(body.tasks)
+  const image = sanitizeImage(body.image)
+  if (!subjectTitle || !tasks.length) return fail(400, 'Нет заданий для проверки')
+  if (!image) return fail(400, 'Нужно фото тетради с решениями')
+  const force = forcedModel(caller, body.model)
+  if (force instanceof Response) return force
+  const limited = await spend(env, caller, 'vision')
+  if (limited) return limited
+  try {
+    const { text, provider, model } = await complete(
+      env,
+      {
+        system: buildGradePrompt({ subject: str(body.subject, 10), subjectTitle, grade: str(body.grade, 20), tasks }),
+        messages: [{ role: 'user', content: 'Проверь мою самостоятельную работу на фото.' }],
+        image,
+        maxTokens: 2500,
+        temperature: 0.2,
+        json: true,
+        reasoning: 'low',
+      },
+      undefined,
+      force,
+    )
+    const result = sanitizeGrade(parseJsonLoose(text), tasks)
+    if (!result) return json({ error: 'Не удалось разобрать проверку. Попробуйте ещё раз или переснимите тетрадь.', ...(caller.eval ? { raw: text.slice(0, 2000) } : {}) }, 502)
+    return json({ ...result, provider, model })
+  } catch (e) {
+    console.error('grade failed', (e as Error).message)
+    const status = e instanceof ProviderError && e.status === 503 ? 503 : 502
+    return json({ error: 'Не удалось проверить фото. Попробуйте ещё раз.', ...(caller.eval ? { detail: (e as Error).message.slice(0, 1500) } : {}) }, status)
+  }
+}
+
 // ---------- /api/me — настройки напоминаний ----------
 
 async function me(req: Request, env: Env, caller: Caller): Promise<Response> {
@@ -386,6 +545,10 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, p
       return chat(req, env, ctx, caller)
     case '/api/ai/generate':
       return generate(req, env, caller)
+    case '/api/ai/selftest':
+      return selftest(req, env, caller)
+    case '/api/ai/grade':
+      return grade(req, env, caller)
     case '/api/ai/analyze':
       return analyze(req, env, caller)
     case '/api/me':

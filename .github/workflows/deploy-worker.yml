@@ -144,12 +144,9 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Фото решения для проверки по фото
-        run: |
-          google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
-            --window-size=900,560 --screenshot="$RUNNER_TEMP/solution.png" \
-            "file://$GITHUB_WORKSPACE/worker/scripts/eval/solution.html"
-          ls -l "$RUNNER_TEMP/solution.png"
+      # Решение ученика, параграф учебника и тетрадь с самостоятельной — для сценариев с фото.
+      - name: «Фото» для пробного варианта
+        run: bash worker/scripts/eval/render.sh "$RUNNER_TEMP/eval-images"
 
       - name: Пробный вариант
         run: node scripts/ai-eval.mjs
@@ -158,7 +155,7 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           MODELS: ${{ inputs.eval_models }}
           SCENARIOS: ${{ inputs.eval_scenarios }}
-          EVAL_IMAGE: ${{ runner.temp }}/solution.png
+          EVAL_IMAGES: ${{ runner.temp }}/eval-images
           EVAL_OUT: ${{ runner.temp }}/eval
 
       - uses: actions/upload-artifact@v4
@@ -167,7 +164,7 @@ jobs:
           name: ai-eval
           path: |
             ${{ runner.temp }}/eval
-            ${{ runner.temp }}/solution.png
+            ${{ runner.temp }}/eval-images
           if-no-files-found: ignore
 
   e2e:

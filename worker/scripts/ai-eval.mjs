@@ -5,10 +5,16 @@
  * Ученик решает вариант с намеренными ошибками (scripts/eval/variant.mjs), а ИИ
  * должен найти причину каждой ошибки. Плюс сценарии: проверка решения текстом
  * и по фото, сократический режим, объяснение темы, антистресс, безопасность,
- * попытка выведать промпт, белорусский язык, генерация заданий, разбор прогресса.
+ * попытка выведать промпт, белорусский язык, генерация заданий, разбор прогресса,
+ * урок «Объясни мне это» (по теме и по фото параграфа), самостоятельная «как в РБ»
+ * и её проверка по фото тетради.
  *
  *   BOT_TOKEN=… [APP_URL=…] [MODELS=@cf/qwen/qwen3.8-27b,gemini:…] [SCENARIOS=mistake:m-log,…]
- *   [FULL_MODELS=1] [EVAL_IMAGE=solution.png] [EVAL_OUT=папка] node scripts/ai-eval.mjs
+ *   [FULL_MODELS=1] [EVAL_IMAGES=папка] [EVAL_IMAGE=solution.png] [EVAL_OUT=папка] node scripts/ai-eval.mjs
+ *
+ * «Фото» — скриншоты страниц из scripts/eval: solution.html (решение), paragraph.html
+ * (параграф учебника), notebook.html (тетрадь с самостоятельной). В EVAL_IMAGES лежат
+ * <имя>.png; EVAL_IMAGE — по-старому, только решение. Сценарии без своего фото пропускаются.
  *
  * Запросы идут как от ученика из Telegram (подписанный initData) плюс служебный
  * ключ X-Krok-Eval: он снимает дневные лимиты и позволяет выбрать модель.
@@ -53,7 +59,15 @@ const onlyScenarios = new Set(
     .filter(Boolean),
 )
 const scenarios = SCENARIOS.filter((s) => !onlyScenarios.size || onlyScenarios.has(s.id))
-const image = process.env.EVAL_IMAGE && existsSync(process.env.EVAL_IMAGE) ? readFileSync(process.env.EVAL_IMAGE).toString('base64') : null
+function loadImage(name) {
+  const path = name === 'solution' && process.env.EVAL_IMAGE ? process.env.EVAL_IMAGE : process.env.EVAL_IMAGES ? join(process.env.EVAL_IMAGES, `${name}.png`) : null
+  return path && existsSync(path) ? readFileSync(path).toString('base64') : null
+}
+const images = Object.fromEntries(['solution', 'paragraph', 'notebook'].map((name) => [name, loadImage(name)]))
+/** Фото сценария: true — решение ученика (как раньше), строка — имя страницы. */
+const imageOf = (scenario) => (scenario.image ? images[scenario.image === true ? 'solution' : scenario.image] : null)
+const photoPayload = (scenario) => (scenario.image ? { image: { mime: 'image/png', data: imageOf(scenario) } } : {})
+const JSON_ROUTES = { generate: '/api/ai/generate', analyze: '/api/ai/analyze', selftest: '/api/ai/selftest', grade: '/api/ai/grade' }
 
 const headers = () => ({
   'Content-Type': 'application/json',
@@ -65,12 +79,13 @@ async function runChat(scenario, model) {
   const body = {
     mode: scenario.mode,
     messages: [...(scenario.history ?? []), { role: 'user', content: scenario.message }],
+    subject: scenario.subject,
     subjectTitle: scenario.subjectTitle,
     topic: scenario.topic,
     profile: STUDENT,
     task: scenario.task,
     refs: scenario.refs,
-    ...(scenario.image ? { image: { mime: 'image/png', data: image } } : {}),
+    ...photoPayload(scenario),
     // У сценария может быть своя модель и уровень рассуждений (эксперименты).
     ...((scenario.model ?? model) ? { model: scenario.model ?? model } : {}),
     ...(scenario.reasoning ? { reasoning: scenario.reasoning } : {}),
@@ -116,7 +131,7 @@ async function runChat(scenario, model) {
 async function runJson(path, scenario, model) {
   const started = Date.now()
   try {
-    const res = await fetch(`${base}${path}`, { method: 'POST', headers: headers(), body: JSON.stringify({ ...scenario.body, ...(model ? { model } : {}) }) })
+    const res = await fetch(`${base}${path}`, { method: 'POST', headers: headers(), body: JSON.stringify({ ...scenario.body, ...photoPayload(scenario), ...(model ? { model } : {}) }) })
     const data = await res.json().catch(() => ({}))
     const ms = Date.now() - started
     if (!res.ok) return { data, ms, error: `HTTP ${res.status}: ${data.error ?? ''}${data.detail ? ` (${data.detail})` : ''}` }
@@ -126,8 +141,49 @@ async function runJson(path, scenario, model) {
   }
 }
 
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+
+/** Самостоятельная «как в РБ»: уровни и баллы — по методическим указаниям Минобразования. */
+function selftestChecks(size, data) {
+  const tasks = Array.isArray(data?.tasks) ? data.tasks : []
+  const levels = size === 5 ? [1, 2, 3, 4, 5] : [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]
+  const points = size === 5 ? [2, 4, 6, 8, 10] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  const checkable = (t) =>
+    Array.isArray(t.options) ? Number.isInteger(t.answer) && t.answer >= 0 && t.answer < t.options.length : String(t.answer ?? '').trim().length > 0 && String(t.answer).length <= 40
+  return [
+    [`ровно ${size} заданий`, tasks.length === size],
+    ['уровни 1→5 по нормам РБ', same(tasks.map((t) => t.level), levels)],
+    ['баллы по нормам РБ', same(tasks.map((t) => t.points), points)],
+    ['у каждого — решение и проверяемый ответ', tasks.length > 0 && tasks.every((t) => typeof t.q === 'string' && typeof t.solution === 'string' && t.solution.length > 10 && checkable(t))],
+    ['уровень 1 — выбор из 4 вариантов', tasks.some((t) => t.level === 1) && tasks.filter((t) => t.level === 1).every((t) => Array.isArray(t.options) && t.options.length === 4)],
+    ['задания одного уровня разные', new Set(tasks.map((t) => t.q)).size === tasks.length],
+    ['ключи перепроверены второй моделью', Boolean(data?.verifier)],
+  ]
+}
+
+/** Проверка тетради (notebook.html): что верно, где существенная ошибка, что не решено. */
+function gradeChecks(data) {
+  const tasks = Array.isArray(data?.tasks) ? data.tasks : []
+  const byN = new Map(tasks.map((t) => [t.n, t]))
+  const max = new Map([[1, 2], [2, 4], [3, 6], [4, 8], [5, 10]])
+  const full = [1, 2, 4].every((n) => Number(byN.get(n)?.points) >= max.get(n) * 0.9)
+  const third = byN.get(3)
+  const fifth = byN.get(5)
+  const total = tasks.reduce((s, t) => s + (Number(t.points) || 0), 0)
+  return [
+    ['№ 1, 2, 4 решены верно — полный балл', full],
+    ['№ 3: найдена ошибка, снижение ≥ 50 % (≤ 3 из 6)', Boolean(third) && Number(third.points) <= 3 && Array.isArray(third.errors) && third.errors.length > 0],
+    ['№ 3: ошибка названа существенной', Boolean(third?.errors?.some((e) => e.kind === 'существенная'))],
+    ['№ 5 не решён — 0 баллов', Boolean(fifth) && Number(fifth.points) === 0],
+    ['сумма 14–17 из 30 (отметка 6–7)', total >= 14 && total <= 17],
+    ['есть вывод для ученика', typeof data?.summary === 'string' && data.summary.length > 20],
+  ]
+}
+
 /** Автопроверки для генерации и разбора — формат ответа. */
 function structuralChecks(scenario, data) {
+  if (scenario.kind === 'selftest') return selftestChecks(scenario.body.size, data)
+  if (scenario.kind === 'grade') return gradeChecks(data)
   if (scenario.kind === 'generate') {
     const tasks = Array.isArray(data?.tasks) ? data.tasks : []
     const valid = tasks.filter((t) => {
@@ -164,6 +220,23 @@ function formatGenerate(data) {
     .join('\n') + dropped
 }
 
+function formatSelfTest(data) {
+  const tasks = Array.isArray(data?.tasks) ? data.tasks : []
+  const audit = data?.drafts ? `Кандидатов: ${data.drafts}, подтверждено проверяющей моделью (${data.verifier ?? '—'}): ${data.verified}.\n` : ''
+  return `${audit}${data?.title ?? ''}\n${tasks
+    .map((t) => {
+      const options = Array.isArray(t.options) ? `\n   Варианты: ${t.options.map((o, j) => `${j + 1}) ${o}`).join('; ')}\n   Ответ: вариант ${Number(t.answer) + 1}` : `\n   Ответ: ${t.answer}`
+      return `${t.n}. [уровень ${t.level}, ${t.points} б.] ${t.q}${options}\n   Решение: ${t.solution}${t.check ? `\n   Существенная ошибка: ${t.check}` : ''}`
+    })
+    .join('\n')}`
+}
+
+function formatGrade(data) {
+  const tasks = Array.isArray(data?.tasks) ? data.tasks : []
+  const lines = tasks.map((t) => `№ ${t.n}: ${t.seen ? `${t.points} б.` : 'не видно / не решено — 0 б.'}${t.errors?.length ? ` — ${t.errors.map((e) => `${e.kind}: ${e.text}`).join('; ')}` : ''}${t.comment ? ` (${t.comment})` : ''}`)
+  return `${lines.join('\n')}\nИтого: ${tasks.reduce((s, t) => s + (Number(t.points) || 0), 0)} из 30.\n${data?.summary ?? ''}`
+}
+
 function formatAnalysis(data) {
   if (!data) return ''
   const { _eval, ...rest } = data
@@ -177,7 +250,8 @@ const targets = models.length ? models : [null]
 const fullModels = Math.max(1, Number(process.env.FULL_MODELS) || 1)
 const isQuotaError = (error) => /4006|neuron|allocation|quota|429|rate limit/i.test(error ?? '')
 let stopAll = false
-console.log(`Приложение: ${base}\nМодели: ${targets.map((m) => m ?? 'цепочка по умолчанию').join(', ')}\nСценарии: ${scenarios.length}${image ? '' : ' (без фото: EVAL_IMAGE не задан)'}\n`)
+const noPhoto = Object.entries(images).filter(([, data]) => !data).map(([name]) => name)
+console.log(`Приложение: ${base}\nМодели: ${targets.map((m) => m ?? 'цепочка по умолчанию').join(', ')}\nСценарии: ${scenarios.length}${noPhoto.length ? ` (нет фото: ${noPhoto.join(', ')} — эти сценарии пропускаются)` : ''}\n`)
 
 for (const [index, model] of targets.entries()) {
   if (stopAll) break
@@ -185,7 +259,7 @@ for (const [index, model] of targets.entries()) {
   const planned = index < fullModels || onlyScenarios.size ? scenarios : scenarios.filter((s) => CORE.includes(s.id))
   for (const scenario of planned) {
     if (stopAll) break
-    if (scenario.image && !image) continue
+    if (scenario.image && !imageOf(scenario)) continue
     // Модель недоступна (например, только на платном тарифе) — не тратим время на остальные сценарии.
     if (failuresInRow >= 3) {
       runs.push({ model, scenario: scenario.id, title: scenario.title, skipped: true })
@@ -197,10 +271,11 @@ for (const [index, model] of targets.entries()) {
       const checks = r.error ? [] : scenario.checks.map(([name, test]) => [name, Boolean(test(r.text))])
       run = { ...r, checks }
     } else {
-      const r = await runJson(scenario.kind === 'generate' ? '/api/ai/generate' : '/api/ai/analyze', scenario, model)
+      const r = await runJson(JSON_ROUTES[scenario.kind], scenario, model)
       const checks = r.error ? [] : structuralChecks(scenario, r.data)
-      const meta = scenario.kind === 'generate' ? { provider: r.data?.provider, model: r.data?.model, skipped: r.data?.skipped ?? [] } : r.data?._eval ?? null
-      run = { ...r, meta, text: r.error ? '' : scenario.kind === 'generate' ? formatGenerate(r.data) : formatAnalysis(r.data), checks }
+      const meta = scenario.kind === 'analyze' ? r.data?._eval ?? null : { provider: r.data?.provider, model: r.data?.model, skipped: r.data?.skipped ?? [] }
+      const format = { generate: formatGenerate, selftest: formatSelfTest, grade: formatGrade }[scenario.kind] ?? formatAnalysis
+      run = { ...r, meta, text: r.error ? '' : format(r.data), checks }
     }
     failuresInRow = run.error ? failuresInRow + 1 : 0
     if (isQuotaError(run.error)) {

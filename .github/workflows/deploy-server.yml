@@ -19,6 +19,10 @@ name: Deploy to own server
 # без неё — krok-ct.duckdns.org.
 #
 # Без секретов сервера запуск только собирает и проверяет образ.
+#
+# Галочка eval после деплоя прогоняет «пробный вариант» (worker/scripts/ai-eval.mjs) на сервере:
+# разбор ошибок, проверка по фото, урок «Объясни мне это», самостоятельная и её проверка по фото
+# тетради. Отчёт — в сводке запуска и в артефакте ai-eval.
 
 on:
   workflow_dispatch:
@@ -31,6 +35,14 @@ on:
         description: 'Переключить бота на сервер и выключить напоминания старого воркера Cloudflare'
         type: boolean
         default: true
+      eval:
+        description: 'После деплоя прогнать пробный вариант (проверка качества ИИ)'
+        type: boolean
+        default: false
+      eval_scenarios:
+        description: 'Сценарии пробного варианта через запятую, например lesson:topic,selftest:math5,grade:photo (пусто — все)'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -185,3 +197,40 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           APP_URL: https://${{ env.KROK_DOMAIN }}
+
+  eval:
+    needs: deploy
+    if: ${{ inputs.eval }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      KROK_DOMAIN: ${{ vars.KROK_DOMAIN || secrets.KROK_DOMAIN || 'krok-ct.duckdns.org' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Решение ученика, параграф учебника и тетрадь с самостоятельной — для сценариев с фото.
+      - name: «Фото» для пробного варианта
+        run: bash worker/scripts/eval/render.sh "$RUNNER_TEMP/eval-images"
+
+      - name: Пробный вариант
+        run: node scripts/ai-eval.mjs
+        working-directory: worker
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          APP_URL: https://${{ env.KROK_DOMAIN }}
+          SCENARIOS: ${{ inputs.eval_scenarios }}
+          EVAL_IMAGES: ${{ runner.temp }}/eval-images
+          EVAL_OUT: ${{ runner.temp }}/eval
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-eval
+          path: |
+            ${{ runner.temp }}/eval
+            ${{ runner.temp }}/eval-images
+          if-no-files-found: ignore

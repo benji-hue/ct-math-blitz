@@ -204,4 +204,38 @@ describe('сервер целиком: воркер в node:http', () => {
     const res = await fetch(`${base}/api/ai/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: 'x'.repeat(5_000_000) })
     expect(res.status).toBe(413)
   })
+
+  const post = (path, body) => fetch(`${base}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+
+  it('самостоятельная: 5 заданий по уровням 1–5 с баллами 2, 4, 6, 8, 10', async () => {
+    const res = await post('/api/ai/selftest', { subjectTitle: 'Математика', topic: 'Квадратичная функция', size: 5, grade: '9 класс' })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.tasks.map((t) => t.level)).toEqual([1, 2, 3, 4, 5])
+    expect(data.tasks.map((t) => t.points)).toEqual([2, 4, 6, 8, 10])
+    expect(data.tasks[0].options).toHaveLength(4)
+  })
+
+  it('самостоятельная из 10 заданий: по два на уровень, баллы 1…10', async () => {
+    const data = await (await post('/api/ai/selftest', { subjectTitle: 'Физика', topic: 'Импульс', size: 10 })).json()
+    expect(data.tasks.map((t) => t.level)).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
+    expect(data.tasks.map((t) => t.points)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    expect((await post('/api/ai/selftest', { subjectTitle: 'Физика' })).status).toBe(400)
+  })
+
+  it('проверка тетради: нужно фото, баллы не больше максимума задания', async () => {
+    const tasks = [1, 2].map((n) => ({ n, level: n, max: n * 2, q: `Задание ${n}`, answer: '1', solution: 'Решение' }))
+    expect((await post('/api/ai/grade', { subjectTitle: 'Математика', tasks })).status).toBe(400)
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+    const res = await post('/api/ai/grade', { subjectTitle: 'Математика', tasks, image: { mime: 'image/png', data: png } })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.tasks.map((t) => t.points)).toEqual([2, 4])
+  })
+
+  it('урок: тот же поток SSE, что и в чате', async () => {
+    const res = await post('/api/ai/chat', { mode: 'lesson', subject: 'math', messages: [{ role: 'user', content: 'Объясни квадратичную функцию' }], history: true })
+    expect(res.headers.get('Content-Type')).toContain('text/event-stream')
+    expect(await res.text()).toContain('"type":"done"')
+  })
 })

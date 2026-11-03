@@ -26,6 +26,8 @@ export interface Settings {
   haptics: boolean
   reminders: boolean
   remindHour: number
+  /** Урок «Объясни мне это»: исторические факты по теме (бета). */
+  history: boolean
 }
 
 export type AttemptMode = 'practice' | 'review' | 'mock' | 'ai'
@@ -75,7 +77,7 @@ export interface MockResult {
   estimate: number
 }
 
-export type AiMode = 'tutor' | 'explain' | 'socratic' | 'check' | 'mistake' | 'plan' | 'calm'
+export type AiMode = 'tutor' | 'lesson' | 'explain' | 'socratic' | 'check' | 'mistake' | 'plan' | 'calm'
 
 export interface ChatMessage {
   id: string
@@ -88,6 +90,8 @@ export interface ChatMessage {
   provider?: string
   /** Какая модель ответила (например, gemini-3.6-flash) — показывается под ответом. */
   model?: string
+  /** В каком режиме задан вопрос: по нему видно, где начался урок. */
+  mode?: AiMode
 }
 
 export interface ChatState {
@@ -138,6 +142,7 @@ export const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   reminders: true,
   remindHour: 18,
+  history: true,
 }
 
 export const EMPTY_PROGRESS: Progress = {

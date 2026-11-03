@@ -6,6 +6,7 @@ import {
   Camera,
   ChevronDown,
   CircleStop,
+  ClipboardList,
   Copy,
   HeartPulse,
   Lightbulb,
@@ -13,6 +14,7 @@ import {
   MessageCircleQuestion,
   RefreshCw,
   ScanSearch,
+  ScrollText,
   Sparkles,
   Trash2,
   Undo2,
@@ -24,10 +26,11 @@ import type { SubjectId } from '../domain/types'
 import { AiError, compressImage, isAiUnavailable, modelLabel, reduceStream, streamChat, type ChatTurn, type TaskContext } from '../lib/ai'
 import { demoAnswer } from '../lib/demoAi'
 import { referencesFor } from '../lib/retrieval'
+import { lessonSegment, topicFromQuestion } from '../lib/lesson'
 import { useStore, type AiMode, type ChatMessage } from '../lib/store'
-import { useNav, useTutorBus } from '../nav/nav'
+import { useLessonBus, useNav, useTutorBus } from '../nav/nav'
 import { Sheet, toast, useUi } from '../ui/chrome'
-import { Chip, IconButton, tap } from '../ui/kit'
+import { Button, Chip, IconButton, tap } from '../ui/kit'
 import { springSoft } from '../ui/motion'
 import { Markdown, Tex } from '../ui/Rich'
 import { SubjectIcon } from '../ui/SubjectIcon'
@@ -35,7 +38,7 @@ import { cx } from '../lib/cx'
 
 const MODES: { id: AiMode; label: string; icon: typeof Sparkles; hint: string }[] = [
   { id: 'tutor', label: 'Репетитор', icon: Sparkles, hint: 'Спроси что угодно по программе ЦЭ/ЦТ' },
-  { id: 'explain', label: 'Объясни', icon: Lightbulb, hint: 'Тема с нуля: интуиция → правило → пример → ловушка' },
+  { id: 'lesson', label: 'Объясни', icon: Lightbulb, hint: 'Урок по теме или фото параграфа — и самостоятельная в конце' },
   { id: 'socratic', label: 'Сократ', icon: MessageCircleQuestion, hint: 'Только наводящие вопросы — дойдёшь до ответа сам' },
   { id: 'check', label: 'Проверь решение', icon: ScanSearch, hint: 'Пришли решение текстом или фото — найду первую ошибку' },
   { id: 'mistake', label: 'Разбор ошибки', icon: BookOpen, hint: 'Почему ошибся и как не попасться снова' },
@@ -43,8 +46,15 @@ const MODES: { id: AiMode; label: string; icon: typeof Sparkles; hint: string }[
   { id: 'calm', label: 'Антистресс', icon: HeartPulse, hint: 'Поддержка перед экзаменом, техники с доказанной пользой' },
 ]
 
+/**
+ * Быстрое объяснение уровня ЦТ — без своей кнопки: его открывают «Объясни тему» у слабой темы
+ * на главной и «Объясни формулу» в блице. В ряду режимов подсвечивается «Объясни».
+ */
+const EXPLAIN_META = { id: 'explain' as AiMode, label: 'Объясни', icon: Lightbulb, hint: 'Объяснение темы с примером и ловушкой ЦТ' }
+
 const SUGGESTIONS: Record<AiMode, string[]> = {
   tutor: ['Как решать задания части B быстрее?', 'Чем отличается ЦЭ от ЦТ?', 'Сделай мини-тест из 3 вопросов по моей слабой теме'],
+  lesson: ['Объясни квадратичную функцию', 'Объясни, что такое импульс тела', 'Объясни теорему синусов на примере'],
   explain: ['Объясни метод интервалов', 'Что такое ОДЗ и зачем она нужна?', 'Как отличить причастие от прилагательного?'],
   socratic: ['Проверь, понимаю ли я логарифмы', 'Помоги дойти до формулы площади трапеции', 'Почему тело плавает?'],
   check: ['Вот моё решение: ...', 'Проверь: x² − 5x + 6 = 0, x = 2 и x = 3'],
@@ -65,6 +75,11 @@ export default function TutorScreen() {
   const pushMessage = useStore((s) => s.pushMessage)
   const patchMessage = useStore((s) => s.patchMessage)
   const clearChat = useStore((s) => s.clearChat)
+  const settings = useStore((s) => s.settings)
+  const updateSettings = useStore((s) => s.updateSettings)
+  const push = useNav((s) => s.push)
+  const [selfTestSheet, setSelfTestSheet] = useState(false)
+  const [selfTestTopic, setSelfTestTopic] = useState('')
   const content = useSubject(chat.subject)
   const topic = topicById(content, chat.topicId ?? '')
 
@@ -114,8 +129,14 @@ export default function TutorScreen() {
         .slice(-10)
         .map((m) => ({ role: m.role, content: m.content }))
 
-      pushMessage({ role: 'user', content: body || 'Проверь решение на фото.', image: opts.image?.preview })
-      const id = pushMessage({ role: 'assistant', content: '' })
+      const fallback = mode === 'lesson' ? 'Объясни тему с этого фото параграфа.' : 'Проверь решение на фото.'
+      if (mode === 'lesson') {
+        // Фото параграфа пригодится самостоятельной; новый урок без фото — старое фото забываем.
+        if (opts.image) useLessonBus.getState().set({ image: opts.image, lesson: '' })
+        else if (!lessonSegment(state.chat.messages).length) useLessonBus.getState().set(null)
+      }
+      pushMessage({ role: 'user', content: body || fallback, image: opts.image?.preview, mode })
+      const id = pushMessage({ role: 'assistant', content: '', mode })
       setStreamingId(id)
       setInput('')
       setImage(null)
@@ -135,11 +156,12 @@ export default function TutorScreen() {
             subject,
             subjectTitle: subject ? SUBJECTS[subject].title : undefined,
             topic: currentTopic?.title,
-            messages: [...history, { role: 'user', content: body || 'Проверь решение на фото.' }],
+            messages: [...history, { role: 'user', content: body || fallback }],
             refs,
             profile: { grade: state.profile.grade, exam: state.profile.exam, target: subject ? state.profile.targets[subject] : undefined },
             task: opts.task,
             image: opts.image ? { mime: opts.image.mime, data: opts.image.data } : undefined,
+            history: mode === 'lesson' ? state.settings.history : undefined,
           },
           controller.signal,
         )
@@ -197,7 +219,8 @@ export default function TutorScreen() {
     try {
       const compressed = await compressImage(file)
       setImage(compressed)
-      if (chat.mode !== 'check') setChat({ mode: 'check' })
+      // В уроке фото — это параграф учебника; в остальных режимах — решение на проверку.
+      if (chat.mode !== 'check' && chat.mode !== 'lesson') setChat({ mode: 'check' })
     } catch {
       toast('Не удалось прочитать фото', 'error')
     }
@@ -206,8 +229,29 @@ export default function TutorScreen() {
   const returnTo = useTutorBus((s) => s.returnTo)
   const clearReturn = useTutorBus((s) => s.clearReturn)
   const switchTab = useNav((s) => s.switchTab)
-  const modeMeta = MODES.find((m) => m.id === chat.mode) ?? MODES[0]
+  const modeMeta = chat.mode === 'explain' ? EXPLAIN_META : (MODES.find((m) => m.id === chat.mode) ?? MODES[0])
   const messages = chat.messages
+  const lesson = chat.mode === 'lesson' ? lessonSegment(messages) : []
+  const canSelfTest = !streamingId && lesson.some((m) => m.role === 'assistant' && m.content && !m.error)
+
+  function openSelfTest() {
+    tap()
+    const first = lesson.find((m) => m.role === 'user')
+    const fromPhoto = first?.content.startsWith('Объясни тему с этого фото')
+    setSelfTestTopic(topic?.title ?? (first && !fromPhoto ? topicFromQuestion(first.content) : ''))
+    setSelfTestSheet(true)
+  }
+
+  function startSelfTest() {
+    const text = lesson
+      .filter((m) => m.role === 'assistant' && m.content && !m.error)
+      .map((m) => m.content)
+      .join('\n\n')
+      .slice(-3000)
+    useLessonBus.getState().set({ image: useLessonBus.getState().context?.image ?? null, lesson: text })
+    setSelfTestSheet(false)
+    push({ name: 'selftest', subject: chat.subject, topic: selfTestTopic.trim() || 'тема параграфа на фото', topicId: chat.topicId })
+  }
 
   return (
     <div className="pt-1">
@@ -227,6 +271,7 @@ export default function TutorScreen() {
             onClick={() => {
               abortRef.current?.abort()
               clearChat()
+              useLessonBus.getState().set(null)
             }}
           >
             <Trash2 size={17} />
@@ -250,11 +295,26 @@ export default function TutorScreen() {
 
       <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1">
         {MODES.map((m) => (
-          <Chip key={m.id} active={chat.mode === m.id} onClick={() => setChat({ mode: m.id })} icon={<m.icon size={14} />}>
+          <Chip key={m.id} active={chat.mode === m.id || (m.id === 'lesson' && chat.mode === 'explain')} onClick={() => setChat({ mode: m.id })} icon={<m.icon size={14} />}>
             {m.label}
           </Chip>
         ))}
       </div>
+
+      {chat.mode === 'lesson' && (
+        <button
+          type="button"
+          onClick={() => {
+            tap()
+            updateSettings({ history: !settings.history })
+          }}
+          className="mb-3 flex items-center gap-2 px-1 text-[13px] text-muted"
+          aria-pressed={settings.history}
+        >
+          <ScrollText size={15} className={settings.history ? 'text-accent' : undefined} />
+          Истории из науки (бета): <b className={settings.history ? 'text-accent' : 'text-muted'}>{settings.history ? 'вкл' : 'выкл'}</b>
+        </button>
+      )}
 
       <button
         type="button"
@@ -289,6 +349,22 @@ export default function TutorScreen() {
                   {s}
                 </motion.button>
               ))}
+              {chat.mode === 'lesson' && (
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    tap()
+                    fileRef.current?.click()
+                  }}
+                  className="glass flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[14.5px] text-fg-2"
+                >
+                  <Camera size={18} className="shrink-0 text-accent" />
+                  <span>
+                    <b className="text-fg">Сфоткать параграф</b> — объясню его и дам самостоятельную
+                  </span>
+                </motion.button>
+              )}
             </div>
           </motion.div>
         )}
@@ -309,10 +385,24 @@ export default function TutorScreen() {
       <div className="fixed inset-x-0 z-30 px-4" style={{ bottom: keyboard ? 'calc(var(--app-bottom) + 8px)' : 'calc(var(--app-bottom) + var(--tabbar-h) + 18px)' }}>
         <div className="mx-auto max-w-xl">
           <AnimatePresence>
+            {canSelfTest && !image && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                whileTap={{ scale: 0.96 }}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={openSelfTest}
+                className="glass-strong mb-2 inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[13.5px] font-semibold text-accent"
+              >
+                <ClipboardList size={16} /> Самостоятельная по теме
+              </motion.button>
+            )}
             {image && (
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 inline-flex items-center gap-2 rounded-2xl glass-strong p-1.5 pr-3">
                 <img src={image.preview} alt="Фото решения" className="h-12 w-12 rounded-xl object-cover" />
-                <span className="text-[12.5px] text-fg-2">Фото решения</span>
+                <span className="text-[12.5px] text-fg-2">{chat.mode === 'lesson' ? 'Фото параграфа' : 'Фото решения'}</span>
                 <button type="button" aria-label="Убрать фото" onClick={() => setImage(null)} className="text-muted">
                   <X size={16} />
                 </button>
@@ -328,7 +418,7 @@ export default function TutorScreen() {
           >
             <button
               type="button"
-              aria-label="Прикрепить фото решения"
+              aria-label={chat.mode === 'lesson' ? 'Прикрепить фото параграфа' : 'Прикрепить фото решения'}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 tap()
@@ -354,7 +444,7 @@ export default function TutorScreen() {
                 }
               }}
               rows={1}
-              placeholder={chat.mode === 'check' ? 'Опиши решение или прикрепи фото…' : 'Спроси репетитора…'}
+              placeholder={chat.mode === 'check' ? 'Опиши решение или прикрепи фото…' : chat.mode === 'lesson' ? 'Тема, вопрос или фото параграфа…' : 'Спроси репетитора…'}
               className="max-h-[140px] min-h-10 flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-snug text-fg outline-none placeholder:text-faint"
             />
             {streamingId ? (
@@ -384,6 +474,19 @@ export default function TutorScreen() {
           <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => pickImage(e.target.files?.[0])} />
         </div>
       </div>
+
+      <Sheet open={selfTestSheet} onClose={() => setSelfTestSheet(false)} title="Самостоятельная по теме">
+        <p className="mb-3 text-[14px] leading-relaxed text-fg-2">Задания по пяти уровням, как в школе, — по тому, что мы разобрали на уроке. Проверь, как называется тема:</p>
+        <input
+          value={selfTestTopic}
+          onChange={(e) => setSelfTestTopic(e.target.value)}
+          placeholder={useLessonBus.getState().context?.image ? 'Например: «Квадратичная функция» (или оставь пустым)' : 'Например: Квадратичная функция'}
+          className="glass mb-4 h-12 w-full rounded-2xl px-4 text-[15px] text-fg outline-none placeholder:text-faint focus:border-accent/70"
+        />
+        <Button block size="lg" icon={<ClipboardList size={18} />} disabled={!selfTestTopic.trim() && !useLessonBus.getState().context?.image} onClick={startSelfTest}>
+          Составить самостоятельную
+        </Button>
+      </Sheet>
 
       <Sheet open={subjectSheet} onClose={() => setSubjectSheet(false)} title="Предмет для ИИ">
         <div className="grid grid-cols-2 gap-2 pb-2">
