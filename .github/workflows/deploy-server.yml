@@ -8,8 +8,10 @@ name: Deploy to own server
 # Секреты (Settings → Secrets and variables → Actions → Secrets):
 #   SERVER_HOST          — IP или имя сервера
 #   SERVER_USER          — пользователь SSH: root или пользователь из группы docker
-#   SERVER_SSH_KEY       — закрытый ключ; открытый лежит в ~/.ssh/authorized_keys на сервере
-#   SERVER_KNOWN_HOSTS   — вывод `ssh-keyscan <SERVER_HOST>`: защита от подмены сервера
+#   SERVER_PASSWORD      — пароль этого пользователя, или вместо него
+#   SERVER_SSH_KEY       — закрытый ключ (открытый лежит в ~/.ssh/authorized_keys на сервере)
+#   SERVER_KNOWN_HOSTS   — по желанию, но лучше задать: ключ сервера, защита от подмены
+#                          (строка из `ssh-keyscan` или содержимое /etc/ssh/ssh_host_ed25519_key.pub)
 #   SERVER_PORT          — по желанию, если SSH не на 22-м порту
 #   BOT_TOKEN            — токен бота; GEMINI_API_KEY — по желанию
 #   CLOUDFLARE_AI_TOKEN  — по желанию: Qwen через Workers AI (токен с правом «Workers AI: Read»)
@@ -69,14 +71,14 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+          SERVER_LOGIN: ${{ secrets.SERVER_PASSWORD != '' || secrets.SERVER_SSH_KEY != '' }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           missing=""
-          for name in SERVER_HOST SERVER_USER SERVER_SSH_KEY SERVER_KNOWN_HOSTS BOT_TOKEN KROK_DOMAIN; do
+          for name in SERVER_HOST SERVER_USER BOT_TOKEN KROK_DOMAIN; do
             [ -n "${!name}" ] || missing="$missing $name"
           done
+          [ "$SERVER_LOGIN" = true ] || missing="$missing SERVER_PASSWORD"
           if [ -n "$missing" ]; then
             echo "::notice title=Образ собран и проверен::На сервер не выкладывали — не хватает:$missing. Как их получить — docs/ДЕПЛОЙ.md, раздел «Свой сервер»."
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -90,28 +92,11 @@ jobs:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
           SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
-        run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/krok
-          chmod 600 ~/.ssh/krok
-          printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          {
-            echo "Host krok"
-            echo "  HostName $SERVER_HOST"
-            echo "  User $SERVER_USER"
-            echo "  Port ${SERVER_PORT:-22}"
-            echo "  IdentityFile ~/.ssh/krok"
-            echo "  IdentitiesOnly yes"
-            echo "  StrictHostKeyChecking yes"
-            echo "  ServerAliveInterval 30"
-          } > ~/.ssh/config
-          if ! ssh krok true; then
-            echo "::error title=Нет доступа по SSH::Проверьте SERVER_HOST, SERVER_USER, SERVER_SSH_KEY и SERVER_KNOWN_HOSTS (вывод ssh-keyscan для того же адреса и порта)"
-            exit 1
-          fi
-          echo "SSH: подключение есть"
+        # Одно соединение на весь деплой: пароль вводится один раз, остальные шаги идут через него.
+        run: bash deploy/ssh-setup.sh
 
       - name: Docker на сервере
         if: steps.target.outputs.ready == 'true'
