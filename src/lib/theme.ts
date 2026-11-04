@@ -13,16 +13,23 @@ export function resolveScheme(setting: 'auto' | 'light' | 'dark'): 'light' | 'da
   return colorScheme() ?? initialTelegramScheme() ?? systemScheme()
 }
 
+/**
+ * Лёгкий режим: без размытия фона, «авроры» и анимаций движения. Размытие и анимации
+ * тормозят не только слабые, но и средние Android: Telegram сам относит большинство
+ * недорогих телефонов к классу AVERAGE.
+ */
+export function isLite(setting: 'auto' | 'on' | 'off'): boolean {
+  if (setting !== 'auto') return setting === 'on'
+  const perf = performanceClass()
+  return perf === 'low' || perf === 'average'
+}
+
 export function applyTheme(): void {
   const { theme, lite } = useStore.getState().settings
   const scheme = resolveScheme(theme)
   const root = document.documentElement
   root.dataset.theme = scheme
-  // Размытие фона и анимация «авроры» тормозят не только слабые, но и средние Android:
-  // Telegram сам относит большинство недорогих телефонов к классу AVERAGE.
-  const perf = performanceClass()
-  const liteOn = lite === 'on' || (lite === 'auto' && (perf === 'low' || perf === 'average'))
-  root.dataset.lite = String(liteOn)
+  root.dataset.lite = String(isLite(lite))
   setChromeColor(CANVAS[scheme])
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', CANVAS[scheme])
 }

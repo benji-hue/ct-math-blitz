@@ -4,7 +4,7 @@ import { preloadSubjects } from './content'
 import { useStore } from './lib/store'
 import { startCloudSync } from './lib/sync'
 import { onTelegramReady, setBackButton, telegramUser } from './lib/telegram'
-import { useThemeSync } from './lib/theme'
+import { isLite, useThemeSync } from './lib/theme'
 import { useReminderSync } from './lib/reminders'
 import { currentEntry, IMMERSIVE, useNav, type StackEntry } from './nav/nav'
 import { TabBar } from './nav/TabBar'
@@ -127,6 +127,7 @@ export default function App() {
   useThemeSync()
   useReminderSync()
   const onboarded = useStore((s) => s.profile.onboarded)
+  const lite = isLite(useStore((s) => s.settings.lite))
   const subjects = useStore((s) => s.profile.subjects)
 
   useEffect(() => {
@@ -148,7 +149,8 @@ export default function App() {
   }, [subjects])
 
   return (
-    <MotionConfig reducedMotion="user">
+    // Лёгкий режим — без анимаций движения: на слабых телефонах каждая анимация списка стоит кадров.
+    <MotionConfig reducedMotion={lite ? 'always' : 'user'}>
       <Aurora />
       <AnimatePresence mode="wait" initial={false}>
         {onboarded ? (

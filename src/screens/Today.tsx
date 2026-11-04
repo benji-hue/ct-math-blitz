@@ -19,7 +19,7 @@ import { EXAM_START_TIME, nextExam, upcomingEvents, isOngoing } from '../domain/
 import { SUBJECTS } from '../domain/subjects'
 import { ERROR_TYPES, type SubjectId } from '../domain/types'
 import { errorBreakdown, liveStreak, streakAtRisk, todayStats, weakTopics, topicRows, levelFromXp } from '../lib/analytics'
-import { formatDay, formatRange, greeting, plural, pluralN } from '../lib/format'
+import { dayKey, formatDay, formatRange, greeting, plural, pluralN } from '../lib/format'
 import { isDue } from '../lib/srs'
 import { useStore } from '../lib/store'
 import { telegramUser } from '../lib/telegram'
@@ -55,14 +55,19 @@ export function TodayScreen() {
   const goal = Math.max(5, profile.dailyGoal)
   const level = levelFromXp(progress.xp)
 
+  // Пересчёт при смене дня: если приложение открыто через полночь, к повторению прибавляются задания.
+  const day = dayKey(now)
   const dueBySubject = useMemo(() => {
+    const at = new Date()
     const out: Partial<Record<SubjectId, number>> = {}
     for (const id of profile.subjects) {
       const tasks = [...(contents[id]?.tasks ?? []), ...Object.values(generated).filter((t) => t.subject === id)]
-      out[id] = tasks.filter((t) => progress.srs[t.id] && isDue(progress.srs[t.id], now)).length
+      out[id] = tasks.filter((t) => progress.srs[t.id] && isDue(progress.srs[t.id], at)).length
     }
     return out
-  }, [contents, progress.srs, generated, profile.subjects])
+    // day — намеренная зависимость: пересчитать, когда наступили новые сутки.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contents, progress.srs, generated, profile.subjects, day])
   const dueTotal = Object.values(dueBySubject).reduce<number>((s, n) => s + (n ?? 0), 0)
   const dueSubject = (Object.entries(dueBySubject) as [SubjectId, number][]).sort((a, b) => b[1] - a[1])[0]?.[0]
 

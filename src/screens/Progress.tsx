@@ -5,7 +5,7 @@ import { useSubjects } from '../content'
 import { SUBJECTS } from '../domain/subjects'
 import { ERROR_TYPES, type ErrorType, type SubjectId } from '../domain/types'
 import { ACHIEVEMENTS, errorBreakdown, forecast, heatmap, levelFromXp, liveStreak, topicRows, weakTopics, weeklyAccuracy } from '../lib/analytics'
-import { pluralN } from '../lib/format'
+import { pluralN, shortDate } from '../lib/format'
 import { useStore } from '../lib/store'
 import { useNav } from '../nav/nav'
 import { Bar, Card, Counter, Empty, SectionTitle, Stagger, StaggerItem, tap } from '../ui/kit'
@@ -31,6 +31,11 @@ export default function ProgressScreen() {
   const accuracy = total ? progress.attempts.filter((a) => a.ok).length / total : 0
   const weeks = useMemo(() => weeklyAccuracy(progress), [progress])
   const cells = useMemo(() => heatmap(progress, 16), [progress])
+  // Слабые темы по каждому предмету — один раз на изменение прогресса (и для списка, и для «пробелов нет»).
+  const weakBySubject = useMemo(
+    () => profile.subjects.map((id) => ({ id, rows: contents[id] ? weakTopics(topicRows(contents[id]!, progress), 3) : [] })),
+    [profile.subjects, contents, progress],
+  )
   const errors = errorBreakdown(progress.attempts)
   const errorTotal = Object.values(errors).reduce((a, b) => a + b, 0)
 
@@ -213,10 +218,8 @@ export default function ProgressScreen() {
       <StaggerItem>
         <SectionTitle>Слабые темы</SectionTitle>
         <Card padded={false} className="divide-y divide-line px-4">
-          {profile.subjects.flatMap((id) => {
-            const content = contents[id]
-            if (!content) return []
-            return weakTopics(topicRows(content, progress), 3).map((r) => (
+          {weakBySubject.flatMap(({ id, rows }) =>
+            rows.map((r) => (
               <button
                 key={r.topic.id}
                 type="button"
@@ -231,9 +234,9 @@ export default function ProgressScreen() {
                 <span className="tabular text-[13px] text-muted">{Math.round(r.mastery * 100)}%</span>
                 <ChevronRight size={17} className="text-faint" />
               </button>
-            ))
-          })}
-          {profile.subjects.every((id) => !contents[id] || weakTopics(topicRows(contents[id]!, progress)).length === 0) && (
+            )),
+          )}
+          {weakBySubject.every(({ rows }) => rows.length === 0) && (
             <p className="py-4 text-center text-[13.5px] text-muted">Явных пробелов нет — так держать!</p>
           )}
         </Card>
@@ -251,7 +254,7 @@ export default function ProgressScreen() {
                   <SubjectIcon id={m.subject} size={30} />
                   <span className="flex-1 text-[14px] text-fg">
                     {SUBJECTS[m.subject].short}
-                    <span className="block text-[12px] text-muted">{new Date(m.at).toLocaleDateString('ru-RU')}</span>
+                    <span className="block text-[12px] text-muted">{shortDate(m.at)}</span>
                   </span>
                   <span className="tabular text-[16px] font-bold text-fg">
                     {m.correct}/{m.total}

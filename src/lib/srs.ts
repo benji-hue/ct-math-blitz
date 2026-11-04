@@ -93,13 +93,3 @@ export function retrievability(card: SrsCard, now = new Date()): number {
   }
 }
 
-export function intervalLabel(card: SrsCard, now = new Date()): string {
-  const ms = new Date(card.due).getTime() - now.getTime()
-  if (ms <= 0) return 'сейчас'
-  const minutes = Math.round(ms / 60000)
-  if (minutes < 60) return `через ${minutes} мин`
-  const hours = Math.round(minutes / 60)
-  if (hours < 24) return `через ${hours} ч`
-  const days = Math.round(hours / 24)
-  return `через ${days} дн`
-}

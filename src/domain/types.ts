@@ -19,8 +19,6 @@ export const SUBJECT_IDS = [
 
 export type SubjectId = (typeof SUBJECT_IDS)[number]
 
-export type ExamKind = 'ce' | 'ct'
-
 /** Раздел программы вступительных испытаний (спецификации РИКЗ). */
 export interface Topic {
   id: string

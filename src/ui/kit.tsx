@@ -1,5 +1,5 @@
 import { animate, motion, useMotionValue, useReducedMotion, useTransform, type HTMLMotionProps } from 'motion/react'
-import { forwardRef, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { forwardRef, useEffect, type CSSProperties, type ReactNode } from 'react'
 import { ChevronRight, Loader } from 'lucide-react'
 import { cx } from '../lib/cx'
 import { haptic } from '../lib/telegram'
@@ -424,16 +424,3 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cx('skeleton', className)} />
 }
 
-/** Хук «показать позже»: скелетон не мигает на быстрых загрузках. */
-export function useDelayed(flag: boolean, ms = 180): boolean {
-  const [shown, setShown] = useState(false)
-  useEffect(() => {
-    if (!flag) {
-      setShown(false)
-      return
-    }
-    const t = window.setTimeout(() => setShown(true), ms)
-    return () => window.clearTimeout(t)
-  }, [flag, ms])
-  return shown
-}

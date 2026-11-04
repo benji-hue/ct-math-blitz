@@ -15,9 +15,3 @@ export const itemVariants: Variants = {
   hidden: { opacity: 0, y: 14, scale: 0.985 },
   show: { opacity: 1, y: 0, scale: 1, transition: springSoft },
 }
-
-export const fadeUp = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0 },
-  transition: springSoft,
-}

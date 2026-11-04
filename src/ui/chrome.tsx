@@ -6,7 +6,7 @@ import { cx } from '../lib/cx'
 import { hasNativeBackButton } from '../lib/telegram'
 import { useNav } from '../nav/nav'
 import { springSoft } from './motion'
-import { IconButton, tap } from './kit'
+import { IconButton } from './kit'
 
 // ---------- Фон ----------
 
@@ -299,17 +299,3 @@ export function useNow(intervalMs = 1000): number {
   return now
 }
 
-export function PressableTitle({ children, onClick }: { children: ReactNode; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        tap('light')
-        onClick()
-      }}
-      className="text-[13px] font-semibold text-accent"
-    >
-      {children}
-    </button>
-  )
-}

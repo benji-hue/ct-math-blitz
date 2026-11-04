@@ -54,14 +54,6 @@ export function saveProgress(progress: Progress): void {
   }
 }
 
-export function clearProgress(): void {
-  try {
-    localStorage.removeItem(KEY)
-  } catch {
-    // ignore
-  }
-}
-
 function bump(map: Record<string, number>, id: string, by = 1): Record<string, number> {
   return { ...map, [id]: (map[id] ?? 0) + by }
 }
@@ -92,10 +84,6 @@ export function isMastered(progress: Progress, id: string): boolean {
 
 export function masteredCount(progress: Progress): number {
   return ALL_QUESTIONS.filter((q) => isMastered(progress, q.id)).length
-}
-
-export function unlockedCount(progress: Progress): number {
-  return ALL_QUESTIONS.filter((q) => (progress.seen[q.id] ?? 0) > 0).length
 }
 
 /** Ids the player keeps getting wrong, worst first. */

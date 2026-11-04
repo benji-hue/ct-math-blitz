@@ -3,10 +3,6 @@ import type { Category, Question, RuntimeQuestion } from '../types'
 
 export const ALL_QUESTIONS = raw as unknown as Question[]
 
-export const QUESTIONS_BY_ID: Record<string, Question> = Object.fromEntries(
-  ALL_QUESTIONS.map((q) => [q.id, q]),
-)
-
 /** Fisher–Yates, non-mutating. */
 export function shuffle<T>(items: readonly T[]): T[] {
   const out = items.slice()

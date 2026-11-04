@@ -40,10 +40,6 @@ export function loadSubject(id: SubjectId): Promise<SubjectContent> {
   return p
 }
 
-export function cachedSubject(id: SubjectId): SubjectContent | undefined {
-  return cache.get(id)
-}
-
 export function preloadSubjects(ids: SubjectId[]): void {
   for (const id of ids) loadSubject(id).catch(() => {})
 }

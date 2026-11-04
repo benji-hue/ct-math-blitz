@@ -68,6 +68,3 @@ export function minskDay(now = Date.now()): string {
   return new Date(now + 3 * 3600_000).toISOString().slice(0, 10)
 }
 
-export function minskHour(now = Date.now()): number {
-  return new Date(now + 3 * 3600_000).getUTCHours()
-}

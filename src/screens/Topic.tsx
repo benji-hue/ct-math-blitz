@@ -3,6 +3,7 @@ import { tasksOfTopic, topicById, useSubject } from '../content'
 import { SUBJECTS } from '../domain/subjects'
 import type { SubjectId } from '../domain/types'
 import { currentMastery } from '../lib/analytics'
+import { shortDate } from '../lib/format'
 import { useStore } from '../lib/store'
 import { useNav, useTutorBus } from '../nav/nav'
 import { Header } from '../ui/chrome'
@@ -103,7 +104,7 @@ export function TopicScreen({ subject, topicId }: { subject: SubjectId; topicId:
               <div className="flex-1">
                 <p className="text-[14px] font-semibold text-fg">Твоя статистика</p>
                 <p className="text-[12.5px] text-muted">
-                  {stat.ok} из {stat.n} верно · последний раз {new Date(stat.last).toLocaleDateString('ru-RU')}
+                  {stat.ok} из {stat.n} верно · последний раз {shortDate(stat.last)}
                 </p>
                 <Bar value={stat.ok / stat.n} className="mt-2" color={meta.color} />
               </div>

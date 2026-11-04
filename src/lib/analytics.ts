@@ -113,18 +113,6 @@ export function errorBreakdown(attempts: Attempt[], subject?: SubjectId, days = 
   return out
 }
 
-export function recentMistakes(attempts: Attempt[], subject?: SubjectId, limit = 8): Attempt[] {
-  const out: Attempt[] = []
-  const seen = new Set<string>()
-  for (let i = attempts.length - 1; i >= 0 && out.length < limit; i--) {
-    const a = attempts[i]
-    if (a.ok || seen.has(a.id) || (subject && a.s !== subject)) continue
-    seen.add(a.id)
-    out.push(a)
-  }
-  return out
-}
-
 // ---------- Динамика ----------
 
 export interface WeekPoint {

@@ -5,7 +5,7 @@ import { SUBJECTS } from '../domain/subjects'
 import { sourcesFor } from '../domain/sources'
 import type { SubjectId } from '../domain/types'
 import { forecast, topicRows } from '../lib/analytics'
-import { formatDay } from '../lib/format'
+import { formatDay, formatNumber } from '../lib/format'
 import { isDue } from '../lib/srs'
 import { useStore } from '../lib/store'
 import { openExternal } from '../lib/telegram'
@@ -160,7 +160,7 @@ export function SubjectScreen({ id }: { id: SubjectId }) {
                 )}
                 {meta.stats.ceAvg !== undefined && (
                   <>
-                    Средний балл ЦЭ-2026: <b className="text-fg">{meta.stats.ceAvg}</b> ({meta.stats.ceParticipants?.toLocaleString('ru-RU')} участников)
+                    Средний балл ЦЭ-2026: <b className="text-fg">{meta.stats.ceAvg}</b> ({formatNumber(meta.stats.ceParticipants ?? 0)} участников)
                     <br />
                   </>
                 )}

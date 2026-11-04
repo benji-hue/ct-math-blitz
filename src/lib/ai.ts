@@ -269,22 +269,6 @@ export async function analyzeProgress(req: AnalyzeRequest, signal?: AbortSignal)
 
 // ---------- Статус и напоминания ----------
 
-export interface AiStatus {
-  ok: boolean
-  providers: { id: string; model: string }[]
-  limits?: Record<string, { used: number; limit: number }>
-}
-
-export async function fetchStatus(signal?: AbortSignal): Promise<AiStatus | null> {
-  try {
-    const res = await fetch(url('/api/ai/status'), { headers: headers(), signal })
-    if (!res.ok) return null
-    return (await res.json()) as AiStatus
-  } catch {
-    return null
-  }
-}
-
 export interface ReminderSync {
   reminders: boolean
   remindHour: number

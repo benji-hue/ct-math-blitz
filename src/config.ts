@@ -8,9 +8,6 @@ export const APP_NAME = 'Крок'
 export const APP_TAGLINE = 'Шаг за шагом — к 100 баллам'
 export const APP_VERSION = '2.0.0'
 
-/** Ближайший экзаменационный год, к которому готовимся. */
-export const EXAM_YEAR = 2027
-
 /**
  * Адрес API воркера. Пустая строка — тот же домен (когда мини-апп раздаёт сам
  * воркер). Для сборки на GitHub Pages задайте VITE_API_BASE=https://<worker>.workers.dev
