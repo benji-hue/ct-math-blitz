@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FACTS, pickFacts, STATUS_LABEL } from '../src/ai/facts'
 import { buildSystemPrompt } from '../src/ai/prompts'
-import { assemble, buildGradePrompt, buildSelfTestPrompt, capByErrors, levelOf, POINTS, sanitizeGrade, sanitizeSelfTest } from '../src/ai/selftest'
+import { assemble, buildGradePrompt, buildSelfTestPrompt, capByErrors, draftGroups, levelOf, POINTS, sanitizeGrade, sanitizeSelfTest } from '../src/ai/selftest'
 
 describe('банк исторических фактов (бета)', () => {
   it('у каждого факта — источник, связь с темой и пометка о достоверности', () => {
@@ -86,6 +86,14 @@ describe('самостоятельная работа по нормам РБ', (
     expect(prompt).toContain('<lesson>')
     expect(prompt).toContain('найдите сумму корней')
     expect(buildSelfTestPrompt({ subjectTitle: 'М', topic: 'т', size: 10, perLevel: 3, levels: [4, 5] })).toContain('Нужно 6 заданий: по 3 на каждый из уровней 4, 5')
+  })
+
+  it('кандидаты составляются группами уровней — не больше 6 заданий в одном ответе', () => {
+    // Работа из 5: по 2 кандидата на уровень; из 10: по 3 — 15 заданий одним ответом обрывались.
+    expect(draftGroups([1, 2, 3, 4, 5], 2)).toEqual([[1, 2, 3], [4, 5]])
+    expect(draftGroups([1, 2, 3, 4, 5], 3)).toEqual([[1, 2], [3, 4], [5]])
+    expect(draftGroups([4], 3)).toEqual([[4]])
+    expect(draftGroups([2, 5], 2)).toEqual([[2, 5]])
   })
 
   const good = (level: number, k = 0) => ({ level, q: `Задание уровня ${level}, вариант ${k}: найдите $2+${level}$.`, answer: String(2 + level), solution: `$2+${level}=${2 + level}$.` })

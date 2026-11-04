@@ -2,7 +2,7 @@ import { describeProviders, streamWithFailover, complete, ProviderError, type Ch
 import { buildAnalyzePrompt, buildGeneratePrompt, buildSystemPrompt, MODES, type Mode, type Reference, type TaskContext } from './ai/prompts'
 import { parseJsonLoose } from './ai/sse'
 import { pickFacts } from './ai/facts'
-import { assemble, buildGradePrompt, buildSelfTestPrompt, parseSelfTest, POINTS, sanitizeGrade, toDraft, type GradeTask, type SelfTestSize, type SelfTestTask } from './ai/selftest'
+import { assemble, buildGradePrompt, buildSelfTestPrompt, draftGroups, parseSelfTest, POINTS, sanitizeGrade, toDraft, type GradeTask, type SelfTestSize, type SelfTestTask } from './ai/selftest'
 import { screenTask, verifyTasks } from './ai/verify'
 import { minskDay, num, VERSION, type Env } from './env'
 import { consume, limitFor, track, usage, type Kind } from './limits'
@@ -364,61 +364,69 @@ async function selftest(req: Request, env: Env, caller: Caller): Promise<Respons
   }
 
   // Кандидатов больше, чем нужно: задания с неверным ключом отсеет перепроверка.
-  const round = async (levels: number[]) => {
-    const { text, provider, model } = await complete(
-      env,
-      {
-        system: buildSelfTestPrompt({ ...base, perLevel: need + 1, levels }),
-        messages: [{ role: 'user', content: `Составь задания по теме «${topic}».` }],
-        image,
-        maxTokens: size === 10 ? 6000 : 4000,
-        temperature: 0.6,
-        json: true,
-        // Gemini составляет с короткими рассуждениями; Qwen в JSON-ответах — без них.
-        reasoning: 'low',
-      },
-      undefined,
-      force,
-    )
-    const draft = parseSelfTest(text)
-    const tasks = draft.tasks.filter((t) => levels.includes(t.level))
-    // Заглушка для локальной разработки не умеет перепроверять — её задания верны по построению.
-    if (provider === 'mock') return { title: draft.title, provider, model, verifier: null, verified: tasks, drafts: tasks.length }
-    const failures: string[] = []
-    const verdict = tasks.length ? await verifyTasks(env, tasks.map(toDraft), subjectTitle, { provider, model }, failures) : null
-    if (!verdict) throw new ProviderError(`Не удалось перепроверить задания${failures.length ? `: ${failures.join(' | ')}` : ''}`, 503)
-    if (failures.length) console.error('selftest verify partial', failures.join(' | ').slice(0, 500))
-    return { title: draft.title, provider, model, verifier: verdict.model, verified: tasks.filter((_, i) => verdict.ok[i]), drafts: tasks.length }
+  type Part = { title: string; provider: string; model: string; verifier: string | null; verified: SelfTestTask[]; drafts: number }
+  const failures: string[] = []
+
+  /** Группа уровней: черновик, отсев, перепроверка. Отказ одной группы не роняет остальные. */
+  const draftGroup = async (levels: number[]): Promise<Part | null> => {
+    try {
+      const { text, provider, model } = await complete(
+        env,
+        {
+          system: buildSelfTestPrompt({ ...base, perLevel: need + 1, levels }),
+          messages: [{ role: 'user', content: `Составь задания по теме «${topic}».` }],
+          image,
+          maxTokens: 4000,
+          temperature: 0.6,
+          json: true,
+          // Gemini составляет с короткими рассуждениями; Qwen в JSON-ответах — без них.
+          reasoning: 'low',
+        },
+        undefined,
+        force,
+      )
+      const draft = parseSelfTest(text)
+      const tasks = draft.tasks.filter((t) => levels.includes(t.level))
+      if (!tasks.length) {
+        failures.push(`уровни ${levels.join(', ')}: черновик не разобран (${text.length} симв.)`)
+        return null
+      }
+      // Заглушка для локальной разработки не умеет перепроверять — её задания верны по построению.
+      if (provider === 'mock') return { title: draft.title, provider, model, verifier: null, verified: tasks, drafts: tasks.length }
+      const verdict = await verifyTasks(env, tasks.map(toDraft), subjectTitle, { provider, model }, failures)
+      if (!verdict) return null
+      return { title: draft.title, provider, model, verifier: verdict.model, verified: tasks.filter((_, i) => verdict.ok[i]), drafts: tasks.length }
+    } catch (e) {
+      failures.push(`уровни ${levels.join(', ')}: ${(e as Error).message.slice(0, 300)}`)
+      return null
+    }
   }
 
-  try {
-    const first = await round([1, 2, 3, 4, 5])
-    let verified: SelfTestTask[] = first.verified
-    let built = assemble(size, verified)
-    let drafts = first.drafts
-    if (built.missing.length) {
-      // Повторная попытка только для уровней, где не хватило подтверждённых заданий.
-      const second = await round(built.missing)
-      verified = [...verified, ...second.verified]
-      drafts += second.drafts
-      built = assemble(size, verified)
-    }
-    const audit = caller.eval ? { drafts, verified: verified.length, missing: built.missing } : {}
-    if (built.missing.length) return json({ error: 'Не удалось составить полную работу: часть заданий не прошла перепроверку. Попробуйте ещё раз.', ...audit }, 502)
-    return json({
-      title: first.title || `Самостоятельная работа: ${topic}`,
-      size,
-      tasks: built.tasks.map((t, i) => ({ ...t, n: i + 1, points: POINTS[size][i] })),
-      provider: first.provider,
-      model: first.model,
-      verifier: first.verifier,
-      ...audit,
-    })
-  } catch (e) {
-    console.error('selftest failed', (e as Error).message)
-    const status = e instanceof ProviderError && e.status === 503 ? 503 : 502
-    return json({ error: 'Не удалось составить самостоятельную. Попробуйте ещё раз.', ...(caller.eval ? { detail: (e as Error).message.slice(0, 1500) } : {}) }, status)
+  // Группы уровней составляются параллельно: так быстрее, и длинный ответ не обрывается.
+  const round = async (levels: number[]) => (await Promise.all(draftGroups(levels, need + 1).map(draftGroup))).filter((p): p is Part => p !== null)
+
+  const parts = await round([1, 2, 3, 4, 5])
+  let built = assemble(size, parts.flatMap((p) => p.verified))
+  if (built.missing.length) {
+    // Повторная попытка только для уровней, где не хватило подтверждённых заданий.
+    parts.push(...(await round(built.missing)))
+    built = assemble(size, parts.flatMap((p) => p.verified))
   }
+  if (failures.length) console.error('selftest partial', failures.join(' | ').slice(0, 1000))
+  const audit = caller.eval
+    ? { drafts: parts.reduce((sum, p) => sum + p.drafts, 0), verified: parts.reduce((sum, p) => sum + p.verified.length, 0), missing: built.missing, ...(failures.length ? { failures } : {}) }
+    : {}
+  if (!parts.length) return json({ error: 'Не удалось составить самостоятельную. Попробуйте ещё раз.', ...audit }, 503)
+  if (built.missing.length) return json({ error: 'Не удалось составить полную работу: часть заданий не прошла перепроверку. Попробуйте ещё раз.', ...audit }, 502)
+  return json({
+    title: parts.find((p) => p.title)?.title || `Самостоятельная работа: ${topic}`,
+    size,
+    tasks: built.tasks.map((t, i) => ({ ...t, n: i + 1, points: POINTS[size][i] })),
+    provider: parts[0].provider,
+    model: parts[0].model,
+    verifier: parts.find((p) => p.verifier)?.verifier ?? null,
+    ...audit,
+  })
 }
 
 // ---------- /api/ai/grade — проверка самостоятельной по фото тетради ----------

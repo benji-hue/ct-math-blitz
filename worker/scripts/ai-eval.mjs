@@ -203,7 +203,8 @@ function structuralChecks(scenario, data) {
     ['есть сводка и совет', typeof data?.summary === 'string' && data.summary.length > 20 && typeof data?.tip === 'string'],
     ['пробелы — из слабых тем', gaps.length >= 2 && gaps.every((g) => weak.some((w) => String(g?.topic ?? '').toLowerCase().includes(w)))],
     ['план ровно на 7 дней', week.length === 7],
-    ['нагрузка реалистичная (≤ 90 мин/день)', week.length > 0 && week.every((d) => Number(d?.minutes) > 0 && Number(d?.minutes) <= 90)],
+    // День отдыха с 0 минут — нормально (распределённая практика), но учиться — хотя бы 4 дня.
+    ['нагрузка реалистичная (≤ 90 мин/день)', week.length > 0 && week.every((d) => Number(d?.minutes) >= 0 && Number(d?.minutes) <= 90) && week.filter((d) => Number(d?.minutes) > 0).length >= 4],
   ]
 }
 

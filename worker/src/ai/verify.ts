@@ -93,9 +93,10 @@ export function verifiers(env: Env, author?: ForcedModel): ForcedModel[] {
 /**
  * Сколько заданий проверяющий решает за один запрос. Скрытые рассуждения Gemini делят
  * лимит токенов с ответом: 4 задания генерации проходили, а 10–15 заданий самостоятельной
- * одним запросом обрывались, и работа не собиралась. Части проверяются параллельно.
+ * одним запросом обрывались, и работа не собиралась. Части проверяются параллельно;
+ * размер совпадает с группой, которую составляет модель (DRAFT_PER_CALL в selftest.ts).
  */
-export const VERIFY_CHUNK = 5
+export const VERIFY_CHUNK = 6
 
 async function verifyChunk(env: Env, tasks: DraftTask[], subjectTitle: string, author: ForcedModel | undefined, failures: string[]): Promise<{ ok: boolean[]; model: string } | null> {
   const list = tasks
@@ -105,7 +106,7 @@ async function verifyChunk(env: Env, tasks: DraftTask[], subjectTitle: string, a
     system: VERIFY_PROMPT,
     messages: [{ role: 'user', content: `Предмет: ${subjectTitle}.\n<tasks>\n${list}\n</tasks>` }],
     // Сам ответ — короткий список, но у Gemini в этот же лимит входят рассуждения.
-    maxTokens: 3000,
+    maxTokens: 3500,
     temperature: 0,
     json: true,
     // Gemini решает с короткими рассуждениями; Qwen в JSON-ответах — без них (см. providers.ts).

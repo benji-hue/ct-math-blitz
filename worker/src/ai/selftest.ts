@@ -231,6 +231,21 @@ export function sanitizeGrade(raw: unknown, tasks: GradeTask[]): { tasks: Graded
   return { tasks: graded, summary: typeof data.summary === 'string' ? data.summary.slice(0, 600) : '' }
 }
 
+/**
+ * Сколько кандидатов модель составляет за один запрос. 15 заданий по физике с решениями
+ * одним ответом обрывались (рассуждения Gemini делят лимит с ответом), поэтому уровни
+ * делятся на группы, которые составляются параллельно.
+ */
+export const DRAFT_PER_CALL = 6
+
+/** Группы уровней для параллельного составления: по 3 кандидата на уровень → [1, 2], [3, 4], [5]. */
+export function draftGroups(levels: number[], perLevel: number, maxPerCall = DRAFT_PER_CALL): number[][] {
+  const perCall = Math.max(1, Math.floor(maxPerCall / Math.max(1, perLevel)))
+  const groups: number[][] = []
+  for (let i = 0; i < levels.length; i += perCall) groups.push(levels.slice(i, i + perCall))
+  return groups
+}
+
 export function parseSelfTest(text: string): { title: string; tasks: SelfTestTask[] } {
   try {
     return sanitizeSelfTest(parseJsonLoose(text))
