@@ -21,14 +21,13 @@ export type Route =
   | { name: 'calm' }
   | { name: 'blitz' }
   | { name: 'generate'; subject: SubjectId; topicId: string }
-  | { name: 'selftest'; subject: SubjectId | null; topic: string; topicId?: string | null }
   | { name: 'analysis' }
   | { name: 'achievements' }
 
 export type RouteName = Route['name']
 
 /** Экраны, на которых таб-бар прячется — полноэкранные сценарии. */
-export const IMMERSIVE: ReadonlySet<RouteName> = new Set(['practice', 'mock', 'blitz', 'calm', 'generate', 'selftest'])
+export const IMMERSIVE: ReadonlySet<RouteName> = new Set(['practice', 'mock', 'blitz', 'calm', 'generate'])
 
 export interface StackEntry {
   key: string
@@ -147,22 +146,6 @@ export const useTutorBus = create<TutorBus>()((set, get) => ({
 }))
 
 /** Экран регистрирует свой обработчик «Назад» на время жизни. */
-// ---------- Урок «Объясни мне это» → самостоятельная ----------
-
-/**
- * Что передать в самостоятельную из урока: фото параграфа (полное, а не превью)
- * и что объяснял ИИ. Живёт только в памяти: фото не сохраняется на устройстве.
- */
-export interface LessonContext {
-  image: { mime: string; data: string; preview: string } | null
-  lesson: string
-}
-
-export const useLessonBus = create<{ context: LessonContext | null; set: (context: LessonContext | null) => void }>()((set) => ({
-  context: null,
-  set: (context) => set({ context }),
-}))
-
 export function useBackGuard(guard: () => boolean): void {
   const ref = useRef(guard)
   useEffect(() => {

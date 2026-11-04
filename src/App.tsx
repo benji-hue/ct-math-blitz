@@ -27,7 +27,6 @@ const CalendarScreen = lazy(() => import('./screens/Calendar'))
 const CalmScreen = lazy(() => import('./screens/Calm'))
 const BlitzScreen = lazy(() => import('./screens/Blitz'))
 const GenerateScreen = lazy(() => import('./screens/Generate'))
-const SelfTestScreen = lazy(() => import('./screens/SelfTest'))
 const AnalysisScreen = lazy(() => import('./screens/Analysis'))
 const AchievementsScreen = lazy(() => import('./screens/Achievements'))
 
@@ -72,8 +71,6 @@ function renderRoute(entry: StackEntry): ReactNode {
       return <BlitzScreen />
     case 'generate':
       return <GenerateScreen subject={r.subject} topicId={r.topicId} />
-    case 'selftest':
-      return <SelfTestScreen subject={r.subject} topic={r.topic} topicId={r.topicId ?? null} />
     case 'analysis':
       return <AnalysisScreen />
     case 'achievements':

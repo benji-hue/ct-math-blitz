@@ -7,7 +7,8 @@ import { review, type Grade, type SrsCard } from './srs'
 // ---------- Типы состояния ----------
 
 export type ExamTrack = 'ce' | 'ct' | 'both'
-export type Grade11 = '9' | '10' | '11' | 'grad'
+/** «Крок» — для выпускников: 11 класс или выпускник прошлых лет (абитуриент). */
+export type Grade11 = '11' | 'grad'
 
 export interface Profile {
   name: string
@@ -26,8 +27,6 @@ export interface Settings {
   haptics: boolean
   reminders: boolean
   remindHour: number
-  /** Урок «Объясни мне это»: исторические факты по теме (бета). */
-  history: boolean
 }
 
 export type AttemptMode = 'practice' | 'review' | 'mock' | 'ai'
@@ -142,7 +141,6 @@ export const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   reminders: true,
   remindHour: 18,
-  history: true,
 }
 
 export const EMPTY_PROGRESS: Progress = {
@@ -182,10 +180,13 @@ export function normalizeState(raw: unknown): PersistedState {
   const base = emptyState()
   if (!raw || typeof raw !== 'object') return base
   const s = raw as Partial<PersistedState>
+  const profile = { ...base.profile, ...(s.profile ?? {}) }
+  // Раньше можно было выбрать 9 и 10 класс — теперь «Крок» только для выпускников.
+  if (profile.grade !== 'grad') profile.grade = '11'
   return {
     version: 1,
     updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : 0,
-    profile: { ...base.profile, ...(s.profile ?? {}) },
+    profile,
     settings: { ...base.settings, ...(s.settings ?? {}) },
     progress: {
       ...base.progress,

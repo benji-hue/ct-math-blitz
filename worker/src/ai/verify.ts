@@ -22,13 +22,44 @@ export interface DraftTask {
 }
 
 /**
- * «Рассуждения вслух»: модель запуталась и сочиняла задание на ходу. Прогон 12: «(Стоп, полная
- * цепь — это материал 9 класса… Заменим задачу…) Переформулируем: …» — а в условии осталась
- * старая задача с ключом, который не подходит ни к одной из двух.
+ * «Рассуждения вслух»: модель запуталась и сочиняла задание на ходу. Пробный вариант:
+ * «(Стоп, полная цепь — это другой класс… Заменим задачу…) Переформулируем: …» — а в условии
+ * осталась старая задача с ключом, который не подходит ни к одной из двух.
  */
 const THINKING_ALOUD = /(^|[\s.,;:!?(«])(нет,|давайте проще|давайте возьм|ага[,.!]|заменю|заменим|переформулир|перепишем услови|исправим услови|проверим условие|неверный путь|стоп[,.!]|подожди|упс|хм[,.])/i
 
-/** Первичный отсев: формат и отсутствие «рассуждений вслух». */
+/** Все числа из решения: 2,5 · −3 · $2{,}5$ · \frac{5}{2} (как 2,5). */
+export function numbersIn(text: string): number[] {
+  const plain = text
+    .replace(/(\d)\\,(\d)/g, '$1$2')
+    .replace(/\{,\}/g, ',')
+    .replace(/[−–—]/g, '-')
+    .replace(/\\[dt]?frac\{(-?\d+(?:[.,]\d+)?)\}\{(\d+(?:[.,]\d+)?)\}/g, (_, a: string, b: string) => {
+      const value = Number(a.replace(',', '.')) / Number(b.replace(',', '.'))
+      return Number.isFinite(value) ? ` ${value} ` : ' '
+    })
+  const out: number[] = []
+  for (const m of plain.matchAll(/-?\d+(?:[.,]\d+)?/g)) out.push(Number(m[0].replace(',', '.')))
+  for (const m of plain.matchAll(/(-?\d+)\s*\/\s*(\d+)/g)) if (Number(m[2]) !== 0) out.push(Number(m[1]) / Number(m[2]))
+  return out
+}
+
+/**
+ * Числовой ключ должен встречаться в решении самого задания. Если решение пришло к одному
+ * числу, а ключ — другое, задание сломано, даже если его «подтвердила» та же модель (на
+ * сервере без запасной модели перепроверяет та же Gemini, и ошибки совпадают). Нечисловые
+ * ключи (слова, выражения) не проверяем.
+ */
+function keyInSolution(t: DraftTask): boolean {
+  const keys = Array.isArray(t.options) ? [t.options[Number(t.answer)]] : Array.isArray(t.answer) ? t.answer : [t.answer]
+  const values = keys.map(asNumber).filter((v): v is number => v !== null)
+  if (!values.length) return true
+  const found = numbersIn(t.explain)
+  // По модулю: «x^2-5x» даёт число −5, а ключ 5; знак проверяет перепроверка решением.
+  return values.some((v) => found.some((f) => Math.abs(Math.abs(f) - Math.abs(v)) < 1e-6))
+}
+
+/** Первичный отсев: формат, «рассуждения вслух», ключ, которого нет в решении. */
 export function screenTask(raw: unknown): DraftTask | null {
   const t = raw as Partial<DraftTask> | null
   if (!t || typeof t.q !== 'string' || !t.q.trim() || typeof t.explain !== 'string' || !t.explain.trim()) return null
@@ -40,6 +71,7 @@ export function screenTask(raw: unknown): DraftTask | null {
     const answers = (Array.isArray(t.answer) ? t.answer : [t.answer]).map((a) => String(a ?? '').trim())
     if (!answers.length || answers.some((a) => !a || a.length > 40)) return null
   }
+  if (!keyInSolution(t as DraftTask)) return null
   return t as DraftTask
 }
 
@@ -110,9 +142,8 @@ export function verifiers(env: Env, author?: ForcedModel): ForcedModel[] {
 
 /**
  * Сколько заданий проверяющий решает за один запрос. Скрытые рассуждения Gemini делят
- * лимит токенов с ответом: 4 задания генерации проходили, а 10–15 заданий самостоятельной
- * одним запросом обрывались, и работа не собиралась. Части проверяются параллельно;
- * размер совпадает с группой, которую составляет модель (DRAFT_PER_CALL в selftest.ts).
+ * лимит токенов с ответом: 4 задания проходили, а 10–15 одним запросом обрывались.
+ * Части проверяются параллельно.
  */
 export const VERIFY_CHUNK = 6
 

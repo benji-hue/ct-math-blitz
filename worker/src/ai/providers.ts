@@ -238,7 +238,7 @@ const mock: Provider = {
   models: () => ['mock-tutor'],
   open: async (_env, _model, input) => {
     const text = input.json
-      ? mockJson(input.system)
+      ? MOCK_JSON
       : 'Это тестовый ответ локальной заглушки ИИ. Подключите Workers AI или ключ провайдера, чтобы получить настоящий разбор.'
     return (async function* () {
       for (const word of text.match(/\S+\s*/g) ?? [text]) yield word
@@ -246,25 +246,8 @@ const mock: Provider = {
   },
 }
 
-/** JSON заглушки: самостоятельная и её проверка — чтобы экраны работали без ИИ. */
-function mockJson(system: string): string {
-  // Проверка тетради — первой: в её промпте тоже есть слова «самостоятельной работы».
-  if (system.includes('тетрадь ученика')) {
-    const tasks = Array.from({ length: 10 }, (_, i) => ({ n: i + 1, seen: true, points: 10, errors: [], comment: 'Тестовая проверка заглушки.' }))
-    return JSON.stringify({ tasks, summary: 'Тестовая проверка заглушки.' })
-  }
-  if (system.includes('тематической самостоятельной работы')) {
-    const tasks = [1, 2, 3, 4, 5].flatMap((level) =>
-      [1, 2].map((k) =>
-        level === 1
-          ? { level, q: `Тестовое задание уровня 1 (${k}): чему равно $2+${k}$?`, options: [String(2 + k), String(3 + k), String(4 + k), String(5 + k)], answer: 0, solution: `Складываем: $2+${k}=${2 + k}$.` }
-          : { level, q: `Тестовое задание уровня ${level} (${k}): найдите произведение чисел ${level} и ${k + 1}.`, answer: String(level * (k + 1)), solution: `Умножаем: ${level} · ${k + 1} = ${level * (k + 1)}.`, check: 'ошибка в умножении' },
-      ),
-    )
-    return JSON.stringify({ title: 'Тестовая самостоятельная', tasks })
-  }
-  return JSON.stringify({ summary: 'Тестовый ответ заглушки.', strengths: [], gaps: [], week: [], tip: '', tasks: [] })
-}
+/** JSON заглушки — чтобы экраны разбора работали без ИИ. */
+const MOCK_JSON = JSON.stringify({ summary: 'Тестовый ответ заглушки.', strengths: [], gaps: [], week: [], tip: '', tasks: [] })
 
 const PROVIDERS: Record<string, Provider> = { 'workers-ai': workersAi, gemini, openai: openaiCompatible, mock }
 

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { routeEvents } from '../src/api'
 import { buildSystemPrompt, buildGeneratePrompt } from '../src/ai/prompts'
 import { complete, DEFAULT_PROVIDERS, describeProviders, geminiThinking, openStream, providerChain, streamWithFailover, type ChatInput, type StreamPart } from '../src/ai/providers'
-import { asNumber, sameAnswer, screenTask, VERIFY_CHUNK, verifiers, verifyTasks, type DraftTask } from '../src/ai/verify'
+import { asNumber, numbersIn, sameAnswer, screenTask, VERIFY_CHUNK, verifiers, verifyTasks, type DraftTask } from '../src/ai/verify'
 import type { Env } from '../src/env'
 import { createThinkFilter, extractDelta, parseJsonLoose, readSse } from '../src/ai/sse'
 import { localHour, reminderText } from '../src/cron'
@@ -199,7 +199,19 @@ describe('перепроверка сгенерированных заданий
     expect(screenTask({ ...good, answer: 7 })).toBeNull()
     expect(screenTask({ q: 'x', explain: 'y', answer: '' })).toBeNull()
     expect(screenTask(good)).not.toBeNull()
-    expect(screenTask(wrongKey)).not.toBeNull()
+    // Ключа 6 нет в решении (там 5) — отсеивается ещё до перепроверки: на сервере без
+    // запасной модели перепроверяет та же Gemini, и её ошибки могут совпасть с ключом.
+    expect(screenTask(wrongKey)).toBeNull()
+  })
+
+  it('ключ ищется в решении в любой записи; слова и выражения не проверяются', () => {
+    expect(numbersIn('$x = 2{,}5$, $\\frac{12}{4} = 3$, −7 и 1\\,500')).toEqual(expect.arrayContaining([2.5, 3, -7, 1500]))
+    const task = (answer: string, explain: string): DraftTask => ({ q: 'Найдите значение.', answer, explain })
+    expect(screenTask(task('1500', 'Масса $m = 1\\,500$ кг.'))).not.toBeNull()
+    expect(screenTask(task('-3', 'Вершина $x_0 = −3$.'))).not.toBeNull()
+    expect(screenTask(task('5', 'Корни уравнения $x^2-5x+6=0$: по теореме Виета сумма корней.'))).not.toBeNull()
+    expect(screenTask(task('стеклянный', 'Исключение — «стеклянный».'))).not.toBeNull()
+    expect(screenTask(task('4', 'Путь $s = vt = 20 \\cdot 15 = 300$ м.'))).toBeNull()
   })
 
   it('сравнивает ответы в разной записи', () => {

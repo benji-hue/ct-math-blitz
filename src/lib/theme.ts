@@ -18,7 +18,10 @@ export function applyTheme(): void {
   const scheme = resolveScheme(theme)
   const root = document.documentElement
   root.dataset.theme = scheme
-  const liteOn = lite === 'on' || (lite === 'auto' && performanceClass() === 'low')
+  // Размытие фона и анимация «авроры» тормозят не только слабые, но и средние Android:
+  // Telegram сам относит большинство недорогих телефонов к классу AVERAGE.
+  const perf = performanceClass()
+  const liteOn = lite === 'on' || (lite === 'auto' && (perf === 'low' || perf === 'average'))
   root.dataset.lite = String(liteOn)
   setChromeColor(CANVAS[scheme])
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', CANVAS[scheme])

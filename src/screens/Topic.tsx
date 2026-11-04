@@ -1,10 +1,10 @@
-import { AlertTriangle, BookMarked, ClipboardList, MessageCircleQuestion, Sparkles, WandSparkles, Zap } from 'lucide-react'
+import { AlertTriangle, BookMarked, MessageCircleQuestion, Sparkles, WandSparkles, Zap } from 'lucide-react'
 import { tasksOfTopic, topicById, useSubject } from '../content'
 import { SUBJECTS } from '../domain/subjects'
 import type { SubjectId } from '../domain/types'
 import { currentMastery } from '../lib/analytics'
 import { useStore } from '../lib/store'
-import { useLessonBus, useNav, useTutorBus } from '../nav/nav'
+import { useNav, useTutorBus } from '../nav/nav'
 import { Header } from '../ui/chrome'
 import { Badge, Bar, Button, Card, Empty, ProgressRing, SectionTitle, Skeleton, Stagger, StaggerItem } from '../ui/kit'
 import { Markdown, Tex } from '../ui/Rich'
@@ -137,22 +137,9 @@ export function TopicScreen({ subject, topicId }: { subject: SubjectId; topicId:
               Проверь меня
             </Button>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Button
-              variant="secondary"
-              icon={<ClipboardList size={17} />}
-              onClick={() => {
-                // Самостоятельная прямо с экрана темы — без фото и урока, по конспекту темы.
-                useLessonBus.getState().set(null)
-                push({ name: 'selftest', subject, topic: topic.title, topicId })
-              }}
-            >
-              Самостоятельная
-            </Button>
-            <Button variant="secondary" icon={<WandSparkles size={17} />} onClick={() => push({ name: 'generate', subject, topicId })}>
-              Задания ЦТ
-            </Button>
-          </div>
+          <Button block variant="secondary" icon={<WandSparkles size={17} />} onClick={() => push({ name: 'generate', subject, topicId })}>
+            Новые задания ЦТ от ИИ
+          </Button>
         </StaggerItem>
       </Stagger>
     </div>

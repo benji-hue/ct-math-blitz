@@ -15,10 +15,8 @@ const STEPS = ['welcome', 'exam', 'subjects', 'targets'] as const
 type Step = (typeof STEPS)[number]
 
 const GRADES: { value: Grade11; label: string }[] = [
-  { value: '9', label: '9 класс' },
-  { value: '10', label: '10 класс' },
   { value: '11', label: '11 класс' },
-  { value: 'grad', label: 'Выпускник' },
+  { value: 'grad', label: 'Выпускник прошлых лет' },
 ]
 
 const TRACKS: { value: ExamTrack; title: string; text: string }[] = [
@@ -116,7 +114,7 @@ export function Onboarding() {
                     {APP_NAME}
                     <span className="gradient-text">.</span>
                   </h1>
-                  <p className="mt-3 text-[17px] leading-relaxed text-fg-2">{APP_TAGLINE}. Персональный ИИ-репетитор по всем 14 предметам ЦЭ и ЦТ.</p>
+                  <p className="mt-3 text-[17px] leading-relaxed text-fg-2">{APP_TAGLINE}. Подготовка выпускников к ЦЭ и ЦТ: ИИ-репетитор по всем 14 предметам.</p>
                   <div className="mt-7 space-y-2.5">
                     <Feature delay={0.1} icon={<Target size={20} />} title="Задания по спецификации РИКЗ" text="Части А и В, уровни сложности, разбор ловушек" />
                     <Feature delay={0.18} icon={<Brain size={20} />} title="Повторение по науке" text="Алгоритм FSRS напомнит тему ровно перед тем, как она забудется" />

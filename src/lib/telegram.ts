@@ -137,8 +137,12 @@ export function performanceClass(): 'low' | 'average' | 'high' | 'unknown' {
   const ua = navigator.userAgent
   const m = /Telegram-Android\/[^\s]+ \([^)]*;\s*(LOW|AVERAGE|HIGH)\)/i.exec(ua)
   if (m) return m[1].toLowerCase() as 'low' | 'average' | 'high'
+  // Вне Telegram (сайт в браузере) — по железу, но только на Android: iOS прячет память и ядра.
   const nav = navigator as Navigator & { deviceMemory?: number }
-  if ((nav.deviceMemory ?? 8) <= 2 || (navigator.hardwareConcurrency ?? 8) <= 2) return 'low'
+  if (/Android/i.test(ua)) {
+    if ((nav.deviceMemory ?? 8) <= 2 || (navigator.hardwareConcurrency ?? 8) <= 2) return 'low'
+    if ((nav.deviceMemory ?? 8) <= 4 || (navigator.hardwareConcurrency ?? 8) <= 4) return 'average'
+  }
   return 'unknown'
 }
 

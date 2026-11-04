@@ -47,10 +47,8 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
 }
 
 const GRADES: { value: Grade11; label: string }[] = [
-  { value: '9', label: '9' },
-  { value: '10', label: '10' },
-  { value: '11', label: '11' },
-  { value: 'grad', label: 'Выпускник' },
+  { value: '11', label: '11 класс' },
+  { value: 'grad', label: 'Выпускник прошлых лет' },
 ]
 
 export default function ProfileScreen() {

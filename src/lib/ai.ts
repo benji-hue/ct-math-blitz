@@ -1,7 +1,6 @@
 import { API_BASE } from '../config'
 import type { SubjectId, Task } from '../domain/types'
 import type { Reference } from './retrieval'
-import { sanitizeSelfTest, type GradeResult, type SelfTest, type SelfTestSize } from './selftest'
 import type { AiMode } from './store'
 import { initData } from './telegram'
 
@@ -35,8 +34,6 @@ export interface ChatRequest {
   profile?: { grade: string; exam: string; target?: number }
   task?: TaskContext
   image?: { mime: string; data: string }
-  /** Урок: исторические факты по теме (бета). */
-  history?: boolean
 }
 
 export type StreamEvent =
@@ -212,64 +209,6 @@ export async function generateTasks(req: GenerateRequest, topicId: string, signa
   const tasks = sanitizeTasks(raw, req.subject, topicId)
   if (!tasks.length) throw new AiError('ИИ вернул задания в неверном формате. Попробуйте ещё раз.')
   return tasks
-}
-
-// ---------- Самостоятельная работа «как в школе РБ» ----------
-
-export interface SelfTestRequest {
-  subject?: SubjectId | null
-  subjectTitle: string
-  topic: string
-  size: SelfTestSize
-  /** «9 класс» — для уровня заданий. */
-  grade?: string
-  /** Фото параграфа, по которому был урок. */
-  image?: { mime: string; data: string }
-  /** Что объяснялось на уроке. */
-  lesson?: string
-  topicFacts?: string[]
-}
-
-export async function generateSelfTest(req: SelfTestRequest, signal?: AbortSignal): Promise<SelfTest> {
-  const raw = await postJson<unknown>('/api/ai/selftest', req, signal)
-  const test = sanitizeSelfTest(raw, req.size)
-  if (!test) throw new AiError('ИИ вернул работу в неверном формате. Попробуйте ещё раз.')
-  return test
-}
-
-export interface GradeRequest {
-  subject?: SubjectId | null
-  subjectTitle: string
-  grade?: string
-  tasks: { n: number; level: number; max: number; q: string; answer: string; solution: string }[]
-  image: { mime: string; data: string }
-}
-
-export function sanitizeGradeResult(raw: unknown): GradeResult | null {
-  const data = raw as { tasks?: unknown; summary?: unknown } | null
-  if (!data || !Array.isArray(data.tasks)) return null
-  const kinds = ['существенная', 'несущественная', 'оформление'] as const
-  return {
-    tasks: (data.tasks as Record<string, unknown>[])
-      .map((t) => ({
-        n: Math.round(Number(t?.n)),
-        seen: t?.seen !== false,
-        points: Math.max(0, Number(t?.points) || 0),
-        errors: (Array.isArray(t?.errors) ? (t.errors as Record<string, unknown>[]) : [])
-          .map((e) => ({ kind: kinds.find((k) => k === e?.kind) ?? 'несущественная', text: String(e?.text ?? '') }))
-          .filter((e) => e.text),
-        comment: typeof t?.comment === 'string' ? t.comment : '',
-      }))
-      .filter((t) => Number.isFinite(t.n)),
-    summary: typeof data.summary === 'string' ? data.summary : '',
-  }
-}
-
-export async function gradeSelfTest(req: GradeRequest, signal?: AbortSignal): Promise<GradeResult> {
-  const raw = await postJson<unknown>('/api/ai/grade', req, signal)
-  const result = sanitizeGradeResult(raw)
-  if (!result) throw new AiError('Не удалось разобрать проверку. Попробуйте ещё раз.')
-  return result
 }
 
 // ---------- Аналитика прогресса ----------

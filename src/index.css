@@ -311,6 +311,17 @@
     animation: none;
   }
 
+  /* Лёгкий режим: без зернистого слоя поверх всего экрана. */
+  [data-lite='true'] .aurora::after {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .aurora i {
+      animation: none;
+    }
+  }
+
   /* ---- Типографика ------------------------------------------------------ */
 
   .tabular {
