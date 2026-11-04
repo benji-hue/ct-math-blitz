@@ -160,7 +160,7 @@ export default function SelfTestScreen({ subject, topic, topicId }: { subject: S
 
       {phase === 'loading' && (
         <div className="space-y-3 pt-2">
-          <p className="mb-3 text-center text-[14px] text-muted">Составляю и перепроверяю задания… обычно 20–40 секунд</p>
+          <p className="mb-3 text-center text-[14px] text-muted">Составляю и перепроверяю задания… обычно до минуты</p>
           {Array.from({ length: 3 }, (_, i) => (
             <Card key={i}>
               <Skeleton className="h-4 w-1/3" />

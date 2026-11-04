@@ -114,6 +114,11 @@ export interface SelfTestTask {
   check?: string
 }
 
+/** «220,\text{ В}» → «220\,\text{ В}»: модель путает тонкий пробел с десятичной запятой. */
+function tidy<T>(value: T): T {
+  return (typeof value === 'string' ? value.replace(/(\d),\\text\{/g, '$1\\,\\text{') : value) as T
+}
+
 /** Задания от модели: битые и с «рассуждениями вслух» отбрасываем. */
 export function sanitizeSelfTest(raw: unknown): { title: string; tasks: SelfTestTask[] } {
   const data = (raw ?? {}) as { title?: unknown; tasks?: unknown }
@@ -125,14 +130,14 @@ export function sanitizeSelfTest(raw: unknown): { title: string; tasks: SelfTest
     if (!(level >= 1 && level <= 5)) continue
     const solution = typeof item.solution === 'string' ? item.solution : typeof item.explain === 'string' ? item.explain : ''
     const options = Array.isArray(item.options) ? item.options.filter((o): o is string => typeof o === 'string' && o.trim().length > 0).slice(0, 5) : undefined
-    const draft = screenTask({ q: item.q, options, answer: options ? item.answer : String(item.answer ?? '').trim(), explain: solution })
+    const draft = screenTask({ q: tidy(item.q), options: options?.map(tidy), answer: options ? item.answer : String(item.answer ?? '').trim(), explain: tidy(solution) })
     if (!draft) continue
     tasks.push({
       level,
       q: draft.q,
-      ...(options ? { options } : {}),
-      answer: options ? Number(draft.answer) : String(draft.answer),
-      solution,
+      ...(draft.options ? { options: draft.options } : {}),
+      answer: draft.options ? Number(draft.answer) : String(draft.answer),
+      solution: draft.explain,
       ...(typeof item.check === 'string' && item.check.trim() ? { check: item.check.trim().slice(0, 300) } : {}),
     })
   }
