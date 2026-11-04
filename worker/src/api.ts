@@ -5,6 +5,7 @@ import { screenTask, verifyTasks } from './ai/verify'
 import { minskDay, num, VERSION, type Env } from './env'
 import { consume, GUESTS_KEY, guestsTotal, limitFor, track, usage, type Kind } from './limits'
 import { deriveSecret, safeEqual, validateInitData, type TgUser } from './telegram'
+import { endSession, loadState, MAX_STATE_CHARS, NONCE, pollLogin, saveState, sessionUser, startLogin } from './account'
 
 /**
  * HTTP API мини-аппа. Каждый запрос к ИИ:
@@ -45,6 +46,12 @@ async function identify(req: Request, env: Env): Promise<Caller | Response> {
     const evalKey = req.headers.get('X-Krok-Eval')
     const isEval = Boolean(evalKey) && safeEqual(evalKey ?? '', await deriveSecret(env.BOT_TOKEN, 'krok-eval'))
     return { key: `tg:${result.user.id}`, anonymous: false, user: result.user, eval: isEval }
+  }
+  // Сайт после входа через Telegram (account.ts): тот же ученик, что и в мини-аппе.
+  if (auth.startsWith('Bearer ')) {
+    const user = await sessionUser(env, auth.slice(7).trim())
+    if (!user) return fail(401, 'Вход истёк — войди через Telegram ещё раз')
+    return { key: `tg:${user.id}`, anonymous: false, user: { id: user.id, first_name: user.first_name, ...(user.username ? { username: user.username } : {}) } }
   }
   if (env.ALLOW_ANONYMOUS === 'true') {
     return { key: `ip:${req.headers.get('CF-Connecting-IP') ?? 'local'}`, anonymous: true }
@@ -377,8 +384,55 @@ async function status(env: Env, caller: Caller | null): Promise<Response> {
   })
 }
 
+// ---------- /api/auth/* — вход на сайте через бота, /api/state — прогресс в аккаунте ----------
+
+async function auth(req: Request, env: Env, path: string): Promise<Response> {
+  if (!env.DB) return fail(503, 'Аккаунты не настроены на сервере')
+  if (path === '/api/auth/start' && req.method === 'POST') {
+    const ip = req.headers.get('CF-Connecting-IP') ?? 'local'
+    if ((await consume(env, `ip:${ip}`, 'login')) > limitFor(env, 'login', false)) return fail(429, 'Слишком много попыток входа. Попробуй позже.')
+    return json(await startLogin(env))
+  }
+  if (path === '/api/auth/poll' && req.method === 'GET') {
+    const nonce = new URL(req.url).searchParams.get('nonce') ?? ''
+    if (!NONCE.test(nonce)) return fail(400, 'Неверный запрос входа')
+    return json(await pollLogin(env, nonce))
+  }
+  if (path === '/api/auth/logout' && req.method === 'POST') {
+    const header = req.headers.get('Authorization') ?? ''
+    if (header.startsWith('Bearer ')) await endSession(env, header.slice(7).trim())
+    return json({ ok: true })
+  }
+  return fail(404, 'Не найдено')
+}
+
+async function state(req: Request, env: Env, caller: Caller): Promise<Response> {
+  if (!env.DB) return fail(503, 'Аккаунты не настроены на сервере')
+  if (!caller.user) return fail(401, 'Войди через Telegram, чтобы сохранять прогресс')
+  if (req.method === 'GET') {
+    const saved = await loadState(env, caller.user.id)
+    return json({ user: { id: caller.user.id, first_name: caller.user.first_name, username: caller.user.username }, ...(saved ?? { state: null, updatedAt: 0 }) })
+  }
+  if (req.method !== 'POST') return fail(405, 'Метод не поддерживается')
+  const body = await readBody(req)
+  if (body instanceof Response) return body
+  const updatedAt = Math.round(Number(body.updatedAt))
+  const snapshot = typeof body.state === 'string' ? body.state : ''
+  if (!snapshot || !Number.isFinite(updatedAt) || updatedAt <= 0) return fail(400, 'Нет снимка прогресса')
+  if (snapshot.length > MAX_STATE_CHARS) return fail(413, 'Слишком большой снимок прогресса')
+  try {
+    const parsed = JSON.parse(snapshot) as { profile?: unknown }
+    if (!parsed || typeof parsed !== 'object' || !parsed.profile) return fail(400, 'Снимок прогресса повреждён')
+  } catch {
+    return fail(400, 'Снимок прогресса повреждён')
+  }
+  return json({ ok: true, updatedAt: await saveState(env, caller.user.id, snapshot, updatedAt) })
+}
+
 export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, path: string): Promise<Response> {
   if (path === '/api/health') return json({ ok: true, version: VERSION })
+  // Вход — до проверки подписи: на сайте ученик ещё никто.
+  if (path.startsWith('/api/auth/')) return auth(req, env, path)
 
   const caller = await identify(req, env)
   if (path === '/api/ai/status' && req.method === 'GET') return status(env, caller instanceof Response ? null : caller)
@@ -390,6 +444,7 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, p
     return json({ events: rows.results ?? [] })
   }
   if (caller instanceof Response) return caller
+  if (path === '/api/state') return state(req, env, caller)
   if (req.method !== 'POST') return fail(405, 'Метод не поддерживается')
 
   switch (path) {

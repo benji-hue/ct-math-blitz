@@ -28,6 +28,7 @@ import { useNav } from '../nav/nav'
 import { WRITE_ACCESS_KEY } from '../lib/reminders'
 import { Sheet, toast } from '../ui/chrome'
 import { Badge, Button, Card, Chip, Row, SectionTitle, Segmented, Stagger, StaggerItem, notify } from '../ui/kit'
+import { AccountCard } from '../ui/Account'
 import { SubjectIcon } from '../ui/SubjectIcon'
 import { cx } from '../lib/cx'
 
@@ -115,6 +116,13 @@ export default function ProfileScreen() {
               Выйти
             </Button>
           </Card>
+        </StaggerItem>
+      )}
+
+      {!demo && (
+        <StaggerItem>
+          <SectionTitle>Аккаунт</SectionTitle>
+          <AccountCard />
         </StaggerItem>
       )}
 

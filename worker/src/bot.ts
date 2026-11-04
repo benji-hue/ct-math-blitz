@@ -1,3 +1,4 @@
+import { confirmLogin, pendingLogin } from './account'
 import { complete } from './ai/providers'
 import { buildSystemPrompt } from './ai/prompts'
 import type { Env } from './env'
@@ -18,6 +19,13 @@ interface Update {
     chat: { id: number; type: string }
     from?: { id: number; first_name?: string; username?: string; is_bot?: boolean }
     text?: string
+  }
+  /** Нажатие инлайн-кнопки — подтверждение входа на сайте. */
+  callback_query?: {
+    id: string
+    from: { id: number; first_name?: string; username?: string; is_bot?: boolean }
+    data?: string
+    message?: { message_id: number; chat: { id: number; type: string } }
   }
 }
 
@@ -40,7 +48,7 @@ const HELP = `Команды:
 
 Просто напиши вопрос — например «как найти вершину параболы» — и я коротко отвечу.`
 
-async function upsertUser(env: Env, from: NonNullable<Update['message']>['from']): Promise<void> {
+async function upsertUser(env: Env, from: { id: number; first_name?: string; username?: string } | undefined): Promise<void> {
   if (!env.DB || !from) return
   const now = Date.now()
   await env.DB.prepare(
@@ -61,13 +69,63 @@ async function reply(env: Env, chatId: number, text: string, withButton = false)
   })
 }
 
+// ---------- Вход на сайте через бота (account.ts) ----------
+
+/** /start login_<nonce>: показать код и спросить подтверждение — кнопкой, а не автоматически. */
+async function askLogin(env: Env, chatId: number, nonce: string): Promise<void> {
+  const request = env.DB ? await pendingLogin(env, nonce) : null
+  if (!request) {
+    await reply(env, chatId, 'Ссылка для входа устарела или уже использована. Нажми «Войти через Telegram» на сайте ещё раз.')
+    return
+  }
+  await botApi(env.BOT_TOKEN!, 'sendMessage', {
+    chat_id: chatId,
+    text: `Вход на сайт «Крок»\n\nКод на сайте: ${request.code}\n\nПодтверди, только если ты сам сейчас входишь на сайт и видишь там этот же код. После входа прогресс будет общим на сайте и в Telegram.`,
+    reply_markup: {
+      inline_keyboard: [[{ text: `✅ Да, это я — код ${request.code}`, callback_data: `login:${nonce}` }], [{ text: 'Отмена', callback_data: 'login_cancel' }]],
+    },
+  })
+}
+
+async function handleCallback(env: Env, query: NonNullable<Update['callback_query']>): Promise<void> {
+  const data = query.data ?? ''
+  const chatId = query.message?.chat.id
+  const messageId = query.message?.message_id
+  const edit = (text: string) =>
+    chatId && messageId ? botApi(env.BOT_TOKEN!, 'editMessageText', { chat_id: chatId, message_id: messageId, text }).catch(() => {}) : Promise.resolve()
+  if (query.from.is_bot || (query.message && query.message.chat.type !== 'private')) {
+    await botApi(env.BOT_TOKEN!, 'answerCallbackQuery', { callback_query_id: query.id })
+    return
+  }
+  if (data === 'login_cancel') {
+    await botApi(env.BOT_TOKEN!, 'answerCallbackQuery', { callback_query_id: query.id, text: 'Вход отменён' })
+    await edit('Вход на сайт отменён.')
+    return
+  }
+  if (data.startsWith('login:') && env.DB) {
+    await upsertUser(env, query.from)
+    const ok = await confirmLogin(env, data.slice(6), { id: query.from.id, first_name: query.from.first_name ?? '', username: query.from.username })
+    await botApi(env.BOT_TOKEN!, 'answerCallbackQuery', { callback_query_id: query.id, text: ok ? 'Вход подтверждён' : 'Ссылка устарела' })
+    await edit(ok ? '✅ Вход подтверждён. Вернись на сайт — прогресс подтянется сам.' : 'Ссылка для входа устарела. Нажми «Войти через Telegram» на сайте ещё раз.')
+    if (ok) await track(env, 'login_site').catch(() => {})
+    return
+  }
+  await botApi(env.BOT_TOKEN!, 'answerCallbackQuery', { callback_query_id: query.id })
+}
+
 async function handleUpdate(env: Env, update: Update): Promise<void> {
+  if (update.callback_query) return handleCallback(env, update.callback_query)
   const message = update.message
   if (!message?.text || message.chat.type !== 'private' || message.from?.is_bot) return
   const chatId = message.chat.id
   const text = message.text.trim()
-  const [command] = text.split(/\s+/)
+  const [command, payload] = text.split(/\s+/)
 
+  if (command === '/start' && payload?.startsWith('login_')) {
+    await upsertUser(env, message.from)
+    await askLogin(env, chatId, payload.slice(6))
+    return
+  }
   if (command === '/start') {
     await upsertUser(env, message.from)
     await track(env, 'bot_start').catch(() => {})

@@ -1,11 +1,13 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import worker from '../src/index.ts'
 import { consume, track, usage } from '../src/limits.ts'
+import { confirmLogin, pollLogin, startLogin } from '../src/account.ts'
+import { signInitData } from '../src/telegram.ts'
 import { parseJsonc, providerOrder, serverEnvFile } from '../scripts/lib.mjs'
 import { buildEnv, createAssets, createHandler, msUntilMinute, openDatabase, workersAiRest } from '../node/platform.mjs'
 
@@ -65,7 +67,10 @@ describe('база: D1 поверх SQLite', () => {
     const dir = mkdtempSync(join(tmpdir(), 'krok-db-'))
     openDatabase(join(dir, 'krok.sqlite'), migrations).close()
     const again = openDatabase(join(dir, 'krok.sqlite'), migrations)
-    expect((await again.prepare('SELECT COUNT(*) AS n FROM _migrations').first()).n).toBe(1)
+    // Каждая миграция — ровно один раз (сейчас их две: основа и аккаунты).
+    const files = readdirSync(migrations).filter((f) => f.endsWith('.sql'))
+    expect((await again.prepare('SELECT COUNT(*) AS n FROM _migrations').first()).n).toBe(files.length)
+    expect(files).toContain('0002_accounts.sql')
     again.close()
   })
 
@@ -245,5 +250,121 @@ describe('гости сайта без Telegram', () => {
     const crowd = await ask('10.0.0.3')
     expect(crowd.status).toBe(429)
     expect((await crowd.json()).error).toContain('слишком много гостей')
+  })
+})
+
+describe('аккаунт Telegram: вход на сайте через бота и общий прогресс', () => {
+  const db = openDatabase(':memory:', migrations)
+  const BOT = '1:test'
+  const env = { ...buildEnv({ ALLOW_MOCK_AI: 'true', ALLOW_ANONYMOUS: 'true', BOT_TOKEN: BOT, WEBHOOK_SECRET: 'hook' }, wrangler), DB: db }
+  const ctx = { waitUntil: (p) => Promise.resolve(p).catch(() => {}), passThroughOnException() {} }
+  const call = (path, { method = 'GET', body, auth, ip = '10.1.1.1' } = {}) =>
+    worker.fetch(
+      new Request(`https://krok.example${path}`, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': ip, ...(auth ? { Authorization: auth } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      }),
+      env,
+      ctx,
+    )
+  const user = { id: 777, first_name: 'Аня', username: 'anya' }
+  const snapshot = (updatedAt, xp) => ({ state: JSON.stringify({ profile: { grade: '11', onboarded: true }, progress: { xp } }), updatedAt })
+
+  it('вход: код → подтверждение в боте → токен один раз; прогресс общий с мини-аппом', async () => {
+    const start = await (await call('/api/auth/start', { method: 'POST' })).json()
+    expect(start.nonce).toMatch(/^[A-Za-z0-9_-]{16,64}$/)
+    expect(start.code).toMatch(/^\d{4}$/)
+    expect(await (await call(`/api/auth/poll?nonce=${start.nonce}`)).json()).toEqual({ status: 'pending' })
+
+    // Ученик нажал «Подтвердить» в боте.
+    expect(await confirmLogin(env, start.nonce, user)).toBe(true)
+    expect(await confirmLogin(env, start.nonce, { id: 666, first_name: 'Чужой' })).toBe(false)
+    const ok = await (await call(`/api/auth/poll?nonce=${start.nonce}`)).json()
+    expect(ok).toMatchObject({ status: 'ok', user: { id: 777, first_name: 'Аня', username: 'anya' } })
+    expect(ok.token.length).toBeGreaterThanOrEqual(40)
+    // Токен выдаётся один раз; на сервере — только его хэш.
+    expect(await (await call(`/api/auth/poll?nonce=${start.nonce}`)).json()).toEqual({ status: 'expired' })
+    const stored = (await db.prepare('SELECT token_hash FROM sessions').all()).results
+    expect(stored).toHaveLength(1)
+    expect(stored[0].token_hash).not.toBe(ok.token)
+
+    const bearer = `Bearer ${ok.token}`
+    expect(await (await call('/api/state', { auth: bearer })).json()).toMatchObject({ state: null, updatedAt: 0, user: { id: 777 } })
+    expect((await call('/api/state', { method: 'POST', auth: bearer, body: snapshot(2000, 50) })).status).toBe(200)
+    // Старый снимок не затирает новый.
+    expect(await (await call('/api/state', { method: 'POST', auth: bearer, body: snapshot(1000, 10) })).json()).toEqual({ ok: true, updatedAt: 2000 })
+
+    // Тот же ученик в мини-аппе (подпись Telegram) видит тот же прогресс.
+    const initData = await signInitData({ auth_date: String(Math.floor(Date.now() / 1000)), user: JSON.stringify(user) }, BOT)
+    const fromApp = await (await call('/api/state', { auth: `tma ${initData}` })).json()
+    expect(fromApp.updatedAt).toBe(2000)
+    expect(JSON.parse(fromApp.state).progress.xp).toBe(50)
+
+    // ИИ на сайте после входа считается по аккаунту, а не по IP.
+    await call('/api/ai/chat', { method: 'POST', auth: bearer, body: { messages: [{ role: 'user', content: 'Привет' }] } })
+    const keys = (await db.prepare("SELECT user_key FROM usage WHERE kind = 'chat'").all()).results.map((r) => r.user_key)
+    expect(keys).toContain('tg:777')
+
+    // Выход: токен больше не действует.
+    expect((await call('/api/auth/logout', { method: 'POST', auth: bearer })).status).toBe(200)
+    expect((await call('/api/state', { auth: bearer })).status).toBe(401)
+  })
+
+  it('без входа прогресс не сохранить; битые запросы отклоняются', async () => {
+    expect((await call('/api/state')).status).toBe(401)
+    expect((await call('/api/state', { auth: 'Bearer ' + 'x'.repeat(43) })).status).toBe(401)
+    expect((await call('/api/auth/poll?nonce=../../etc')).status).toBe(400)
+    expect(await (await call('/api/auth/poll?nonce=' + 'a'.repeat(22))).json()).toEqual({ status: 'expired' })
+  })
+
+  it('просроченный запрос входа не подтвердить', async () => {
+    const { nonce } = await (await call('/api/auth/start', { method: 'POST', ip: '10.1.1.2' })).json()
+    await db.prepare('UPDATE login_requests SET created_at = ?1 WHERE nonce = ?2').bind(Date.now() - 11 * 60_000, nonce).run()
+    expect(await confirmLogin(env, nonce, user)).toBe(false)
+    expect(await (await call(`/api/auth/poll?nonce=${nonce}`)).json()).toEqual({ status: 'expired' })
+  })
+})
+
+describe('бот: подтверждение входа на сайте', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('/start login_… показывает код и кнопку; нажатие подтверждает вход', async () => {
+    const db = openDatabase(':memory:', migrations)
+    const env = { ...buildEnv({ BOT_TOKEN: '1:test', WEBHOOK_SECRET: 'hook' }, wrangler), DB: db }
+    const background = []
+    const ctx = { waitUntil: (p) => background.push(p), passThroughOnException() {} }
+    const sent = []
+    vi.stubGlobal('fetch', async (url, init) => {
+      sent.push({ method: String(url).split('/').pop(), body: JSON.parse(init.body) })
+      return new Response(JSON.stringify({ ok: true, result: {} }))
+    })
+    const hook = async (update) => {
+      const res = await worker.fetch(
+        new Request('https://krok.example/bot/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'hook' }, body: JSON.stringify(update) }),
+        env,
+        ctx,
+      )
+      expect(res.status).toBe(200)
+      await Promise.all(background.splice(0))
+    }
+    const { nonce, code } = await startLogin(env)
+    const from = { id: 4242, first_name: 'Ваня', username: 'vanya' }
+
+    await hook({ update_id: 1, message: { message_id: 1, chat: { id: 4242, type: 'private' }, from, text: `/start login_${nonce}` } })
+    const ask = sent.find((c) => c.method === 'sendMessage')
+    expect(ask.body.text).toContain(code)
+    expect(ask.body.reply_markup.inline_keyboard[0][0].callback_data).toBe(`login:${nonce}`)
+
+    await hook({ update_id: 2, callback_query: { id: 'q1', from, data: `login:${nonce}`, message: { message_id: 5, chat: { id: 4242, type: 'private' } } } })
+    expect(sent.find((c) => c.method === 'answerCallbackQuery').body.text).toBe('Вход подтверждён')
+    expect(sent.find((c) => c.method === 'editMessageText').body.text).toContain('Вход подтверждён')
+    const poll = await pollLogin(env, nonce)
+    expect(poll).toMatchObject({ status: 'ok', user: { id: 4242, first_name: 'Ваня', username: 'vanya' } })
+
+    // Повторное нажатие или чужая ссылка — без входа.
+    sent.length = 0
+    await hook({ update_id: 3, message: { message_id: 2, chat: { id: 4242, type: 'private' }, from, text: `/start login_${nonce}` } })
+    expect(sent.find((c) => c.method === 'sendMessage').body.text).toContain('устарела')
   })
 })

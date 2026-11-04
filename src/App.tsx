@@ -2,8 +2,8 @@ import { AnimatePresence, MotionConfig, motion, type Variants } from 'motion/rea
 import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { preloadSubjects } from './content'
 import { useStore } from './lib/store'
-import { startCloudSync } from './lib/sync'
-import { onTelegramReady, setBackButton, telegramUser } from './lib/telegram'
+import { startSync } from './lib/sync'
+import { isInsideTelegram, onTelegramReady, setBackButton, telegramUser } from './lib/telegram'
 import { isLite, useThemeSync } from './lib/theme'
 import { useReminderSync } from './lib/reminders'
 import { currentEntry, IMMERSIVE, useNav, type StackEntry } from './nav/nav'
@@ -132,8 +132,13 @@ export default function App() {
 
   useEffect(() => {
     let stop: (() => void) | undefined
+    // Сайт без Telegram: синхронизация с аккаунтом (если ученик вошёл через бота).
+    if (!isInsideTelegram()) {
+      stop = startSync()
+      return () => stop?.()
+    }
     const off = onTelegramReady(() => {
-      stop = startCloudSync()
+      stop = startSync()
       const user = telegramUser()
       const { profile, updateProfile } = useStore.getState()
       if (user && !profile.name) updateProfile({ name: user.first_name })

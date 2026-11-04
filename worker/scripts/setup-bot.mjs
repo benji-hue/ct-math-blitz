@@ -61,7 +61,8 @@ try {
   await call('setWebhook', {
     url: `${app}/bot/webhook`,
     secret_token: secret,
-    allowed_updates: ['message'],
+    // callback_query — кнопка «Подтвердить вход» на сайт.
+    allowed_updates: ['message', 'callback_query'],
     drop_pending_updates: true,
   })
   await call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Открыть Крок', web_app: { url: miniApp } } })

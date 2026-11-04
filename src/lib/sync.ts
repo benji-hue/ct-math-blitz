@@ -1,9 +1,13 @@
-import { cloud } from './telegram'
+import { API_BASE } from '../config'
+import { authHeader, dropSession } from './account'
+import { cloud, initData } from './telegram'
 import { normalizeState, snapshot, useStore, type PersistedState } from './store'
 
 /**
- * Синхронизация прогресса между устройствами через Telegram CloudStorage —
- * без собственного сервера и без регистрации.
+ * Синхронизация прогресса между устройствами — двумя путями:
+ *  1) Telegram CloudStorage — в мини-аппе, без сервера;
+ *  2) аккаунт на сервере (/api/state) — общий для мини-аппа и сайта после входа
+ *     через Telegram (lib/account.ts). Побеждает снимок, изменённый позже.
  *
  * Ограничения CloudStorage: значение до 4096 символов, ключей до 1024.
  * Поэтому снимок режется на куски по 4000 символов (ключи p0, p1, …),
@@ -21,13 +25,55 @@ interface Meta {
   updatedAt: number
 }
 
-function cloudPayload(state: PersistedState): string {
+function cloudPayload(state: PersistedState, attempts = 400): string {
   const slim: PersistedState = {
     ...state,
     chat: { ...state.chat, messages: [] },
-    progress: { ...state.progress, attempts: state.progress.attempts.slice(-400) },
+    progress: { ...state.progress, attempts: state.progress.attempts.slice(-attempts) },
   }
   return JSON.stringify(slim)
+}
+
+/** На сервере места больше, чем в CloudStorage: храним 1500 последних ответов. */
+const SERVER_ATTEMPTS = 1500
+
+export async function pushToServer(): Promise<boolean> {
+  const auth = authHeader()
+  const state = snapshot()
+  if (!auth || state.demo || !state.profile.onboarded) return false
+  const res = await fetch(`${API_BASE}/api/state`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: auth },
+    body: JSON.stringify({ state: cloudPayload(state, SERVER_ATTEMPTS), updatedAt: state.updatedAt }),
+  })
+  if (res.status === 401 && !initData()) dropSession()
+  return res.ok
+}
+
+/**
+ * Подтянуть прогресс из аккаунта: если на сервере новее — заменить локальный (чат с
+ * этого устройства сохраняем), если новее здесь — отправить на сервер.
+ *
+ * Сразу после входа на сайте (preferServer) прогресс аккаунта главнее: иначе пара заданий,
+ * решённых гостем, «свежее» по времени и затёрла бы недели занятий в Telegram.
+ */
+export async function pullFromServer({ preferServer = false } = {}): Promise<'restored' | 'pushed' | 'same' | 'unavailable'> {
+  const auth = authHeader()
+  if (!auth) return 'unavailable'
+  const res = await fetch(`${API_BASE}/api/state`, { headers: { Authorization: auth } })
+  if (res.status === 401 && !initData()) dropSession()
+  if (!res.ok) return 'unavailable'
+  const data = (await res.json()) as { state?: string | null; updatedAt?: number }
+  const local = snapshot()
+  if (local.demo) return 'same'
+  const remoteAt = Number(data.updatedAt) || 0
+  if (data.state && (preferServer || remoteAt > local.updatedAt)) {
+    const remote = normalizeState(JSON.parse(data.state))
+    useStore.getState().replaceState({ ...remote, chat: local.chat, updatedAt: remoteAt })
+    return 'restored'
+  }
+  if (local.updatedAt > remoteAt && (await pushToServer())) return 'pushed'
+  return 'same'
 }
 
 export async function pushToCloud(): Promise<boolean> {
@@ -61,21 +107,31 @@ export async function pullFromCloud(): Promise<'restored' | 'local-newer' | 'emp
 let timer: number | undefined
 let lastPushed = 0
 
-/** Запускает фоновую синхронизацию: при старте подтянуть, затем пушить не чаще раза в 20 с. */
-export function startCloudSync(): () => void {
-  pullFromCloud().catch(() => {})
+const pushAll = () => {
+  pushToCloud().catch(() => {})
+  pushToServer().catch(() => {})
+}
+
+/**
+ * Запускает фоновую синхронизацию: при старте подтянуть (облако Telegram, затем аккаунт),
+ * дальше отправлять не чаще раза в 20 с и сразу, когда приложение сворачивают.
+ */
+export function startSync(): () => void {
+  pullFromCloud()
+    .catch(() => {})
+    .finally(() => pullFromServer().catch(() => {}))
   const unsub = useStore.subscribe((state) => {
     if (state.updatedAt === lastPushed) return
     window.clearTimeout(timer)
     timer = window.setTimeout(() => {
       lastPushed = useStore.getState().updatedAt
-      pushToCloud().catch(() => {})
+      pushAll()
     }, 20000)
   })
   const flush = () => {
     if (document.visibilityState === 'hidden') {
       window.clearTimeout(timer)
-      pushToCloud().catch(() => {})
+      pushAll()
     }
   }
   document.addEventListener('visibilitychange', flush)

@@ -2,6 +2,7 @@ import { API_BASE } from '../config'
 import type { SubjectId, Task } from '../domain/types'
 import type { Reference } from './retrieval'
 import type { AiMode } from './store'
+import { authHeader, dropSession, sessionToken } from './account'
 import { initData } from './telegram'
 
 /**
@@ -65,8 +66,8 @@ function url(path: string): string {
 
 function headers(): HeadersInit {
   const h: Record<string, string> = { 'Content-Type': 'application/json' }
-  const data = initData()
-  if (data) h.Authorization = `tma ${data}`
+  const auth = authHeader()
+  if (auth) h.Authorization = auth
   return h
 }
 
@@ -101,6 +102,8 @@ export function isAiUnavailable(e: unknown): boolean {
 }
 
 async function errorFrom(res: Response): Promise<AiError> {
+  // Токен сессии сайта истёк или отозван — забываем его, дальше ученик снова гость.
+  if (res.status === 401 && !initData() && sessionToken()) dropSession()
   let message = ''
   try {
     const body = (await res.json()) as { error?: string }
@@ -280,7 +283,7 @@ export interface ReminderSync {
 }
 
 export async function syncReminders(body: ReminderSync): Promise<boolean> {
-  if (!initData()) return false
+  if (!authHeader()) return false
   try {
     // keepalive: запрос долетит, даже если ученик уже свернул мини-апп.
     const res = await fetch(url('/api/me'), { method: 'POST', headers: headers(), body: JSON.stringify(body), keepalive: true })

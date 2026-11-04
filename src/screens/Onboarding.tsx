@@ -10,6 +10,8 @@ import { cx } from '../lib/cx'
 import { Button, Chip, notify, tap } from '../ui/kit'
 import { springSoft } from '../ui/motion'
 import { SubjectIcon } from '../ui/SubjectIcon'
+import { LoginSheet } from '../ui/Account'
+import { isInsideTelegram } from '../lib/telegram'
 
 const STEPS = ['welcome', 'exam', 'subjects', 'targets'] as const
 type Step = (typeof STEPS)[number]
@@ -50,6 +52,9 @@ export function Onboarding() {
   const [subjects, setSubjects] = useState<SubjectId[]>(['math', 'rus'])
   const [targets, setTargets] = useState<Partial<Record<SubjectId, number>>>({})
   const complete = useStore((s) => s.completeOnboarding)
+  // На сайте: «уже занимаюсь в Telegram» — войти и подтянуть прогресс из аккаунта.
+  const [login, setLogin] = useState(false)
+  const onSite = !isInsideTelegram()
 
   const index = STEPS.indexOf(step)
   const go = (next: Step) => {
@@ -138,7 +143,13 @@ export function Onboarding() {
                   >
                     Посмотреть демо-профиль
                   </Button>
+                  {onSite && (
+                    <Button block variant="ghost" size="md" onClick={() => setLogin(true)}>
+                      Уже занимаюсь в Telegram — войти
+                    </Button>
+                  )}
                 </div>
+                {onSite && <LoginSheet open={login} onClose={() => setLogin(false)} />}
               </>
             )}
 
