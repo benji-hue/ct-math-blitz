@@ -96,18 +96,43 @@ export function createThinkFilter(): (chunk: string) => string {
   }
 }
 
-/** JSON из ответа модели: снимает ```json-обёртку и берёт первый объект. */
+/**
+ * LaTeX внутри JSON без экранирования: «\Omega», «\cdot», «\sqrt» — недопустимые escape-
+ * последовательности, и JSON.parse отбрасывает весь ответ (так терялись задания по физике).
+ * Удваиваем обратный слэш у всех последовательностей, кроме допустимых в JSON.
+ */
+export function repairJsonEscapes(text: string): string {
+  return text.replace(/\\(u[0-9a-fA-F]{4}|["\\/bfnrt]|[\s\S])/g, (match, next: string) => (next.length > 1 || '"\\/bfnrt'.includes(next) ? match : `\\\\${next}`))
+}
+
+/**
+ * Допустимые, но не те escape-последовательности: «\frac» превращается в символ перевода
+ * страницы + «rac», «\times» — в табуляцию + «imes». Возвращаем обратный слэш в формулы.
+ */
+function restoreLatex(value: unknown): unknown {
+  if (typeof value === 'string') return value.replace(/[\f\t\b\r](?=[a-zA-Z])/g, (ch) => ({ '\f': '\\f', '\t': '\\t', '\b': '\\b', '\r': '\\r' })[ch] ?? ch)
+  if (Array.isArray(value)) return value.map(restoreLatex)
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, restoreLatex(v)]))
+  return value
+}
+
+/** JSON из ответа модели: снимает ```json-обёртку, чинит LaTeX без экранирования, берёт первый объект. */
 export function parseJsonLoose(text: string): unknown {
   const cleaned = text
     .replace(/<think>[\s\S]*?<\/think>/g, '')
     .replace(/```(?:json)?/gi, '')
     .trim()
-  try {
-    return JSON.parse(cleaned)
-  } catch {
-    const start = cleaned.indexOf('{')
-    const end = cleaned.lastIndexOf('}')
-    if (start !== -1 && end > start) return JSON.parse(cleaned.slice(start, end + 1))
-    throw new Error('Модель вернула не JSON')
+  const start = cleaned.indexOf('{')
+  const end = cleaned.lastIndexOf('}')
+  const candidates = [cleaned, repairJsonEscapes(cleaned)]
+  if (start !== -1 && end > start) candidates.push(cleaned.slice(start, end + 1), repairJsonEscapes(cleaned.slice(start, end + 1)))
+  let error: Error | null = null
+  for (const candidate of candidates) {
+    try {
+      return restoreLatex(JSON.parse(candidate))
+    } catch (e) {
+      error ??= e as Error
+    }
   }
+  throw new Error(`Модель вернула не JSON${error ? `: ${error.message.slice(0, 120)}` : ''}`)
 }

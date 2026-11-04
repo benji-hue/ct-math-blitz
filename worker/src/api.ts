@@ -2,7 +2,7 @@ import { describeProviders, streamWithFailover, complete, ProviderError, type Ch
 import { buildAnalyzePrompt, buildGeneratePrompt, buildSystemPrompt, MODES, type Mode, type Reference, type TaskContext } from './ai/prompts'
 import { parseJsonLoose } from './ai/sse'
 import { pickFacts } from './ai/facts'
-import { assemble, buildGradePrompt, buildSelfTestPrompt, draftGroups, parseSelfTest, POINTS, sanitizeGrade, toDraft, type GradeTask, type SelfTestSize, type SelfTestTask } from './ai/selftest'
+import { assemble, buildGradePrompt, buildSelfTestPrompt, draftGroups, POINTS, sanitizeGrade, sanitizeSelfTest, toDraft, type GradeTask, type SelfTestSize, type SelfTestTask } from './ai/selftest'
 import { screenTask, verifyTasks } from './ai/verify'
 import { minskDay, num, VERSION, type Env } from './env'
 import { consume, GUESTS_KEY, guestsTotal, limitFor, track, usage, type Kind } from './limits'
@@ -394,10 +394,16 @@ async function selftest(req: Request, env: Env, caller: Caller): Promise<Respons
         undefined,
         force,
       )
-      const draft = parseSelfTest(text)
+      let draft: ReturnType<typeof sanitizeSelfTest>
+      try {
+        draft = sanitizeSelfTest(parseJsonLoose(text))
+      } catch (e) {
+        failures.push(`уровни ${levels.join(', ')}: черновик не разобран (${text.length} симв.; ${(e as Error).message.slice(0, 160)})`)
+        return null
+      }
       const tasks = draft.tasks.filter((t) => levels.includes(t.level))
       if (!tasks.length) {
-        failures.push(`уровни ${levels.join(', ')}: черновик не разобран (${text.length} симв.)`)
+        failures.push(`уровни ${levels.join(', ')}: в черновике нет годных заданий (всего ${draft.tasks.length})`)
         return null
       }
       // Заглушка для локальной разработки не умеет перепроверять — её задания верны по построению.
@@ -416,8 +422,9 @@ async function selftest(req: Request, env: Env, caller: Caller): Promise<Respons
 
   const parts = await round([1, 2, 3, 4, 5])
   let built = assemble(size, parts.flatMap((p) => p.verified))
-  if (built.missing.length) {
-    // Повторная попытка только для уровней, где не хватило подтверждённых заданий.
+  // Повторные попытки — только для уровней, где не хватило подтверждённых заданий: до двух,
+  // потому что бесплатная Gemini иногда отвечает «высокая нагрузка» несколько раз подряд.
+  for (let retry = 0; retry < 2 && built.missing.length; retry++) {
     parts.push(...(await round(built.missing)))
     built = assemble(size, parts.flatMap((p) => p.verified))
   }

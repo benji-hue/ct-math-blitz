@@ -86,6 +86,20 @@ describe('SSE и форматы провайдеров', () => {
     expect(parseJsonLoose('Вот задания: {"tasks":[1]} — удачи')).toEqual({ tasks: [1] })
     expect(() => parseJsonLoose('нет json')).toThrow()
   })
+
+  it('чинит LaTeX без экранирования: задания по физике не теряются', () => {
+    // Так модель вернула задания по закону Ома: «\Omega» и «\cdot» — недопустимые escape в JSON.
+    const broken = String.raw`{"tasks":[{"q":"Найдите $I$, если $U = 12$ В, $R = 4\,\Omega$.","answer":"3","solution":"$I = \dfrac{U}{R} = 12 : 4 = 3$; $U = I \cdot R$"}]}`
+    const data = parseJsonLoose(broken) as { tasks: { q: string; solution: string }[] }
+    expect(data.tasks[0].q).toContain(String.raw`4\,\Omega`)
+    expect(data.tasks[0].solution).toContain(String.raw`I \cdot R`)
+    // Допустимые, но не те последовательности: «\frac» — это \f + «rac», «\times» — \t + «imes».
+    const wrong = String.raw`{"q":"$\frac{1}{2} \times 4$ и \\sqrt{9}"}`
+    expect((parseJsonLoose(wrong) as { q: string }).q).toBe(String.raw`$\frac{1}{2} \times 4$ и \sqrt{9}`)
+    // Правильно экранированный JSON не меняется, а причина отказа видна.
+    expect(parseJsonLoose(String.raw`{"q":"$\\frac{a}{b}$\nШаг 2"}`)).toEqual({ q: '$\\frac{a}{b}$\nШаг 2' })
+    expect(() => parseJsonLoose('{"q": "обрыв')).toThrow(/не JSON: /)
+  })
 })
 
 describe('промпты', () => {
