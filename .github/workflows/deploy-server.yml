@@ -124,23 +124,32 @@ jobs:
 
       - name: Загрузка образа на сервер
         if: steps.target.outputs.ready == 'true'
-        timeout-minutes: 12
+        timeout-minutes: 20
         run: |
           set -o pipefail
           ssh krok 'mkdir -p ~/krok'
           scp -q deploy/compose.yml deploy/Caddyfile krok:krok/
-          echo "Образ: $(( $(docker image inspect "$KROK_IMAGE" --format '{{.Size}}') / 1048576 )) МБ"
-          # Зависшая сеть не должна держать деплой полчаса: 5 минут на попытку, попыток две.
-          for attempt in 1 2; do
+          image="$RUNNER_TEMP/krok-image.tar.gz"
+          docker save "$KROK_IMAGE" | gzip -1 > "$image"
+          size=$(stat -c %s "$image")
+          echo "Образ: $(( size / 1048576 )) МБ в сжатом виде"
+          # Сеть до сервера иногда «залипает»: передача и загрузка в Docker идут отдельно, чтобы
+          # было видно, что тормозит, а оборванную передачу rsync докачивает со следующей попытки.
+          for attempt in 1 2 3; do
             started=$(date +%s)
-            if docker save "$KROK_IMAGE" | gzip -1 | timeout 300 ssh krok 'gunzip | docker load'; then
-              echo "Загружено за $(( $(date +%s) - started )) с"
-              exit 0
+            timeout 240 rsync --partial --inplace -e ssh "$image" krok:krok/image.tar.gz 2>/dev/null \
+              || timeout 240 scp -q "$image" krok:krok/image.tar.gz || true
+            if [ "$(ssh krok 'stat -c %s ~/krok/image.tar.gz 2>/dev/null')" = "$size" ]; then
+              echo "Передано за $(( $(date +%s) - started )) с"
+              break
             fi
-            echo "::warning title=Загрузка образа::Попытка $attempt не удалась или зависла — повторяем"
-            sleep 5
+            echo "::warning title=Передача образа::Попытка $attempt не удалась или зависла — повторяем"
+            [ "$attempt" = 3 ] && exit 1
+            sleep 10
           done
-          exit 1
+          started=$(date +%s)
+          timeout 300 ssh krok 'gunzip -c ~/krok/image.tar.gz | docker load && rm -f ~/krok/image.tar.gz'
+          echo "Загружено в Docker за $(( $(date +%s) - started )) с"
 
       - name: Запуск на сервере
         if: steps.target.outputs.ready == 'true'
