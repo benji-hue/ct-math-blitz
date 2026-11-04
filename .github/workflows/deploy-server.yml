@@ -124,11 +124,23 @@ jobs:
 
       - name: Загрузка образа на сервер
         if: steps.target.outputs.ready == 'true'
+        timeout-minutes: 12
         run: |
           set -o pipefail
           ssh krok 'mkdir -p ~/krok'
           scp -q deploy/compose.yml deploy/Caddyfile krok:krok/
-          docker save "$KROK_IMAGE" | gzip -1 | ssh krok 'gunzip | docker load'
+          echo "Образ: $(( $(docker image inspect "$KROK_IMAGE" --format '{{.Size}}') / 1048576 )) МБ"
+          # Зависшая сеть не должна держать деплой полчаса: 5 минут на попытку, попыток две.
+          for attempt in 1 2; do
+            started=$(date +%s)
+            if docker save "$KROK_IMAGE" | gzip -1 | timeout 300 ssh krok 'gunzip | docker load'; then
+              echo "Загружено за $(( $(date +%s) - started )) с"
+              exit 0
+            fi
+            echo "::warning title=Загрузка образа::Попытка $attempt не удалась или зависла — повторяем"
+            sleep 5
+          done
+          exit 1
 
       - name: Запуск на сервере
         if: steps.target.outputs.ready == 'true'
