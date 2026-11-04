@@ -43,9 +43,29 @@ export interface ForcedModel {
 
 export class ProviderError extends Error {
   status: number
-  constructor(message: string, status = 0) {
+  /** Минутный лимит провайдера: через сколько мс он сам советует повторить. */
+  retryAfterMs?: number
+  constructor(message: string, status = 0, retryAfterMs?: number) {
     super(message)
     this.status = status
+    this.retryAfterMs = retryAfterMs
+  }
+}
+
+/**
+ * Что сказала Gemini в ответе 429: какая квота кончилась и через сколько повторить.
+ * Бесплатный ключ ограничен и в минуту (~15 запросов), и в сутки; минутный лимит
+ * проходит за секунды, суточный — нет.
+ */
+export function geminiQuota(body: string): { ids: string; perMinute: boolean; retryMs: number | null } {
+  try {
+    const details = ((JSON.parse(body) as { error?: { details?: Record<string, unknown>[] } }).error?.details ?? []) as Record<string, unknown>[]
+    const ids = details.flatMap((d) => (Array.isArray(d.violations) ? (d.violations as { quotaId?: string }[]).map((v) => v.quotaId ?? '') : [])).filter(Boolean)
+    const delay = details.map((d) => d.retryDelay).find((v): v is string => typeof v === 'string')
+    const seconds = delay ? Number.parseFloat(delay) : Number.NaN
+    return { ids: ids.join(', '), perMinute: ids.some((id) => /PerMinute/i.test(id)), retryMs: Number.isFinite(seconds) ? Math.ceil(seconds * 1000) : null }
+  } catch {
+    return { ids: '', perMinute: false, retryMs: null }
   }
 }
 
@@ -200,7 +220,15 @@ const gemini: Provider = {
       if (!/thinking/i.test(detail)) throw new ProviderError(`Gemini 400: ${detail.slice(0, 200)}`, 400)
       res = await send(null)
     }
-    if (!res.ok || !res.body) throw new ProviderError(`Gemini ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`, res.status)
+    if (!res.ok || !res.body) {
+      const body = await res.text().catch(() => '')
+      if (res.status === 429) {
+        const quota = geminiQuota(body)
+        const wait = quota.perMinute ? (quota.retryMs ?? 10_000) : undefined
+        throw new ProviderError(`Gemini 429: ${quota.perMinute ? 'лимит запросов в минуту' : 'квота исчерпана'}${quota.ids ? ` (${quota.ids})` : ''}${wait ? `, повтор через ${Math.round(wait / 1000)} с` : ''}`, 429, wait)
+      }
+      throw new ProviderError(`Gemini ${res.status}: ${body.slice(0, 200)}`, res.status)
+    }
     return mapSse(res.body)
   },
 }
@@ -271,6 +299,9 @@ export function describeProviders(env: Env): { id: string; model: string }[] {
  * «capacity temporarily exceeded»), 5xx или обрыв соединения. В отличие от кончившейся
  * квоты (429, 4006) или платного тарифа (5035), через секунду обычно проходит.
  */
+/** Дольше минутного лимита не ждём: ученик смотрит на «печатает…». */
+const MAX_QUOTA_WAIT_MS = 20_000
+
 export const TRANSIENT_ERROR = /\b(500|502|503|504|3040)\b|high demand|overloaded|UNAVAILABLE|temporarily|fetch failed|ECONNRESET|socket hang up|timed? ?out/i
 
 /**
@@ -290,6 +321,9 @@ export async function openStream(env: Env, input: ChatInput, signal?: AbortSigna
   const retryMs = Number(env.AI_RETRY_MS ?? 1200)
   for (let attempt = 0; attempt < 2; attempt++) {
     const failures: string[] = []
+    // Минутный лимит (429 с советом «повторить через N с»): ждать стоит, если недолго.
+    let quotaWait = 0
+    let quotaFailures = 0
     for (const provider of chain) {
       for (const model of force ? [force.model] : provider.models(env, input)) {
         if (!model || exclude.has(`${provider.id}/${model}`)) continue
@@ -312,12 +346,22 @@ export async function openStream(env: Env, input: ChatInput, signal?: AbortSigna
         } catch (e) {
           if ((e as Error).name === 'AbortError') throw e
           failures.push(`${provider.id}/${model}: ${(e as Error).message}`)
+          const after = e instanceof ProviderError ? e.retryAfterMs : undefined
+          if (after !== undefined && after <= MAX_QUOTA_WAIT_MS) {
+            quotaWait = Math.max(quotaWait, after)
+            quotaFailures++
+          }
         }
       }
     }
     errors.push(...failures)
-    if (!failures.length || !failures.every((f) => TRANSIENT_ERROR.test(f)) || signal?.aborted) break
-    if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, Number.isFinite(retryMs) && retryMs >= 0 ? retryMs : 1200))
+    // Повторяем, только если все отказы временные: перегрузка (503) или минутный лимит.
+    const retryable = failures.filter((f) => TRANSIENT_ERROR.test(f)).length + quotaFailures
+    if (!failures.length || retryable < failures.length || signal?.aborted) break
+    // AI_RETRY_MS=0 (тесты) — без пауз вообще.
+    const base = Number.isFinite(retryMs) && retryMs >= 0 ? retryMs : 1200
+    const pause = base === 0 ? 0 : Math.max(base, quotaWait)
+    if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, pause))
   }
   throw new ProviderError(errors.length ? `Все модели недоступны: ${errors.join(' | ')}` : 'Не настроен ни один провайдер ИИ', 503)
 }

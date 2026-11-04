@@ -9,7 +9,10 @@
  * разбор темы «Объясни» (по названию и по фото параграфа).
  *
  *   BOT_TOKEN=… [APP_URL=…] [MODELS=@cf/qwen/qwen3.8-27b,gemini:…] [SCENARIOS=mistake:m-log,…]
- *   [FULL_MODELS=1] [EVAL_IMAGES=папка] [EVAL_IMAGE=solution.png] [EVAL_OUT=папка] node scripts/ai-eval.mjs
+ *   [FULL_MODELS=1] [EVAL_IMAGES=папка] [EVAL_IMAGE=solution.png] [EVAL_OUT=папка] [EVAL_PACE_MS=4000] node scripts/ai-eval.mjs
+ *
+ * Между сценариями — пауза EVAL_PACE_MS (по умолчанию 4 с): у бесплатного ключа Gemini
+ * около 15 запросов в минуту на всех, и прогон без пауз отнимал бы лимит у учеников.
  *
  * «Фото» — скриншоты страниц из scripts/eval: solution.html (решение) и paragraph.html
  * (параграф учебника). В EVAL_IMAGES лежат <имя>.png; EVAL_IMAGE — по-старому, только
@@ -190,7 +193,8 @@ function formatAnalysis(data) {
 const runs = []
 const targets = models.length ? models : [null]
 const fullModels = Math.max(1, Number(process.env.FULL_MODELS) || 1)
-const isQuotaError = (error) => /4006|neuron|allocation|quota|429|rate limit/i.test(error ?? '')
+const isQuotaError = (error) => /4006|neuron|allocation|quota|429|rate limit|квота исчерпана/i.test(error ?? '') && !/лимит запросов в минуту/.test(error ?? '')
+const pace = Math.max(0, Number(process.env.EVAL_PACE_MS ?? 4000) || 0)
 let stopAll = false
 const noPhoto = Object.entries(images).filter(([, data]) => !data).map(([name]) => name)
 console.log(`Приложение: ${base}\nМодели: ${targets.map((m) => m ?? 'цепочка по умолчанию').join(', ')}\nСценарии: ${scenarios.length}${noPhoto.length ? ` (нет фото: ${noPhoto.join(', ')} — эти сценарии пропускаются)` : ''}\n`)
@@ -220,6 +224,7 @@ for (const [index, model] of targets.entries()) {
       run = { ...r, meta, text: r.error ? '' : format(r.data), checks }
     }
     failuresInRow = run.error ? failuresInRow + 1 : 0
+    if (pace) await new Promise((resolve) => setTimeout(resolve, pace))
     if (isQuotaError(run.error)) {
       stopAll = true
       console.log('::warning title=Лимит Workers AI::Бесплатный дневной лимит исчерпан — прогон остановлен, чтобы не оставить бота без ИИ')

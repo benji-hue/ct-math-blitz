@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { routeEvents } from '../src/api'
 import { buildSystemPrompt, buildGeneratePrompt } from '../src/ai/prompts'
-import { complete, DEFAULT_PROVIDERS, describeProviders, geminiThinking, openStream, providerChain, streamWithFailover, type ChatInput, type StreamPart } from '../src/ai/providers'
+import { complete, DEFAULT_PROVIDERS, describeProviders, geminiQuota, geminiThinking, openStream, providerChain, streamWithFailover, type ChatInput, type StreamPart } from '../src/ai/providers'
 import { asNumber, numbersIn, sameAnswer, screenTask, VERIFY_CHUNK, verifiers, verifyTasks, type DraftTask } from '../src/ai/verify'
 import type { Env } from '../src/env'
 import { createThinkFilter, extractDelta, parseJsonLoose, readSse } from '../src/ai/sse'
@@ -176,6 +176,48 @@ describe('цепочка моделей', () => {
     const quota = { run: async () => (quotaCalls++, Promise.reject(new Error('4006: you have used up your daily free allocation'))) }
     await expect(openStream({ AI: quota, AI_PROVIDERS: 'workers-ai', WORKERS_AI_MODELS: 'q', AI_RETRY_MS: '0' } as unknown as Env, input)).rejects.toThrow(/4006/)
     expect(quotaCalls).toBe(1)
+  })
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  const quotaBody = (quotaId: string, retryDelay: string) =>
+    JSON.stringify({
+      error: {
+        code: 429,
+        message: 'You exceeded your current quota, please check your plan and billing details.',
+        status: 'RESOURCE_EXHAUSTED',
+        details: [
+          { '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId, quotaValue: '15' }] },
+          { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay },
+        ],
+      },
+    })
+
+  it('ответ Gemini 429: минутный лимит или суточная квота и через сколько повторить', () => {
+    expect(geminiQuota(quotaBody('GenerateRequestsPerMinutePerProjectPerModel-FreeTier', '7s'))).toEqual({ ids: 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', perMinute: true, retryMs: 7000 })
+    expect(geminiQuota(quotaBody('GenerateRequestsPerDayPerProjectPerModel-FreeTier', '3600s')).perMinute).toBe(false)
+    expect(geminiQuota('не JSON')).toEqual({ ids: '', perMinute: false, retryMs: null })
+  })
+
+  it('минутный лимит Gemini — пауза и повтор; суточная квота — без повтора', async () => {
+    const answer = { candidates: [{ content: { parts: [{ text: 'Готово' }] } }] }
+    let calls = 0
+    vi.stubGlobal('fetch', async () => {
+      calls++
+      return calls === 1
+        ? new Response(quotaBody('GenerateRequestsPerMinutePerProjectPerModel-FreeTier', '2s'), { status: 429 })
+        : new Response(`data: ${JSON.stringify(answer)}\n\n`)
+    })
+    const env = { GEMINI_API_KEY: 'k', AI_PROVIDERS: 'gemini', AI_RETRY_MS: '0' } as unknown as Env
+    const stream = await openStream(env, input)
+    expect(stream.provider).toBe('gemini')
+    expect(stream.skipped[0]).toContain('лимит запросов в минуту')
+    expect(calls).toBe(2)
+
+    calls = 0
+    vi.stubGlobal('fetch', async () => (calls++, new Response(quotaBody('GenerateRequestsPerDayPerProjectPerModel-FreeTier', '3600s'), { status: 429 })))
+    await expect(openStream(env, input)).rejects.toThrow(/квота исчерпана/)
+    expect(calls).toBe(1)
   })
 
   it('в служебной проверке берёт ровно указанную модель', async () => {
