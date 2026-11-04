@@ -2,7 +2,10 @@
 /**
  * Настройка бота после деплоя воркера (в GitHub Actions запускается автоматически).
  *
- *   BOT_TOKEN=… APP_URL=https://krok.<you>.workers.dev [WEBHOOK_SECRET=…] [BOT_USERNAME=…] npm run bot:setup
+ *   BOT_TOKEN=… APP_URL=https://krok.<you>.workers.dev [MINI_APP_URL=…] [WEBHOOK_SECRET=…] [BOT_USERNAME=…] npm run bot:setup
+ *
+ * APP_URL — сервер (вебхук бота), MINI_APP_URL — где открывается мини-апп (например GitHub Pages);
+ * без MINI_APP_URL мини-апп открывается с того же сервера.
  *
  * Делает четыре вещи: ставит вебхук (с секретом), кнопку меню «Открыть Крок»,
  * список команд и описание бота. Повторный запуск безопасен.
@@ -20,6 +23,7 @@ if (!BOT_TOKEN || !APP_URL) {
 }
 const secret = process.env.WEBHOOK_SECRET || webhookSecret(BOT_TOKEN)
 const app = APP_URL.replace(/\/+$/, '')
+const miniApp = process.env.MINI_APP_URL || `${app}/`
 const telegram = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org'
 
 /** Сетевые сбои между GitHub и Telegram бывают разовыми — повторяем до трёх раз. */
@@ -60,7 +64,7 @@ try {
     allowed_updates: ['message'],
     drop_pending_updates: true,
   })
-  await call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Открыть Крок', web_app: { url: app } } })
+  await call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Открыть Крок', web_app: { url: miniApp } } })
   await call('setMyCommands', {
     commands: [
       { command: 'start', description: 'Открыть приложение' },

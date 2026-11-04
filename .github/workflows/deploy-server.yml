@@ -59,6 +59,9 @@ jobs:
       KROK_IMAGE: krok:${{ github.sha }}
       # Домен: переменная или секрет KROK_DOMAIN, иначе — адрес «Крока» по умолчанию.
       KROK_DOMAIN: ${{ vars.KROK_DOMAIN || secrets.KROK_DOMAIN || 'krok-ct.duckdns.org' }}
+      # Мини-апп открывается с GitHub Pages (pages.yml), сервер — только ИИ и бот.
+      # Переменная KROK_APP_URL — другой адрес мини-аппа.
+      MINI_APP_URL: ${{ vars.KROK_APP_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
     steps:
       - uses: actions/checkout@v4
 

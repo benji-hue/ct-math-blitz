@@ -53,7 +53,8 @@ process.stdout.write(
     OPENAI_API_KEY: e.OPENAI_API_KEY,
     CLOUDFLARE_ACCOUNT_ID: hasQwen ? accountId : '',
     CLOUDFLARE_AI_TOKEN: hasQwen ? e.CLOUDFLARE_AI_TOKEN : '',
-    MINI_APP_URL: `https://${domain}`,
+    // Кнопки бота открывают мини-апп там, где он живёт (GitHub Pages), иначе — сам сервер.
+    MINI_APP_URL: (e.MINI_APP_URL ?? '').trim() || `https://${domain}`,
     ALLOWED_ORIGINS: (e.ALLOWED_ORIGINS ?? '').trim().toLowerCase(),
     ALLOW_ANONYMOUS: e.ALLOW_ANONYMOUS === 'true' ? 'true' : 'false',
     AI_PROVIDERS: order.text,
