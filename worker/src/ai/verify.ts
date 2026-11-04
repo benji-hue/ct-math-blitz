@@ -91,17 +91,21 @@ export function verifiers(env: Env, author?: ForcedModel): ForcedModel[] {
 }
 
 /**
- * Решает задания другой моделью. Возвращает, какие задания подтверждены,
- * или null, если проверить не удалось (тогда задания ученику не отдаём).
+ * Сколько заданий проверяющий решает за один запрос. Скрытые рассуждения Gemini делят
+ * лимит токенов с ответом: 4 задания генерации проходили, а 10–15 заданий самостоятельной
+ * одним запросом обрывались, и работа не собиралась. Части проверяются параллельно.
  */
-export async function verifyTasks(env: Env, tasks: DraftTask[], subjectTitle: string, author?: ForcedModel): Promise<{ ok: boolean[]; model: string } | null> {
+export const VERIFY_CHUNK = 5
+
+async function verifyChunk(env: Env, tasks: DraftTask[], subjectTitle: string, author: ForcedModel | undefined, failures: string[]): Promise<{ ok: boolean[]; model: string } | null> {
   const list = tasks
     .map((t, i) => `${i + 1}. ${t.q}${Array.isArray(t.options) ? `\n   Варианты: ${t.options.map((o, j) => `${j + 1}) ${o}`).join('; ')}` : ''}`)
     .join('\n')
   const input: ChatInput = {
     system: VERIFY_PROMPT,
     messages: [{ role: 'user', content: `Предмет: ${subjectTitle}.\n<tasks>\n${list}\n</tasks>` }],
-    maxTokens: 1500,
+    // Сам ответ — короткий список, но у Gemini в этот же лимит входят рассуждения.
+    maxTokens: 3000,
     temperature: 0,
     json: true,
     // Gemini решает с короткими рассуждениями; Qwen в JSON-ответах — без них (см. providers.ts).
@@ -110,11 +114,27 @@ export async function verifyTasks(env: Env, tasks: DraftTask[], subjectTitle: st
   for (const verifier of verifiers(env, author)) {
     try {
       const result = await complete(env, input, undefined, verifier)
-      const answers = (parseJsonLoose(result.text) as { answers?: unknown[] }).answers
+      const answers = (parseJsonLoose(result.text) as { answers?: unknown[] } | null)?.answers
       if (Array.isArray(answers)) return { ok: tasks.map((task, i) => sameAnswer(task, answers[i])), model: result.model }
-    } catch {
+      failures.push(`${verifier.provider}/${verifier.model}: в ответе нет списка answers`)
+    } catch (e) {
       // Модель недоступна или ответила не JSON — пробуем следующую.
+      failures.push(`${verifier.provider}/${verifier.model}: ${(e as Error).message.slice(0, 300)}`)
     }
   }
   return null
+}
+
+/**
+ * Решает задания другой моделью. Возвращает, какие задания подтверждены, или null,
+ * если проверить не удалось ни одну часть (тогда задания ученику не отдаём). Задания
+ * из непроверенной части считаются неподтверждёнными. Причины отказов — в failures.
+ */
+export async function verifyTasks(env: Env, tasks: DraftTask[], subjectTitle: string, author?: ForcedModel, failures: string[] = []): Promise<{ ok: boolean[]; model: string } | null> {
+  const parts: DraftTask[][] = []
+  for (let i = 0; i < tasks.length; i += VERIFY_CHUNK) parts.push(tasks.slice(i, i + VERIFY_CHUNK))
+  const results = await Promise.all(parts.map((part) => verifyChunk(env, part, subjectTitle, author, failures)))
+  const done = results.find((r) => r !== null)
+  if (!done) return null
+  return { ok: results.flatMap((r, i) => r?.ok ?? parts[i].map(() => false)), model: done.model }
 }

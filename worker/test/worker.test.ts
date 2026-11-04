@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { routeEvents } from '../src/api'
 import { buildSystemPrompt, buildGeneratePrompt } from '../src/ai/prompts'
 import { complete, DEFAULT_PROVIDERS, describeProviders, geminiThinking, openStream, providerChain, streamWithFailover, type ChatInput, type StreamPart } from '../src/ai/providers'
-import { asNumber, sameAnswer, screenTask, verifiers, verifyTasks, type DraftTask } from '../src/ai/verify'
+import { asNumber, sameAnswer, screenTask, VERIFY_CHUNK, verifiers, verifyTasks, type DraftTask } from '../src/ai/verify'
 import type { Env } from '../src/env'
 import { createThinkFilter, extractDelta, parseJsonLoose, readSse } from '../src/ai/sse'
 import { localHour, reminderText } from '../src/cron'
@@ -143,6 +143,27 @@ describe('цепочка моделей', () => {
     expect(stream.skipped[0]).toContain('5035')
   })
 
+  it('модель перегружена (503) — одна повторная попытка; кончилась квота — без повтора', async () => {
+    let calls = 0
+    const busy = {
+      run: async () => {
+        calls++
+        if (calls === 1) throw new Error('3040: Capacity temporarily exceeded, please try again')
+        return { response: 'Готово' }
+      },
+    }
+    const env = { AI: busy, AI_PROVIDERS: 'workers-ai', WORKERS_AI_MODELS: 'q', AI_RETRY_MS: '0' } as unknown as Env
+    const stream = await openStream(env, input)
+    expect(stream.provider).toBe('workers-ai')
+    expect(stream.skipped[0]).toContain('3040')
+    expect(calls).toBe(2)
+
+    let quotaCalls = 0
+    const quota = { run: async () => (quotaCalls++, Promise.reject(new Error('4006: you have used up your daily free allocation'))) }
+    await expect(openStream({ AI: quota, AI_PROVIDERS: 'workers-ai', WORKERS_AI_MODELS: 'q', AI_RETRY_MS: '0' } as unknown as Env, input)).rejects.toThrow(/4006/)
+    expect(quotaCalls).toBe(1)
+  })
+
   it('в служебной проверке берёт ровно указанную модель', async () => {
     const env = { AI: failingAi, AI_PROVIDERS: 'workers-ai', ALLOW_MOCK_AI: 'true' } as unknown as Env
     expect((await openStream(env, input, undefined, { provider: 'mock', model: 'mock-tutor' })).provider).toBe('mock')
@@ -186,9 +207,31 @@ describe('перепроверка сгенерированных заданий
     expect(result?.ok).toEqual([false, true])
   })
 
-  it('если проверить не удалось — задания не отдаются', async () => {
+  it('если проверить не удалось — задания не отдаются, причина видна', async () => {
     const env = { AI: { run: async () => ({ response: 'не JSON' }) }, AI_PROVIDERS: 'workers-ai' } as unknown as Env
-    expect(await verifyTasks(env, [good], 'Математика')).toBeNull()
+    const failures: string[] = []
+    expect(await verifyTasks(env, [good], 'Математика', undefined, failures)).toBeNull()
+    expect(failures[0]).toContain('не JSON')
+  })
+
+  it('много заданий проверяются частями: оборванная часть не губит остальные', async () => {
+    // Самостоятельная даёт 10–15 кандидатов: одним запросом рассуждения Gemini не влезали в лимит.
+    const sizes: number[] = []
+    const ai = {
+      run: async (_model: string, inputs: { messages: { content: string }[] }) => {
+        const n = (inputs.messages.at(-1)!.content.match(/^\d+\. /gm) ?? []).length
+        sizes.push(n)
+        // Первая часть «оборвалась»; во второй задание «k + 1» при k = VERIFY_CHUNK + 1 решено верно, следующее — нет.
+        return { response: n === VERIFY_CHUNK ? '{"answers": [1, 1' : JSON.stringify({ answers: [VERIFY_CHUNK + 2, 99] }) }
+      },
+    }
+    const env = { AI: ai, AI_PROVIDERS: 'workers-ai' } as unknown as Env
+    const task = (k: number): DraftTask => ({ q: `Найдите ${k} + 1.`, answer: String(k + 1), explain: `${k} + 1 = ${k + 1}.` })
+    const failures: string[] = []
+    const result = await verifyTasks(env, Array.from({ length: VERIFY_CHUNK + 2 }, (_, k) => task(k + 1)), 'Математика', undefined, failures)
+    expect(sizes.sort()).toEqual([2, VERIFY_CHUNK])
+    expect(result?.ok).toEqual([...Array(VERIFY_CHUNK).fill(false), true, false])
+    expect(failures).toHaveLength(1)
   })
 
   const gemini = { provider: 'gemini', model: 'gemini-3.5-flash-lite' }

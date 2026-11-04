@@ -284,8 +284,17 @@ export function describeProviders(env: Env): { id: string; model: string }[] {
 }
 
 /**
+ * Временный отказ: «модель перегружена» (Gemini 503 «high demand», Workers AI 3040
+ * «capacity temporarily exceeded»), 5xx или обрыв соединения. В отличие от кончившейся
+ * квоты (429, 4006) или платного тарифа (5035), через секунду обычно проходит.
+ */
+export const TRANSIENT_ERROR = /\b(500|502|503|504|3040)\b|high demand|overloaded|UNAVAILABLE|temporarily|fetch failed|ECONNRESET|socket hang up|timed? ?out/i
+
+/**
  * Открывает поток у первого провайдера, который реально начал отвечать.
- * Ошибки до первого фрагмента — повод попробовать следующую модель.
+ * Ошибки до первого фрагмента — повод попробовать следующую модель. Если все модели
+ * отказали временно (перегрузка), — ещё одна попытка всей цепочки после короткой
+ * паузы: на сервере с одной моделью это спасает ответ при всплеске нагрузки у Gemini.
  */
 export async function openStream(env: Env, input: ChatInput, signal?: AbortSignal, force?: ForcedModel, exclude: ReadonlySet<string> = new Set()): Promise<OpenedStream> {
   const errors: string[] = []
@@ -295,30 +304,37 @@ export async function openStream(env: Env, input: ChatInput, signal?: AbortSigna
     if (!provider || !provider.available(env)) throw new ProviderError(`Провайдер ${force.provider} не настроен на сервере`, 503)
     chain = [provider]
   }
-  for (const provider of chain) {
-    for (const model of force ? [force.model] : provider.models(env, input)) {
-      if (!model || exclude.has(`${provider.id}/${model}`)) continue
-      try {
-        const chunks = await provider.open(env, model, input, signal)
-        const first = await chunks.next()
-        if (first.done) {
-          errors.push(`${provider.id}/${model}: пустой ответ`)
-          continue
+  const retryMs = Number(env.AI_RETRY_MS ?? 1200)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const failures: string[] = []
+    for (const provider of chain) {
+      for (const model of force ? [force.model] : provider.models(env, input)) {
+        if (!model || exclude.has(`${provider.id}/${model}`)) continue
+        try {
+          const chunks = await provider.open(env, model, input, signal)
+          const first = await chunks.next()
+          if (first.done) {
+            failures.push(`${provider.id}/${model}: пустой ответ`)
+            continue
+          }
+          return {
+            provider: provider.id,
+            model,
+            skipped: [...errors, ...failures],
+            chunks: (async function* () {
+              yield first.value
+              yield* chunks
+            })(),
+          }
+        } catch (e) {
+          if ((e as Error).name === 'AbortError') throw e
+          failures.push(`${provider.id}/${model}: ${(e as Error).message}`)
         }
-        return {
-          provider: provider.id,
-          model,
-          skipped: errors,
-          chunks: (async function* () {
-            yield first.value
-            yield* chunks
-          })(),
-        }
-      } catch (e) {
-        if ((e as Error).name === 'AbortError') throw e
-        errors.push(`${provider.id}/${model}: ${(e as Error).message}`)
       }
     }
+    errors.push(...failures)
+    if (!failures.length || !failures.every((f) => TRANSIENT_ERROR.test(f)) || signal?.aborted) break
+    if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, Number.isFinite(retryMs) && retryMs >= 0 ? retryMs : 1200))
   }
   throw new ProviderError(errors.length ? `Все модели недоступны: ${errors.join(' | ')}` : 'Не настроен ни один провайдер ИИ', 503)
 }

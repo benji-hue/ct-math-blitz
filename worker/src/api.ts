@@ -384,8 +384,10 @@ async function selftest(req: Request, env: Env, caller: Caller): Promise<Respons
     const tasks = draft.tasks.filter((t) => levels.includes(t.level))
     // Заглушка для локальной разработки не умеет перепроверять — её задания верны по построению.
     if (provider === 'mock') return { title: draft.title, provider, model, verifier: null, verified: tasks, drafts: tasks.length }
-    const verdict = tasks.length ? await verifyTasks(env, tasks.map(toDraft), subjectTitle, { provider, model }) : null
-    if (!verdict) throw new ProviderError('Не удалось перепроверить задания', 503)
+    const failures: string[] = []
+    const verdict = tasks.length ? await verifyTasks(env, tasks.map(toDraft), subjectTitle, { provider, model }, failures) : null
+    if (!verdict) throw new ProviderError(`Не удалось перепроверить задания${failures.length ? `: ${failures.join(' | ')}` : ''}`, 503)
+    if (failures.length) console.error('selftest verify partial', failures.join(' | ').slice(0, 500))
     return { title: draft.title, provider, model, verifier: verdict.model, verified: tasks.filter((_, i) => verdict.ok[i]), drafts: tasks.length }
   }
 

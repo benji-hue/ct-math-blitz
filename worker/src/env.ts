@@ -37,6 +37,9 @@ export interface Env {
   /** Срок жизни initData, секунд (по умолчанию сутки). */
   INIT_DATA_TTL?: string
 
+  /** Пауза перед повторной попыткой, если все модели ответили «перегружена» (503), мс; по умолчанию 1200. */
+  AI_RETRY_MS?: string
+
   DAILY_LIMIT_CHAT?: string
   DAILY_LIMIT_GENERATE?: string
   DAILY_LIMIT_ANALYZE?: string
