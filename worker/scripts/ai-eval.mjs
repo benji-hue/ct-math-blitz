@@ -134,7 +134,13 @@ async function runJson(path, scenario, model) {
     const res = await fetch(`${base}${path}`, { method: 'POST', headers: headers(), body: JSON.stringify({ ...scenario.body, ...photoPayload(scenario), ...(model ? { model } : {}) }) })
     const data = await res.json().catch(() => ({}))
     const ms = Date.now() - started
-    if (!res.ok) return { data, ms, error: `HTTP ${res.status}: ${data.error ?? ''}${data.detail ? ` (${data.detail})` : ''}` }
+    // Служебный разбор самостоятельной: сколько кандидатов, сколько подтверждено, где не хватило и почему.
+    const audit = [
+      data.drafts ? `Кандидатов: ${data.drafts}, подтверждено: ${data.verified ?? 0}.` : '',
+      Array.isArray(data.missing) && data.missing.length ? `Уровни без заданий: ${data.missing.join(', ')}.` : '',
+      Array.isArray(data.failures) && data.failures.length ? `Отказы: ${data.failures.join(' | ')}` : '',
+    ].filter(Boolean)
+    if (!res.ok) return { data, ms, error: `HTTP ${res.status}: ${data.error ?? ''}${data.detail ? ` (${data.detail})` : ''}${audit.length ? ` ${audit.join(' ')}` : ''}` }
     return { data, ms, error: null }
   } catch (e) {
     return { data: null, ms: Date.now() - started, error: String(e.message ?? e) }
@@ -224,7 +230,8 @@ function formatGenerate(data) {
 function formatSelfTest(data) {
   const tasks = Array.isArray(data?.tasks) ? data.tasks : []
   const audit = data?.drafts ? `Кандидатов: ${data.drafts}, подтверждено проверяющей моделью (${data.verifier ?? '—'}): ${data.verified}.\n` : ''
-  return `${audit}${data?.title ?? ''}\n${tasks
+  const failures = Array.isArray(data?.failures) && data.failures.length ? `Отказы по ходу: ${data.failures.join(' | ')}\n` : ''
+  return `${audit}${failures}${data?.title ?? ''}\n${tasks
     .map((t) => {
       const options = Array.isArray(t.options) ? `\n   Варианты: ${t.options.map((o, j) => `${j + 1}) ${o}`).join('; ')}\n   Ответ: вариант ${Number(t.answer) + 1}` : `\n   Ответ: ${t.answer}`
       return `${t.n}. [уровень ${t.level}, ${t.points} б.] ${t.q}${options}\n   Решение: ${t.solution}${t.check ? `\n   Существенная ошибка: ${t.check}` : ''}`

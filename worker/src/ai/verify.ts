@@ -39,16 +39,29 @@ export function screenTask(raw: unknown): DraftTask | null {
   return t as DraftTask
 }
 
-/** Число из ответа: 2,5 / 2.5 / 5/2 / \frac{5}{2} / $-3$. */
+/**
+ * Число из ответа: 2,5 / 2.5 / 5/2 / \frac{5}{2} / $-3$ / $2{,}5$ / −4 (типографский минус) /
+ * x = 3 / 0,5 А / 12 Ом / 20 м/с. Единицы после числа для сравнения не нужны: модели
+ * пишут их по-разному, и верные задания по физике отбраковывались.
+ */
 export function asNumber(value: unknown): number | null {
   const s = String(value ?? '')
     .replace(/\$/g, '')
+    .replace(/\\(?:text|mathrm)\{([^{}]*)\}/g, '$1')
+    .replace(/\{,\}/g, ',')
+    .replace(/\\[,;:! ]/g, '')
     .replace(/\s+/g, '')
+    .replace(/[−–—]/g, '-')
     .replace(/\\[dt]?frac\{(-?\d+(?:[.,]\d+)?)\}\{(\d+(?:[.,]\d+)?)\}/, '$1/$2')
     .replace(/,/g, '.')
+    .replace(/^[a-zа-яё](?:_?\{?\d+\}?)?=/i, '')
   if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s)
   const fraction = /^(-?\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/.exec(s)
   if (fraction && Number(fraction[2]) !== 0) return Number(fraction[1]) / Number(fraction[2])
+  // Число с единицами: «0.5А», «12Ом», «20м/с», «100°C». Единица начинается с кириллицы, ° или %,
+  // чтобы «3x» (выражение) не стало числом 3.
+  const withUnit = /^(-?\d+(?:\.\d+)?)[а-яё°%][a-zа-яё°%/²³·.^\d]*$/i.exec(s)
+  if (withUnit) return Number(withUnit[1])
   return null
 }
 
@@ -57,6 +70,7 @@ const normalize = (value: unknown) =>
     .toLowerCase()
     .replace(/[$\s«»"']/g, '')
     .replace(/ё/g, 'е')
+    .replace(/[−–—]/g, '-')
     .replace(/,/g, '.')
 
 /** Совпадает ли ответ проверяющего с ключом задания. */

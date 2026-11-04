@@ -85,6 +85,7 @@ describe('самостоятельная работа по нормам РБ', (
     expect(prompt).toContain('фото страницы учебника')
     expect(prompt).toContain('<lesson>')
     expect(prompt).toContain('найдите сумму корней')
+    expect(prompt).toContain('без единиц измерения')
     expect(buildSelfTestPrompt({ subjectTitle: 'М', topic: 'т', size: 10, perLevel: 3, levels: [4, 5] })).toContain('Нужно 6 заданий: по 3 на каждый из уровней 4, 5')
   })
 
