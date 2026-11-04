@@ -140,6 +140,7 @@ describe('самостоятельная работа по нормам РБ', (
     expect(prompt).toContain('не менее чем на 50 %')
     expect(prompt).toContain('потеря корня')
     expect(prompt).toContain('<tasks>')
+    expect(prompt).toContain('на «ты»')
     expect(buildGradePrompt({ subject: 'phys', subjectTitle: 'Физика', tasks: [] })).toContain('перевод')
   })
 })
