@@ -28,9 +28,9 @@ on:
   workflow_dispatch:
     inputs:
       allow_anonymous:
-        description: 'Пускать к ИИ из обычного браузера (показ с ноутбука; лимиты для анонимов строже)'
+        description: 'ИИ и на сайте, без Telegram: у гостя лимит по IP вдвое меньше, у всех гостей вместе — общий дневной потолок'
         type: boolean
-        default: false
+        default: true
       switch_bot:
         description: 'Переключить бота на сервер и выключить напоминания старого воркера Cloudflare'
         type: boolean

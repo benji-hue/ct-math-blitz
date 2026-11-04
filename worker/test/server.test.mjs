@@ -239,3 +239,32 @@ describe('сервер целиком: воркер в node:http', () => {
     expect(await res.text()).toContain('"type":"done"')
   })
 })
+
+describe('гости сайта без Telegram', () => {
+  // Ключ ИИ общий с учениками в Telegram: у каждого гостя свой лимит по IP, а у всех вместе — общий потолок.
+  const db = openDatabase(':memory:', migrations)
+  const env = { ...buildEnv({ ALLOW_MOCK_AI: 'true', ALLOW_ANONYMOUS: 'true', BOT_TOKEN: '1:test', DAILY_LIMIT_CHAT: '6', ANON_TOTAL_FACTOR: '1' }, wrangler), DB: db }
+  const ctx = { waitUntil: (p) => Promise.resolve(p).catch(() => {}), passThroughOnException() {} }
+  const ask = (ip) =>
+    worker.fetch(
+      new Request('https://krok.example/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': ip },
+        body: JSON.stringify({ mode: 'tutor', messages: [{ role: 'user', content: 'Привет' }] }),
+      }),
+      env,
+      ctx,
+    )
+
+  it('лимит на IP вдвое меньше, чем у ученика в Telegram, и общий потолок на всех гостей', async () => {
+    // У ученика 6 вопросов в день → у гостя 3; все гости вместе — 6.
+    for (let i = 0; i < 3; i++) expect((await ask('10.0.0.1')).status).toBe(200)
+    const own = await ask('10.0.0.1')
+    expect(own.status).toBe(429)
+    expect((await own.json()).error).toContain('Telegram')
+    for (let i = 0; i < 3; i++) expect((await ask('10.0.0.2')).status).toBe(200)
+    const crowd = await ask('10.0.0.3')
+    expect(crowd.status).toBe(429)
+    expect((await crowd.json()).error).toContain('слишком много гостей')
+  })
+})

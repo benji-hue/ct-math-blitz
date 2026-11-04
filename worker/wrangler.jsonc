@@ -52,6 +52,8 @@
     "DAILY_LIMIT_CHAT": "60",
     "DAILY_LIMIT_GENERATE": "15",
     "DAILY_LIMIT_ANALYZE": "6",
-    "DAILY_LIMIT_VISION": "12"
+    "DAILY_LIMIT_VISION": "12",
+    // Гости сайта (ALLOW_ANONYMOUS): все вместе за день — не больше, чем столько учеников.
+    "ANON_TOTAL_FACTOR": "5"
   }
 }

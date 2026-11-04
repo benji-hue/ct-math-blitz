@@ -19,8 +19,21 @@ export function limitFor(env: Env, kind: Kind, anonymous: boolean): number {
     analyze: num(env.DAILY_LIMIT_ANALYZE, DEFAULTS.analyze),
     vision: num(env.DAILY_LIMIT_VISION, DEFAULTS.vision),
   }[kind]
-  // Без Telegram пользователь анонимен — лимит заметно меньше.
-  return anonymous ? Math.max(3, Math.floor(configured / 4)) : configured
+  // Гость сайта (без Telegram) считается по IP — лимит вдвое меньше. Не вчетверо: под одним
+  // IP бывает целый класс или абоненты мобильного оператора.
+  return anonymous ? Math.max(3, Math.floor(configured / 2)) : configured
+}
+
+/** Ключ общего счётчика всех гостей сайта — не совпадает ни с одним IP. */
+export const GUESTS_KEY = 'ip:*'
+
+/**
+ * Сколько запросов за день все гости сайта могут сделать вместе: ключ ИИ общий с учениками
+ * в Telegram, и наплыв гостей (или перебор IP) не должен оставить бота без ИИ.
+ * По умолчанию — как у пяти учеников (ANON_TOTAL_FACTOR).
+ */
+export function guestsTotal(env: Env, kind: Kind): number {
+  return limitFor(env, kind, false) * num(env.ANON_TOTAL_FACTOR, 5)
 }
 
 const memory = new Map<string, number>()

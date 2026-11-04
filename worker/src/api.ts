@@ -5,7 +5,7 @@ import { pickFacts } from './ai/facts'
 import { assemble, buildGradePrompt, buildSelfTestPrompt, draftGroups, parseSelfTest, POINTS, sanitizeGrade, toDraft, type GradeTask, type SelfTestSize, type SelfTestTask } from './ai/selftest'
 import { screenTask, verifyTasks } from './ai/verify'
 import { minskDay, num, VERSION, type Env } from './env'
-import { consume, limitFor, track, usage, type Kind } from './limits'
+import { consume, GUESTS_KEY, guestsTotal, limitFor, track, usage, type Kind } from './limits'
 import { deriveSecret, safeEqual, validateInitData, type TgUser } from './telegram'
 
 /**
@@ -72,7 +72,16 @@ async function spend(env: Env, caller: Caller, kind: Kind): Promise<Response | n
   const used = await consume(env, caller.key, kind)
   const limit = limitFor(env, kind, caller.anonymous)
   if (used > limit) {
-    return fail(429, `Дневной лимит (${limit}) исчерпан. Он обновится в полночь по Минску — а пока можно тренироваться в банке заданий.`)
+    return fail(
+      429,
+      caller.anonymous
+        ? `Дневной лимит на сайте (${limit}) исчерпан. Он обновится в полночь по Минску, а в Telegram-боте «Крока» лимит вдвое больше и прогресс сохраняется.`
+        : `Дневной лимит (${limit}) исчерпан. Он обновится в полночь по Минску — а пока можно тренироваться в банке заданий.`,
+    )
+  }
+  // Все гости сайта вместе — не больше общего потолка: ученикам в Telegram ИИ должен остаться.
+  if (caller.anonymous && (await consume(env, GUESTS_KEY, kind)) > guestsTotal(env, kind)) {
+    return fail(429, 'ИИ на сайте на сегодня закончился — слишком много гостей. В Telegram-боте «Крока» он работает: откройте приложение там.')
   }
   return null
 }

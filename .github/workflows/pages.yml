@@ -41,9 +41,9 @@ jobs:
       - name: Build with service worker
         run: npm run build:pwa
         env:
-          # Адрес воркера с ИИ (например https://krok.<account>.workers.dev).
-          # Без него версия на Pages работает полностью, кроме ИИ-функций.
-          VITE_API_BASE: ${{ vars.KROK_API_BASE }}
+          # Адрес сервера с ИИ: переменная KROK_API_BASE, иначе — свой сервер «Крока».
+          # Сервер пускает этот адрес (ALLOWED_ORIGINS) и гостей без Telegram (ALLOW_ANONYMOUS).
+          VITE_API_BASE: ${{ vars.KROK_API_BASE || 'https://krok-ct.duckdns.org' }}
           VITE_BOT_USERNAME: ${{ vars.VITE_BOT_USERNAME }}
 
       - name: Check PWA files
