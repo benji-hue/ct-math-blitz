@@ -42,7 +42,8 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
       onClick={() => onChange(!on)}
       className={cx('relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors', on ? 'bg-good' : 'bg-line-strong')}
     >
-      <span className={cx('absolute top-[3px] h-6 w-6 rounded-full bg-white shadow transition-transform', on ? 'translate-x-[23px]' : 'translate-x-[3px]')} />
+      {/* left-0 обязателен: без него кружок встаёт по центру кнопки (text-align: center) и уезжает за край. */}
+      <span className={cx('absolute top-[3px] left-0 h-6 w-6 rounded-full bg-white shadow transition-transform', on ? 'translate-x-[23px]' : 'translate-x-[3px]')} />
     </button>
   )
 }
