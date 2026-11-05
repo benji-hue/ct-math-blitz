@@ -42,12 +42,27 @@ async function post(method, body) {
   }
 }
 
+/**
+ * Telegram сам обращается к нашему серверу (проверяет адрес вебхука), и бесплатный DNS
+ * (DuckDNS) иногда на минуту не отвечает: «Failed to resolve host». Это не ошибка
+ * настройки — пробуем ещё, до четырёх раз с паузой.
+ */
+const TRANSIENT = /Failed to resolve host|Temporary failure|timed out|Connection refused|Too Many Requests|retry after/i
+
 async function call(method, body = {}) {
-  const res = await post(method, body)
-  const data = await res.json().catch(() => ({}))
-  if (!data.ok) throw new Error(`${method}: ${data.description ?? `HTTP ${res.status}`}`)
-  console.log(`✓ ${method}`)
-  return data.result
+  for (let attempt = 1; ; attempt++) {
+    const res = await post(method, body)
+    const data = await res.json().catch(() => ({}))
+    if (data.ok) {
+      console.log(`✓ ${method}`)
+      return data.result
+    }
+    const reason = data.description ?? `HTTP ${res.status}`
+    if (attempt >= 4 || !TRANSIENT.test(reason)) throw new Error(`${method}: ${reason}`)
+    const wait = (data.parameters?.retry_after ?? 10 * attempt) * 1000
+    console.log(`… ${method}: ${reason} — повтор через ${Math.round(wait / 1000)} с`)
+    await new Promise((resolve) => setTimeout(resolve, wait))
+  }
 }
 
 try {
@@ -63,7 +78,8 @@ try {
     secret_token: secret,
     // callback_query — кнопка «Подтвердить вход» на сайт.
     allowed_updates: ['message', 'callback_query'],
-    drop_pending_updates: true,
+    // Адрес вебхука от деплоя к деплою тот же — сообщения, пришедшие во время выкладки, не выбрасываем.
+    drop_pending_updates: false,
   })
   await call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Открыть Крок', web_app: { url: miniApp } } })
   await call('setMyCommands', {
