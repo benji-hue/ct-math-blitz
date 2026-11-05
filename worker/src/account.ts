@@ -137,6 +137,12 @@ export async function endSession(env: Env, token: string): Promise<void> {
 
 // ---------- Прогресс ----------
 
+/** Только время снимка — для частых проверок «есть ли новее» без передачи самого снимка. */
+export async function stateVersion(env: Env, userId: number): Promise<number | null> {
+  const row = await env.DB!.prepare('SELECT updated_at FROM user_state WHERE user_id = ?1').bind(userId).first<{ updated_at: number }>()
+  return row ? row.updated_at : null
+}
+
 export async function loadState(env: Env, userId: number): Promise<{ state: string; updatedAt: number } | null> {
   const row = await env.DB!.prepare('SELECT state, updated_at FROM user_state WHERE user_id = ?1').bind(userId).first<{ state: string; updated_at: number }>()
   return row ? { state: row.state, updatedAt: row.updated_at } : null

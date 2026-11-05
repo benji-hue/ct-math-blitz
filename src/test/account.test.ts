@@ -143,6 +143,43 @@ describe('прогресс в аккаунте', () => {
     expect(snapshot().progress.xp).toBe(321)
   })
 
+  it('снимок с другого устройства сохраняет своё время — старая копия не станет «свежей»', async () => {
+    signIn()
+    const base = emptyState()
+    // Новый телефон: мини-апп поднял из облака Telegram копию от времени 5000…
+    useStore.getState().restoreState({ ...base, profile: { ...base.profile, onboarded: true }, progress: { ...base.progress, xp: 100 }, updatedAt: 5000 })
+    expect(snapshot().updatedAt).toBe(5000)
+    // …а в браузере потом занимались ещё (на сервере — время 9000): побеждает сервер.
+    const remote = { ...base, profile: { ...base.profile, onboarded: true }, progress: { ...base.progress, xp: 450 } }
+    const urls: string[] = []
+    vi.stubGlobal('fetch', async (url: string) => {
+      urls.push(url)
+      return json({ state: JSON.stringify(remote), updatedAt: 9000 })
+    })
+    expect(await pullFromServer()).toBe('restored')
+    expect(snapshot().progress.xp).toBe(450)
+    expect(snapshot().updatedAt).toBe(9000)
+    expect(urls[0]).toBe('/api/state?since=5000')
+  })
+
+  it('частая проверка: «новее нет» — ничего не меняем; на устройстве новее — отправляем', async () => {
+    signIn()
+    const base = emptyState()
+    useStore.getState().restoreState({ ...base, profile: { ...base.profile, onboarded: true }, progress: { ...base.progress, xp: 70 }, updatedAt: 8000 })
+    vi.stubGlobal('fetch', async () => json({ state: null, updatedAt: 8000, unchanged: true }))
+    expect(await pullFromServer()).toBe('same')
+    const posted: number[] = []
+    vi.stubGlobal('fetch', async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        posted.push(JSON.parse(String(init.body)).updatedAt)
+        return json({ ok: true })
+      }
+      return json({ state: null, updatedAt: 3000, unchanged: true })
+    })
+    expect(await pullFromServer()).toBe('pushed')
+    expect(posted).toEqual([8000])
+  })
+
   it('гость сайта — без синхронизации; вход истёк — токен забыт', async () => {
     expect(await pullFromServer()).toBe('unavailable')
     signIn()

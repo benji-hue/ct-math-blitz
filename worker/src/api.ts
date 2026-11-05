@@ -5,7 +5,7 @@ import { screenTask, verifyTasks } from './ai/verify'
 import { minskDay, num, VERSION, type Env } from './env'
 import { consume, GUESTS_KEY, guestsTotal, limitFor, track, usage, type Kind } from './limits'
 import { deriveSecret, safeEqual, validateInitData, type TgUser } from './telegram'
-import { endSession, linkLogin, loadState, MAX_STATE_CHARS, NONCE, pollLogin, saveState, sessionUser, startLogin } from './account'
+import { endSession, linkLogin, loadState, MAX_STATE_CHARS, NONCE, pollLogin, saveState, sessionUser, startLogin, stateVersion } from './account'
 
 /**
  * HTTP API мини-аппа. Каждый запрос к ИИ:
@@ -410,8 +410,16 @@ async function state(req: Request, env: Env, caller: Caller): Promise<Response> 
   if (!env.DB) return fail(503, 'Аккаунты не настроены на сервере')
   if (!caller.user) return fail(401, 'Войди через Telegram, чтобы сохранять прогресс')
   if (req.method === 'GET') {
+    const user = { id: caller.user.id, first_name: caller.user.first_name, username: caller.user.username }
+    // ?since=<время снимка на устройстве>: открытая вкладка проверяет раз в 30 с — если на
+    // сервере не новее, отвечаем коротко, без самого снимка.
+    const since = Number(new URL(req.url).searchParams.get('since'))
+    if (Number.isFinite(since) && since > 0) {
+      const version = await stateVersion(env, caller.user.id)
+      if (version === null || version <= since) return json({ user, state: null, updatedAt: version ?? 0, unchanged: true })
+    }
     const saved = await loadState(env, caller.user.id)
-    return json({ user: { id: caller.user.id, first_name: caller.user.first_name, username: caller.user.username }, ...(saved ?? { state: null, updatedAt: 0 }) })
+    return json({ user, ...(saved ?? { state: null, updatedAt: 0 }) })
   }
   if (req.method !== 'POST') return fail(405, 'Метод не поддерживается')
   const body = await readBody(req)

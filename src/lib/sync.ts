@@ -34,6 +34,12 @@ function cloudPayload(state: PersistedState, attempts = 400): string {
   return JSON.stringify(slim)
 }
 
+/**
+ * Время последнего снимка, пришедшего с другого устройства: его не отправляем обратно —
+ * на сервере он уже есть, а облако Telegram догонит при следующем изменении.
+ */
+let restoredAt = 0
+
 /** На сервере места больше, чем в CloudStorage: храним 1500 последних ответов. */
 const SERVER_ATTEMPTS = 1500
 
@@ -60,7 +66,11 @@ export async function pushToServer(): Promise<boolean> {
 export async function pullFromServer({ preferServer = false } = {}): Promise<'restored' | 'pushed' | 'same' | 'unavailable'> {
   const auth = authHeader()
   if (!auth) return 'unavailable'
-  const res = await fetch(`${API_BASE}/api/state`, { headers: { Authorization: auth } })
+  const before = snapshot()
+  if (before.demo) return 'same'
+  // Обычная проверка — с ?since: если на сервере не новее, он ответит коротко, без снимка.
+  const full = preferServer || !before.profile.onboarded
+  const res = await fetch(`${API_BASE}/api/state${full ? '' : `?since=${before.updatedAt}`}`, { headers: { Authorization: auth } })
   if (res.status === 401 && !initData()) dropSession()
   if (!res.ok) return 'unavailable'
   const data = (await res.json()) as { state?: string | null; updatedAt?: number }
@@ -71,7 +81,9 @@ export async function pullFromServer({ preferServer = false } = {}): Promise<'re
   if (data.state && (preferServer || !local.profile.onboarded || remoteAt > local.updatedAt)) {
     const remote = normalizeState(JSON.parse(data.state))
     // Чат и настройки устройства (тема, лёгкий режим, вибрация) — свои на каждом устройстве.
-    useStore.getState().replaceState({ ...remote, chat: local.chat, settings: local.settings, updatedAt: remoteAt })
+    // Время снимка — серверное: иначе старая копия стала бы «свежей» и затёрла бы новую.
+    restoredAt = remoteAt
+    useStore.getState().restoreState({ ...remote, chat: local.chat, settings: local.settings, updatedAt: remoteAt })
     return 'restored'
   }
   if (local.updatedAt > remoteAt && (await pushToServer())) return 'pushed'
@@ -103,49 +115,66 @@ export async function pullFromCloud(): Promise<'restored' | 'local-newer' | 'emp
   const parts = await cloud.get(keys)
   const data = keys.map((k) => parts[k] ?? '').join('')
   const remote = normalizeState(JSON.parse(data))
-  // Чат с этого устройства не теряем.
-  useStore.getState().replaceState({ ...remote, chat: local.chat, updatedAt: meta.updatedAt })
+  // Чат и настройки устройства не теряем; время снимка — из облака, чтобы следом сервер мог
+  // оказаться новее (занимался в браузере) и победить, а не наоборот.
+  restoredAt = meta.updatedAt
+  useStore.getState().restoreState({ ...remote, chat: local.chat, settings: local.settings, updatedAt: meta.updatedAt })
   return 'restored'
 }
 
-let timer: number | undefined
-let lastPushed = 0
-
-const pushAll = () => {
-  pushToCloud().catch(() => {})
-  pushToServer().catch(() => {})
-}
+/** Сервер — через 4 с после изменения (ответил на задание — уже на других устройствах). */
+const SERVER_DELAY_MS = 4000
+/** Облако Telegram — реже: каждый снимок там — десятки запросов по 4000 символов. */
+const CLOUD_DELAY_MS = 20_000
+/** Открытая вкладка сама проверяет, нет ли прогресса новее (занимаешься с телефона). */
+const POLL_MS = 30_000
 
 /**
- * Запускает фоновую синхронизацию: при старте подтянуть (облако Telegram, затем аккаунт),
- * дальше отправлять не чаще раза в 20 с и сразу, когда приложение сворачивают.
+ * Запускает фоновую синхронизацию: при старте подтянуть (облако Telegram, затем аккаунт);
+ * изменения — на сервер через 4 с, в облако через 20 с, сразу — при сворачивании и закрытии;
+ * при возвращении в приложение и раз в 30 с, пока оно открыто, — проверить, нет ли новее.
  */
 export function startSync({ preferServer = false } = {}): () => void {
+  let serverTimer: number | undefined
+  let cloudTimer: number | undefined
+  let lastPushed = 0
+  let lastPull = Date.now()
   pullFromCloud()
     .catch(() => {})
     .finally(() => pullFromServer({ preferServer }).catch(() => {}))
   const unsub = useStore.subscribe((state) => {
-    if (state.updatedAt === lastPushed) return
-    window.clearTimeout(timer)
-    timer = window.setTimeout(() => {
+    if (state.updatedAt === lastPushed || state.updatedAt === restoredAt) return
+    window.clearTimeout(serverTimer)
+    window.clearTimeout(cloudTimer)
+    serverTimer = window.setTimeout(() => {
       lastPushed = useStore.getState().updatedAt
-      pushAll()
-    }, 20000)
+      pushToServer().catch(() => {})
+    }, SERVER_DELAY_MS)
+    cloudTimer = window.setTimeout(() => pushToCloud().catch(() => {}), CLOUD_DELAY_MS)
   })
-  // Свернул — отправить сразу; вернулся (из Telegram в браузер и обратно) — подтянуть свежее.
-  let lastPull = Date.now()
-  const flush = () => {
-    if (document.visibilityState === 'hidden') {
-      window.clearTimeout(timer)
-      pushAll()
-    } else if (Date.now() - lastPull > 15_000) {
-      lastPull = Date.now()
-      pullFromServer().catch(() => {})
-    }
+  const pushNow = () => {
+    window.clearTimeout(serverTimer)
+    window.clearTimeout(cloudTimer)
+    pushToServer().catch(() => {})
+    pushToCloud().catch(() => {})
   }
-  document.addEventListener('visibilitychange', flush)
+  const pull = () => {
+    if (Date.now() - lastPull < 5000) return
+    lastPull = Date.now()
+    pullFromServer().catch(() => {})
+  }
+  const onVisibility = () => (document.visibilityState === 'hidden' ? pushNow() : pull())
+  const poll = window.setInterval(() => {
+    if (document.visibilityState === 'visible') pull()
+  }, POLL_MS)
+  document.addEventListener('visibilitychange', onVisibility)
+  window.addEventListener('pagehide', pushNow)
+  window.addEventListener('focus', pull)
   return () => {
     unsub()
-    document.removeEventListener('visibilitychange', flush)
+    window.clearInterval(poll)
+    document.removeEventListener('visibilitychange', onVisibility)
+    window.removeEventListener('pagehide', pushNow)
+    window.removeEventListener('focus', pull)
   }
 }

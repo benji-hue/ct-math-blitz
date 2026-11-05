@@ -295,6 +295,10 @@ describe('аккаунт Telegram: вход на сайте через бота 
     // Старый снимок не затирает новый.
     expect(await (await call('/api/state', { method: 'POST', auth: bearer, body: snapshot(1000, 10) })).json()).toEqual({ ok: true, updatedAt: 2000 })
 
+    // Частая проверка «есть ли новее»: без снимка, если на сервере не новее.
+    expect(await (await call('/api/state?since=2000', { auth: bearer })).json()).toMatchObject({ state: null, updatedAt: 2000, unchanged: true })
+    expect((await (await call('/api/state?since=1500', { auth: bearer })).json()).state).toContain('"xp":50')
+
     // Тот же ученик в мини-аппе (подпись Telegram) видит тот же прогресс.
     const initData = await signInitData({ auth_date: String(Math.floor(Date.now() / 1000)), user: JSON.stringify(user) }, BOT)
     const fromApp = await (await call('/api/state', { auth: `tma ${initData}` })).json()

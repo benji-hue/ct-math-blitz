@@ -300,6 +300,8 @@ interface Actions {
   clearChat: () => void
   addGenerated: (tasks: Task[]) => void
   replaceState: (state: PersistedState) => void
+  /** Снимок с другого устройства: время изменения сохраняется (replaceState ставит «сейчас»). */
+  restoreState: (state: PersistedState) => void
   resetAll: () => void
 }
 
@@ -373,6 +375,7 @@ export const useStore = create<Store>()((set, get) => {
     },
 
     replaceState: (state) => set({ ...normalizeState(state), updatedAt: Date.now() }),
+    restoreState: (state) => set({ ...normalizeState(state) }),
 
     resetAll: () => {
       try {
