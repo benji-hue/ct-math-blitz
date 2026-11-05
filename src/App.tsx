@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { preloadSubjects } from './content'
 import { useStore } from './lib/store'
 import { startSync } from './lib/sync'
+import { consumeLoginLink } from './lib/account'
 import { isInsideTelegram, onTelegramReady, setBackButton, telegramUser } from './lib/telegram'
 import { isLite, useThemeSync } from './lib/theme'
 import { useReminderSync } from './lib/reminders'
@@ -132,10 +133,17 @@ export default function App() {
 
   useEffect(() => {
     let stop: (() => void) | undefined
-    // Сайт без Telegram: синхронизация с аккаунтом (если ученик вошёл через бота).
+    // Сайт без Telegram: синхронизация с аккаунтом (если ученик вошёл через бота). Открыт по
+    // ссылке «Открыть в браузере» из мини-аппа — сначала вход, затем прогресс из аккаунта.
     if (!isInsideTelegram()) {
-      stop = startSync()
-      return () => stop?.()
+      let cancelled = false
+      consumeLoginLink().then((user) => {
+        if (!cancelled) stop = startSync({ preferServer: Boolean(user) })
+      })
+      return () => {
+        cancelled = true
+        stop?.()
+      }
     }
     const off = onTelegramReady(() => {
       stop = startSync()

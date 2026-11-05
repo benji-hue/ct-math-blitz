@@ -56,6 +56,27 @@ export async function startLogin(env: Env, now = Date.now()): Promise<{ nonce: s
   return { nonce, code }
 }
 
+/**
+ * Ссылка «открыть сайт уже с аккаунтом» — из мини-аппа или командой /site в боте:
+ * ученик уже известен Telegram, поэтому запрос входа сразу подтверждён. Ссылка
+ * одноразовая и живёт 10 минут, как и обычный вход.
+ */
+export async function linkLogin(env: Env, user: AccountUser, now = Date.now()): Promise<string> {
+  const db = env.DB!
+  await db.prepare('DELETE FROM login_requests WHERE created_at < ?1').bind(now - LOGIN_TTL_MS).run()
+  const nonce = randomToken(16)
+  await db
+    .prepare('INSERT INTO login_requests (nonce, code, created_at, user_id, first_name, username) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
+    .bind(nonce, loginCode(), now, user.id, user.first_name, user.username ?? null)
+    .run()
+  return nonce
+}
+
+/** Адрес сайта со ссылкой входа: #login=<nonce> (в хэше — не уходит на сервер Pages). */
+export function siteLoginUrl(site: string, nonce: string): string {
+  return `${site.replace(/#.*$/, '')}#login=${nonce}`
+}
+
 /** Запрос на вход, если он есть, не устарел и ещё не подтверждён. */
 export async function pendingLogin(env: Env, nonce: string, now = Date.now()): Promise<{ code: string } | null> {
   if (!NONCE.test(nonce)) return null

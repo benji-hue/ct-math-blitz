@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Cloud, LogIn, LogOut, Send } from 'lucide-react'
+import { Cloud, ExternalLink, LogIn, LogOut, Send } from 'lucide-react'
 import { BOT_USERNAME } from '../config'
-import { logout, startLogin, useAccount, waitForLogin, type AccountUser, type LoginRequest } from '../lib/account'
+import { logout, openOnSite, startLogin, useAccount, waitForLogin, type AccountUser, type LoginRequest } from '../lib/account'
 import { pullFromServer } from '../lib/sync'
 import { telegramUser } from '../lib/telegram'
 import { Sheet, toast } from './chrome'
@@ -104,14 +104,31 @@ export function AccountCard() {
   const siteUser = useAccount((s) => s.user)
   const tg = telegramUser()
   const [login, setLogin] = useState(false)
+  const [opening, setOpening] = useState(false)
 
   if (tg) {
     return (
-      <Card className="flex items-start gap-3">
-        <Cloud size={20} className="mt-0.5 shrink-0 text-accent" />
-        <p className="text-[13.5px] leading-relaxed text-fg-2">
-          Аккаунт Telegram{tg.username ? ` @${tg.username}` : ''}: прогресс сохраняется в нём. На сайте он появится после входа через Telegram.
-        </p>
+      <Card className="space-y-3">
+        <div className="flex items-start gap-3">
+          <Cloud size={20} className="mt-0.5 shrink-0 text-accent" />
+          <p className="text-[13.5px] leading-relaxed text-fg-2">
+            Аккаунт Telegram{tg.username ? ` @${tg.username}` : ''}: прогресс сохраняется в нём и общий с сайтом в браузере.
+          </p>
+        </div>
+        <Button
+          block
+          variant="secondary"
+          icon={<ExternalLink size={17} />}
+          loading={opening}
+          onClick={() => {
+            setOpening(true)
+            openOnSite()
+              .catch((e: Error) => toast(e.message, 'error'))
+              .finally(() => setOpening(false))
+          }}
+        >
+          Открыть в браузере — тот же прогресс
+        </Button>
       </Card>
     )
   }

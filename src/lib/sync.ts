@@ -67,9 +67,11 @@ export async function pullFromServer({ preferServer = false } = {}): Promise<'re
   const local = snapshot()
   if (local.demo) return 'same'
   const remoteAt = Number(data.updatedAt) || 0
-  if (data.state && (preferServer || remoteAt > local.updatedAt)) {
+  // Приветствие на этом устройстве не пройдено — прогресс аккаунта главнее (см. pullFromCloud).
+  if (data.state && (preferServer || !local.profile.onboarded || remoteAt > local.updatedAt)) {
     const remote = normalizeState(JSON.parse(data.state))
-    useStore.getState().replaceState({ ...remote, chat: local.chat, updatedAt: remoteAt })
+    // Чат и настройки устройства (тема, лёгкий режим, вибрация) — свои на каждом устройстве.
+    useStore.getState().replaceState({ ...remote, chat: local.chat, settings: local.settings, updatedAt: remoteAt })
     return 'restored'
   }
   if (local.updatedAt > remoteAt && (await pushToServer())) return 'pushed'
@@ -94,7 +96,9 @@ export async function pullFromCloud(): Promise<'restored' | 'local-newer' | 'emp
   if (!metaRaw) return 'empty'
   const meta = JSON.parse(metaRaw) as Meta
   const local = snapshot()
-  if (local.demo || local.updatedAt >= meta.updatedAt) return 'local-newer'
+  // Новое устройство или новый адрес мини-аппа: приветствие не пройдено — облако главнее, даже если
+  // мини-апп успел что-то записать (имя из Telegram ставится сразу и делает снимок «свежее»).
+  if (local.demo || (local.profile.onboarded && local.updatedAt >= meta.updatedAt)) return 'local-newer'
   const keys = Array.from({ length: meta.n }, (_, i) => `p${i}`)
   const parts = await cloud.get(keys)
   const data = keys.map((k) => parts[k] ?? '').join('')
@@ -116,10 +120,10 @@ const pushAll = () => {
  * Запускает фоновую синхронизацию: при старте подтянуть (облако Telegram, затем аккаунт),
  * дальше отправлять не чаще раза в 20 с и сразу, когда приложение сворачивают.
  */
-export function startSync(): () => void {
+export function startSync({ preferServer = false } = {}): () => void {
   pullFromCloud()
     .catch(() => {})
-    .finally(() => pullFromServer().catch(() => {}))
+    .finally(() => pullFromServer({ preferServer }).catch(() => {}))
   const unsub = useStore.subscribe((state) => {
     if (state.updatedAt === lastPushed) return
     window.clearTimeout(timer)
@@ -128,10 +132,15 @@ export function startSync(): () => void {
       pushAll()
     }, 20000)
   })
+  // Свернул — отправить сразу; вернулся (из Telegram в браузер и обратно) — подтянуть свежее.
+  let lastPull = Date.now()
   const flush = () => {
     if (document.visibilityState === 'hidden') {
       window.clearTimeout(timer)
       pushAll()
+    } else if (Date.now() - lastPull > 15_000) {
+      lastPull = Date.now()
+      pullFromServer().catch(() => {})
     }
   }
   document.addEventListener('visibilitychange', flush)

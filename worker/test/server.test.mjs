@@ -311,6 +311,16 @@ describe('аккаунт Telegram: вход на сайте через бота 
     expect((await call('/api/state', { auth: bearer })).status).toBe(401)
   })
 
+  it('«Открыть в браузере» из мини-аппа: одноразовая ссылка сразу с аккаунтом', async () => {
+    const initData = await signInitData({ auth_date: String(Math.floor(Date.now() / 1000)), user: JSON.stringify(user) }, BOT)
+    const { nonce } = await (await call('/api/auth/link', { method: 'POST', auth: `tma ${initData}` })).json()
+    const ok = await (await call(`/api/auth/poll?nonce=${nonce}`)).json()
+    expect(ok).toMatchObject({ status: 'ok', user: { id: 777 } })
+    expect(await (await call(`/api/auth/poll?nonce=${nonce}`)).json()).toEqual({ status: 'expired' })
+    // Гостю сайта ссылку не выдать.
+    expect((await call('/api/auth/link', { method: 'POST' })).status).toBe(401)
+  })
+
   it('без входа прогресс не сохранить; битые запросы отклоняются', async () => {
     expect((await call('/api/state')).status).toBe(401)
     expect((await call('/api/state', { auth: 'Bearer ' + 'x'.repeat(43) })).status).toBe(401)
@@ -361,6 +371,14 @@ describe('бот: подтверждение входа на сайте', () => 
     expect(sent.find((c) => c.method === 'editMessageText').body.text).toContain('Вход подтверждён')
     const poll = await pollLogin(env, nonce)
     expect(poll).toMatchObject({ status: 'ok', user: { id: 4242, first_name: 'Ваня', username: 'vanya' } })
+
+    // /site — ссылка на сайт сразу с аккаунтом (кнопка-ссылка, не мини-апп).
+    sent.length = 0
+    env.MINI_APP_URL = 'https://krok.example/app/'
+    await hook({ update_id: 4, message: { message_id: 3, chat: { id: 4242, type: 'private' }, from, text: '/site' } })
+    const site = sent.find((c) => c.method === 'sendMessage').body.reply_markup.inline_keyboard[0][0].url
+    expect(site).toMatch(/^https:\/\/krok\.example\/app\/#login=[A-Za-z0-9_-]{16,}$/)
+    expect(await pollLogin(env, site.split('#login=')[1])).toMatchObject({ status: 'ok', user: { id: 4242 } })
 
     // Повторное нажатие или чужая ссылка — без входа.
     sent.length = 0

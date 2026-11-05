@@ -69,6 +69,7 @@ try {
   await call('setMyCommands', {
     commands: [
       { command: 'start', description: 'Открыть приложение' },
+      { command: 'site', description: 'Сайт в браузере с тем же прогрессом' },
       { command: 'remind', description: 'Напоминания: вкл/выкл' },
       { command: 'stats', description: 'Моя серия и повторения' },
       { command: 'help', description: 'Справка' },

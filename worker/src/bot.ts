@@ -1,4 +1,4 @@
-import { confirmLogin, pendingLogin } from './account'
+import { confirmLogin, linkLogin, pendingLogin, siteLoginUrl } from './account'
 import { complete } from './ai/providers'
 import { buildSystemPrompt } from './ai/prompts'
 import type { Env } from './env'
@@ -42,6 +42,7 @@ const WELCOME = (name: string) =>
 
 const HELP = `Команды:
 /start — открыть приложение
+/site — открыть сайт в браузере с тем же прогрессом
 /remind — включить или выключить напоминания
 /stats — моя серия и повторения
 /help — эта справка
@@ -130,6 +131,17 @@ async function handleUpdate(env: Env, update: Update): Promise<void> {
     await upsertUser(env, message.from)
     await track(env, 'bot_start').catch(() => {})
     await reply(env, chatId, WELCOME(message.from?.first_name ?? ''), true)
+    return
+  }
+  if (command === '/site') {
+    if (!env.DB || !env.MINI_APP_URL || !message.from) return reply(env, chatId, 'Сайт пока не подключён.')
+    await upsertUser(env, message.from)
+    const nonce = await linkLogin(env, { id: message.from.id, first_name: message.from.first_name ?? '', username: message.from.username })
+    await botApi(env.BOT_TOKEN!, 'sendMessage', {
+      chat_id: chatId,
+      text: 'Сайт «Крока» с твоим прогрессом — кнопка ниже. Ссылка одноразовая и действует 10 минут: не пересылай её никому.',
+      reply_markup: { inline_keyboard: [[{ text: 'Открыть сайт', url: siteLoginUrl(env.MINI_APP_URL, nonce) }]] },
+    })
     return
   }
   if (command === '/help') {

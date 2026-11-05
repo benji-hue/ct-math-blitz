@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { API_BASE, BOT_USERNAME } from '../config'
-import { initData, telegramUser } from './telegram'
+import { initData, openExternal, telegramUser } from './telegram'
 
 /**
  * Аккаунт ученика — его Telegram, без паролей и регистрации.
@@ -130,14 +130,52 @@ export async function waitForLogin(nonce: string, signal: AbortSignal): Promise<
       continue // Связь моргнула — спросим ещё раз.
     }
     if (data?.status === 'ok' && data.token && data.user) {
-      write(TOKEN_KEY, data.token)
-      write(USER_KEY, JSON.stringify(data.user))
-      useAccount.getState().set(data.user)
+      saveSession(data.token, data.user)
       return data.user
     }
     if (data?.status === 'expired') break
   }
   throw new Error('Время на вход вышло. Нажми «Войти через Telegram» ещё раз.')
+}
+
+function saveSession(token: string, user: AccountUser): void {
+  write(TOKEN_KEY, token)
+  write(USER_KEY, JSON.stringify(user))
+  useAccount.getState().set(user)
+}
+
+/**
+ * Сайт открыт по ссылке из мини-аппа или бота (#login=<nonce>): вход уже подтверждён
+ * в Telegram — забираем токен сессии и убираем ссылку из адреса (она одноразовая).
+ */
+export async function consumeLoginLink(): Promise<AccountUser | null> {
+  if (typeof location === 'undefined' || initData()) return null
+  const params = new URLSearchParams(location.hash.slice(1))
+  const nonce = params.get('login')
+  if (!nonce) return null
+  params.delete('login')
+  const rest = params.toString()
+  history.replaceState(null, '', `${location.pathname}${location.search}${rest ? `#${rest}` : ''}`)
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/poll?nonce=${encodeURIComponent(nonce)}`)
+    const data = (await res.json()) as { status?: string; token?: string; user?: AccountUser }
+    if (data.status !== 'ok' || !data.token || !data.user) return null
+    saveSession(data.token, data.user)
+    return data.user
+  } catch {
+    return null
+  }
+}
+
+/** Из мини-аппа: открыть сайт в браузере уже со своим аккаунтом и прогрессом. */
+export async function openOnSite(): Promise<void> {
+  const auth = authHeader()
+  if (!auth) throw new Error('Открой «Крок» из Telegram')
+  const res = await fetch(`${API_BASE}/api/auth/link`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: auth }, body: '{}' })
+  const data = (await res.json().catch(() => ({}))) as { nonce?: string; error?: string }
+  if (!res.ok || !data.nonce) throw new Error(data.error || 'Не удалось подготовить ссылку. Попробуй ещё раз.')
+  // Мини-апп сам живёт на сайте (GitHub Pages) — открываем этот же адрес во внешнем браузере.
+  openExternal(`${location.origin}${location.pathname}#login=${data.nonce}`)
 }
 
 export async function logout(): Promise<void> {

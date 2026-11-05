@@ -8,7 +8,7 @@ vi.stubGlobal('localStorage', {
   removeItem: (key: string) => void storage.delete(key),
 })
 
-const { authHeader, logout, sessionToken, useAccount, waitForLogin } = await import('../lib/account')
+const { authHeader, consumeLoginLink, logout, sessionToken, useAccount, waitForLogin } = await import('../lib/account')
 const { pullFromServer } = await import('../lib/sync')
 const { emptyState, snapshot, useStore } = await import('../lib/store')
 
@@ -68,6 +68,22 @@ describe('аккаунт Telegram на сайте', () => {
     expect(await cancelled).toBe('AbortError')
   })
 
+  it('сайт открыт по ссылке из мини-аппа: вход без кода, ссылка убрана из адреса', async () => {
+    const replaced: string[] = []
+    vi.stubGlobal('location', { hash: `#login=${'n'.repeat(22)}`, pathname: '/ct-math-blitz/', search: '' })
+    vi.stubGlobal('history', { replaceState: (_state: unknown, _title: string, url: string) => replaced.push(url) })
+    vi.stubGlobal('fetch', async (url: string) => {
+      expect(url).toContain(`/api/auth/poll?nonce=${'n'.repeat(22)}`)
+      return json({ status: 'ok', token: TOKEN, user: { id: 9, first_name: 'Петя' } })
+    })
+    expect(await consumeLoginLink()).toEqual({ id: 9, first_name: 'Петя' })
+    expect(replaced).toEqual(['/ct-math-blitz/'])
+    expect(sessionToken()).toBe(TOKEN)
+    // Без ссылки в адресе — ничего не делаем.
+    vi.stubGlobal('location', { hash: '', pathname: '/', search: '' })
+    expect(await consumeLoginLink()).toBeNull()
+  })
+
   it('выход: токен забыт, сервер получает запрос на выход', async () => {
     signIn()
     const calls: string[] = []
@@ -113,6 +129,18 @@ describe('прогресс в аккаунте', () => {
     vi.stubGlobal('fetch', async () => json({ state: JSON.stringify(remote), updatedAt: 1 }))
     expect(await pullFromServer({ preferServer: true })).toBe('restored')
     expect(snapshot().progress.xp).toBe(900)
+  })
+
+  it('новое устройство: приветствие не пройдено — прогресс аккаунта главнее, даже если снимок «свежее»', async () => {
+    signIn()
+    // Мини-апп только открыли: имя из Telegram записано сразу, снимок новее сохранённого.
+    const base = emptyState()
+    useStore.getState().replaceState({ ...base, profile: { ...base.profile, name: 'Аня' } })
+    const remote = { ...base, profile: { ...base.profile, onboarded: true, subjects: ['math'] }, progress: { ...base.progress, xp: 321 } }
+    vi.stubGlobal('fetch', async () => json({ state: JSON.stringify(remote), updatedAt: 1 }))
+    expect(await pullFromServer()).toBe('restored')
+    expect(snapshot().profile.onboarded).toBe(true)
+    expect(snapshot().progress.xp).toBe(321)
   })
 
   it('гость сайта — без синхронизации; вход истёк — токен забыт', async () => {

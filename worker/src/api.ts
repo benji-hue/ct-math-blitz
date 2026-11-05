@@ -5,7 +5,7 @@ import { screenTask, verifyTasks } from './ai/verify'
 import { minskDay, num, VERSION, type Env } from './env'
 import { consume, GUESTS_KEY, guestsTotal, limitFor, track, usage, type Kind } from './limits'
 import { deriveSecret, safeEqual, validateInitData, type TgUser } from './telegram'
-import { endSession, loadState, MAX_STATE_CHARS, NONCE, pollLogin, saveState, sessionUser, startLogin } from './account'
+import { endSession, linkLogin, loadState, MAX_STATE_CHARS, NONCE, pollLogin, saveState, sessionUser, startLogin } from './account'
 
 /**
  * HTTP API мини-аппа. Каждый запрос к ИИ:
@@ -431,6 +431,14 @@ async function state(req: Request, env: Env, caller: Caller): Promise<Response> 
 
 export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, path: string): Promise<Response> {
   if (path === '/api/health') return json({ ok: true, version: VERSION })
+  // «Открыть в браузере» из мини-аппа: ученик известен — сразу подтверждённый вход.
+  if (path === '/api/auth/link' && req.method === 'POST') {
+    if (!env.DB) return fail(503, 'Аккаунты не настроены на сервере')
+    const who = await identify(req, env)
+    if (who instanceof Response) return who
+    if (!who.user) return fail(401, 'Открой «Крок» в Telegram, чтобы перейти на сайт со своим прогрессом')
+    return json({ nonce: await linkLogin(env, { id: who.user.id, first_name: who.user.first_name, username: who.user.username }) })
+  }
   // Вход — до проверки подписи: на сайте ученик ещё никто.
   if (path.startsWith('/api/auth/')) return auth(req, env, path)
 
