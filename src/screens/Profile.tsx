@@ -29,6 +29,7 @@ import { WRITE_ACCESS_KEY } from '../lib/reminders'
 import { Sheet, toast } from '../ui/chrome'
 import { Badge, Button, Card, Chip, Row, SectionTitle, Segmented, Stagger, StaggerItem, notify } from '../ui/kit'
 import { AccountCard } from '../ui/Account'
+import { useAccount } from '../lib/account'
 import { SubjectIcon } from '../ui/SubjectIcon'
 import { cx } from '../lib/cx'
 
@@ -65,6 +66,8 @@ export default function ProfileScreen() {
   const [subjectsOpen, setSubjectsOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
   const user = telegramUser()
+  // Напоминания шлёт бот — они есть только у того, кто в Telegram или вошёл на сайте.
+  const hasAccount = Boolean(useAccount((s) => s.user) || user)
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(snapshot(), null, 2)], { type: 'application/json' })
@@ -207,39 +210,43 @@ export default function ProfileScreen() {
             <p className="flex-1 text-[15px] text-fg">Тактильный отклик</p>
             <Toggle label="Тактильный отклик" on={settings.haptics} onChange={(haptics) => updateSettings({ haptics })} />
           </div>
-          <div className="flex items-center gap-3">
-            <Bell size={19} className="text-accent" />
-            <div className="flex-1">
-              <p className="text-[15px] text-fg">Напоминания в боте</p>
-              <p className="text-[12.5px] text-muted">Только если сегодня ещё не занимался · в {settings.remindHour}:00</p>
-            </div>
-            <Toggle
-              label="Напоминания"
-              on={settings.reminders}
-              onChange={async (reminders) => {
-                updateSettings({ reminders })
-                if (reminders) {
-                  const ok = await requestWriteAccess()
-                  if (ok) {
-                    try {
-                      localStorage.setItem(WRITE_ACCESS_KEY, '1')
-                    } catch {
-                      // ignore
+          {hasAccount && (
+            <>
+              <div className="flex items-center gap-3">
+                <Bell size={19} className="text-accent" />
+                <div className="flex-1">
+                  <p className="text-[15px] text-fg">Напоминания в боте</p>
+                  <p className="text-[12.5px] text-muted">Только если сегодня ещё не занимался · в {settings.remindHour}:00</p>
+                </div>
+                <Toggle
+                  label="Напоминания"
+                  on={settings.reminders}
+                  onChange={async (reminders) => {
+                    updateSettings({ reminders })
+                    if (reminders) {
+                      const ok = await requestWriteAccess()
+                      if (ok) {
+                        try {
+                          localStorage.setItem(WRITE_ACCESS_KEY, '1')
+                        } catch {
+                          // ignore
+                        }
+                        toast('Бот сможет напомнить о занятиях', 'success')
+                      }
                     }
-                    toast('Бот сможет напомнить о занятиях', 'success')
-                  }
-                }
-              }}
-            />
-          </div>
-          {settings.reminders && (
-            <div className="flex flex-wrap gap-1.5 pl-8">
-              {[8, 15, 17, 18, 19, 20, 21].map((h) => (
-                <Chip key={h} active={settings.remindHour === h} onClick={() => updateSettings({ remindHour: h })}>
-                  {h}:00
-                </Chip>
-              ))}
-            </div>
+                  }}
+                />
+              </div>
+              {settings.reminders && (
+                <div className="flex flex-wrap gap-1.5 pl-8">
+                  {[8, 15, 17, 18, 19, 20, 21].map((h) => (
+                    <Chip key={h} active={settings.remindHour === h} onClick={() => updateSettings({ remindHour: h })}>
+                      {h}:00
+                    </Chip>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </Card>
       </StaggerItem>

@@ -1,7 +1,7 @@
 import { API_BASE } from '../config'
-import { authHeader, dropSession } from './account'
+import { accountUser, authHeader, dropSession, logout } from './account'
 import { cloud, initData } from './telegram'
-import { normalizeState, snapshot, useStore, type PersistedState } from './store'
+import { emptyState, normalizeState, snapshot, useStore, type PersistedState } from './store'
 
 /**
  * Синхронизация прогресса между устройствами — двумя путями:
@@ -40,13 +40,39 @@ function cloudPayload(state: PersistedState, attempts = 400): string {
  */
 let restoredAt = 0
 
+/**
+ * Чей прогресс лежит на устройстве (id аккаунта). На общем компьютере или при двух
+ * аккаунтах Telegram на одном телефоне прогресс одного ученика не должен попасть другому.
+ * Нет метки — это прогресс гостя: он достаётся первому вошедшему.
+ */
+const OWNER_KEY = 'krok:owner'
+
+function isForeign(me: number | undefined): boolean {
+  if (me === undefined) return false
+  try {
+    const owner = localStorage.getItem(OWNER_KEY)
+    return Boolean(owner) && owner !== String(me)
+  } catch {
+    return false
+  }
+}
+
+function setOwner(me: number | undefined | null): void {
+  try {
+    if (me === undefined || me === null) localStorage.removeItem(OWNER_KEY)
+    else localStorage.setItem(OWNER_KEY, String(me))
+  } catch {
+    // Приватный режим: метки нет — ведём себя как раньше.
+  }
+}
+
 /** На сервере места больше, чем в CloudStorage: храним 1500 последних ответов. */
 const SERVER_ATTEMPTS = 1500
 
 export async function pushToServer(): Promise<boolean> {
   const auth = authHeader()
   const state = snapshot()
-  if (!auth || state.demo || !state.profile.onboarded) return false
+  if (!auth || state.demo || !state.profile.onboarded || isForeign(accountUser()?.id)) return false
   const res = await fetch(`${API_BASE}/api/state`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: auth },
@@ -69,7 +95,10 @@ export async function pullFromServer({ preferServer = false } = {}): Promise<'re
   const before = snapshot()
   if (before.demo) return 'same'
   // Обычная проверка — с ?since: если на сервере не новее, он ответит коротко, без снимка.
-  const full = preferServer || !before.profile.onboarded
+  const me = accountUser()?.id
+  // На устройстве остался прогресс другого аккаунта — он не смешивается с этим.
+  const foreign = isForeign(me)
+  const full = preferServer || !before.profile.onboarded || foreign
   const res = await fetch(`${API_BASE}/api/state${full ? '' : `?since=${before.updatedAt}`}`, { headers: { Authorization: auth } })
   if (res.status === 401 && !initData()) dropSession()
   if (!res.ok) return 'unavailable'
@@ -78,16 +107,38 @@ export async function pullFromServer({ preferServer = false } = {}): Promise<'re
   if (local.demo) return 'same'
   const remoteAt = Number(data.updatedAt) || 0
   // Приветствие на этом устройстве не пройдено — прогресс аккаунта главнее (см. pullFromCloud).
-  if (data.state && (preferServer || !local.profile.onboarded || remoteAt > local.updatedAt)) {
+  if (data.state && (foreign || preferServer || !local.profile.onboarded || remoteAt > local.updatedAt)) {
     const remote = normalizeState(JSON.parse(data.state))
     // Чат и настройки устройства (тема, лёгкий режим, вибрация) — свои на каждом устройстве.
     // Время снимка — серверное: иначе старая копия стала бы «свежей» и затёрла бы новую.
     restoredAt = remoteAt
-    useStore.getState().restoreState({ ...remote, chat: local.chat, settings: local.settings, updatedAt: remoteAt })
+    useStore.getState().restoreState({ ...remote, chat: foreign ? emptyState().chat : local.chat, settings: local.settings, updatedAt: remoteAt })
+    setOwner(me)
     return 'restored'
   }
+  if (foreign) {
+    // У этого аккаунта прогресса ещё нет: начинаем с чистого листа, а не с чужого.
+    useStore.getState().resetAll()
+    setOwner(me)
+    return 'same'
+  }
+  setOwner(me)
   if (local.updatedAt > remoteAt && (await pushToServer())) return 'pushed'
   return 'same'
+}
+
+/**
+ * Выход на сайте. Сначала досылаем прогресс в аккаунт; если он точно там — убираем его с
+ * устройства (за общим компьютером следующий не увидит чужие ответы и чат). Нет связи —
+ * прогресс остаётся здесь и уйдёт в аккаунт при следующем входе этого же ученика.
+ */
+export async function logoutAndClear(): Promise<'cleared' | 'kept'> {
+  const synced = await pushToServer().catch(() => false)
+  await logout()
+  if (!synced) return 'kept'
+  useStore.getState().resetAll()
+  setOwner(null)
+  return 'cleared'
 }
 
 export async function pushToCloud(): Promise<boolean> {

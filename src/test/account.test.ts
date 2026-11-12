@@ -9,7 +9,7 @@ vi.stubGlobal('localStorage', {
 })
 
 const { authHeader, consumeLoginLink, logout, sessionToken, useAccount, waitForLogin } = await import('../lib/account')
-const { pullFromServer } = await import('../lib/sync')
+const { logoutAndClear, pullFromServer } = await import('../lib/sync')
 const { emptyState, snapshot, useStore } = await import('../lib/store')
 
 const TOKEN = 'T'.repeat(43)
@@ -185,6 +185,77 @@ describe('прогресс в аккаунте', () => {
     signIn()
     vi.stubGlobal('fetch', async () => json({ error: 'Вход истёк' }, 401))
     expect(await pullFromServer()).toBe('unavailable')
+    expect(sessionToken()).toBeNull()
+  })
+
+  it('часы на другом устройстве спешат: новые ответы всё равно свежее снимка «из будущего»', async () => {
+    signIn()
+    const base = emptyState()
+    const future = Date.now() + 30 * 86_400_000
+    const remote = { ...base, profile: { ...base.profile, onboarded: true }, progress: { ...base.progress, xp: 100 } }
+    const posted: number[] = []
+    vi.stubGlobal('fetch', async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        posted.push(JSON.parse(String(init.body)).updatedAt)
+        return json({ ok: true })
+      }
+      return json({ state: JSON.stringify(remote), updatedAt: future })
+    })
+    useStore.getState().restoreState({ ...remote, updatedAt: 1000 })
+    expect(await pullFromServer()).toBe('restored')
+    const now = snapshot()
+    useStore.getState().replaceState({ ...now, progress: { ...now.progress, xp: 250 } })
+    expect(snapshot().updatedAt).toBeGreaterThan(future)
+    expect(await pullFromServer()).toBe('pushed')
+    expect(snapshot().progress.xp).toBe(250)
+    expect(posted[0]).toBeGreaterThan(future)
+  })
+
+  it('общий компьютер: прогресс прошлого ученика не попадает в аккаунт следующего', async () => {
+    signIn()
+    const base = emptyState()
+    useStore.getState().replaceState({ ...base, profile: { ...base.profile, onboarded: true, name: 'Аня' }, progress: { ...base.progress, xp: 777 } })
+    const posted: string[] = []
+    const server = (saved: unknown) => async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        posted.push(String(init.body))
+        return json({ ok: true })
+      }
+      return json(saved)
+    }
+    // Аня занималась: метка владельца — её. Вход истёк сам (без кнопки «Выйти»).
+    vi.stubGlobal('fetch', server({ state: null, updatedAt: 0 }))
+    expect(await pullFromServer()).toBe('pushed')
+    posted.length = 0
+    // Входит Петя, у него в аккаунте пусто: начинает с чистого листа, Анино никуда не уходит.
+    storage.set('krok:account', JSON.stringify({ id: 9, first_name: 'Петя' }))
+    useAccount.getState().set({ id: 9, first_name: 'Петя' })
+    expect(await pullFromServer({ preferServer: true })).toBe('same')
+    expect(posted).toEqual([])
+    expect(snapshot().progress.xp).toBe(0)
+    expect(snapshot().profile.onboarded).toBe(false)
+  })
+
+  it('выход: прогресс досылается в аккаунт и убирается с устройства; без связи — остаётся', async () => {
+    signIn()
+    localProgress(40)
+    const calls: string[] = []
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${url}`)
+      return json({ ok: true })
+    })
+    expect(await logoutAndClear()).toBe('cleared')
+    expect(calls).toEqual(['POST /api/state', 'POST /api/auth/logout'])
+    expect(snapshot().progress.xp).toBe(0)
+    expect(sessionToken()).toBeNull()
+
+    signIn()
+    localProgress(55)
+    vi.stubGlobal('fetch', async () => {
+      throw new TypeError('offline')
+    })
+    expect(await logoutAndClear()).toBe('kept')
+    expect(snapshot().progress.xp).toBe(55)
     expect(sessionToken()).toBeNull()
   })
 })

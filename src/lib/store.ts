@@ -310,7 +310,10 @@ export type Store = PersistedState & Actions
 const DEMO_BACKUP_KEY = `${STORAGE_KEY}:backup`
 
 export const useStore = create<Store>()((set, get) => {
-  const touch = (patch: Partial<PersistedState>) => set({ ...patch, updatedAt: Date.now() })
+  // Время изменения только растёт: если снимок пришёл с устройства, где часы спешат, новые
+  // ответы всё равно должны быть «свежее» него — иначе синхронизация стирала бы их.
+  const stamp = () => Math.max(Date.now(), get().updatedAt + 1)
+  const touch = (patch: Partial<PersistedState>) => set({ ...patch, updatedAt: stamp() })
 
   return {
     ...load(),
@@ -374,7 +377,7 @@ export const useStore = create<Store>()((set, get) => {
       touch({ generated })
     },
 
-    replaceState: (state) => set({ ...normalizeState(state), updatedAt: Date.now() }),
+    replaceState: (state) => set({ ...normalizeState(state), updatedAt: stamp() }),
     restoreState: (state) => set({ ...normalizeState(state) }),
 
     resetAll: () => {
@@ -383,7 +386,7 @@ export const useStore = create<Store>()((set, get) => {
       } catch {
         // ignore
       }
-      set({ ...emptyState(), updatedAt: Date.now() })
+      set({ ...emptyState(), updatedAt: stamp() })
     },
   }
 })

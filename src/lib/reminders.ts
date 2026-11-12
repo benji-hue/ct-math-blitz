@@ -3,7 +3,7 @@ import { syncReminders } from './ai'
 import { liveStreak, todayStats } from './analytics'
 import { dueCount } from './practice'
 import { useStore } from './store'
-import { initData } from './telegram'
+import { authHeader } from './account'
 
 /** Ученик разрешил боту писать ему (requestWriteAccess) — нужно для напоминаний. */
 export const WRITE_ACCESS_KEY = 'krok:write-access'
@@ -20,7 +20,8 @@ let lastSent = ''
 
 function flush(): void {
   const { progress, settings, demo } = useStore.getState()
-  if (demo || !initData()) return
+  // И мини-апп, и сайт после входа: иначе бот напоминал бы тем, кто уже позанимался на сайте.
+  if (demo || !authHeader()) return
   const body = {
     reminders: settings.reminders,
     remindHour: settings.remindHour,

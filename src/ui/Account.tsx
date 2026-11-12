@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Cloud, ExternalLink, LogIn, LogOut, Send } from 'lucide-react'
 import { BOT_USERNAME } from '../config'
-import { logout, openOnSite, startLogin, useAccount, waitForLogin, type AccountUser, type LoginRequest } from '../lib/account'
-import { pullFromServer } from '../lib/sync'
+import { openOnSite, startLogin, useAccount, waitForLogin, type AccountUser, type LoginRequest } from '../lib/account'
+import { logoutAndClear, pullFromServer } from '../lib/sync'
 import { telegramUser } from '../lib/telegram'
 import { Sheet, toast } from './chrome'
 import { Button, Card, notify, Skeleton } from './kit'
@@ -145,7 +145,9 @@ export function AccountCard() {
           variant="secondary"
           icon={<LogOut size={15} />}
           onClick={() => {
-            logout().then(() => toast('Ты вышел из аккаунта. Прогресс остался в нём.'))
+            logoutAndClear().then((result) =>
+              toast(result === 'cleared' ? 'Ты вышел. Прогресс сохранён в аккаунте, с этого устройства он убран.' : 'Ты вышел из аккаунта. Прогресс остался на этом устройстве.'),
+            )
           }}
         >
           Выйти
