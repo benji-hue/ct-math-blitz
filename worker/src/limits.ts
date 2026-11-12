@@ -8,10 +8,13 @@ import { minskDay, num, type Env } from './env'
  * разработка) — счётчик в памяти изолята: неточно, но безопасно по умолчанию.
  */
 
-export type Kind = 'chat' | 'generate' | 'analyze' | 'vision' | 'login'
+export type Kind = 'chat' | 'generate' | 'analyze' | 'vision' | 'login' | 'report'
 
-/** login — попыток входа на сайте с одного IP в день (защита от перебора и спама в бота). */
-const DEFAULTS: Record<Kind, number> = { chat: 60, generate: 15, analyze: 6, vision: 12, login: 30 }
+/**
+ * login — попыток входа на сайте с одного IP в день (защита от перебора и спама в бота);
+ * report — жалоб «Ошибка в задании» в день: каждая может запустить перепроверку у ИИ.
+ */
+const DEFAULTS: Record<Kind, number> = { chat: 60, generate: 15, analyze: 6, vision: 12, login: 30, report: 20 }
 
 export function limitFor(env: Env, kind: Kind, anonymous: boolean): number {
   const configured = {
@@ -20,6 +23,7 @@ export function limitFor(env: Env, kind: Kind, anonymous: boolean): number {
     analyze: num(env.DAILY_LIMIT_ANALYZE, DEFAULTS.analyze),
     vision: num(env.DAILY_LIMIT_VISION, DEFAULTS.vision),
     login: DEFAULTS.login,
+    report: DEFAULTS.report,
   }[kind]
   // Гость сайта (без Telegram) считается по IP — лимит вдвое меньше. Не вчетверо: под одним
   // IP бывает целый класс или абоненты мобильного оператора.

@@ -299,6 +299,8 @@ interface Actions {
   patchMessage: (id: string, patch: Partial<ChatMessage>) => void
   clearChat: () => void
   addGenerated: (tasks: Task[]) => void
+  /** Убрать задание от ИИ с устройства — после жалобы «Ошибка в задании». */
+  removeGenerated: (id: string) => void
   replaceState: (state: PersistedState) => void
   /** Снимок с другого устройства: время изменения сохраняется (replaceState ставит «сейчас»). */
   restoreState: (state: PersistedState) => void
@@ -375,6 +377,15 @@ export const useStore = create<Store>()((set, get) => {
       const ids = Object.keys(generated)
       if (ids.length > MAX_GENERATED) for (const id of ids.slice(0, ids.length - MAX_GENERATED)) delete generated[id]
       touch({ generated })
+    },
+
+    removeGenerated: (id) => {
+      if (!get().generated[id]) return
+      const generated = { ...get().generated }
+      delete generated[id]
+      const srs = { ...get().progress.srs }
+      delete srs[id]
+      touch({ generated, progress: { ...get().progress, srs } })
     },
 
     replaceState: (state) => set({ ...normalizeState(state), updatedAt: stamp() }),

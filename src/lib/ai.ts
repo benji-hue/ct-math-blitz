@@ -171,9 +171,13 @@ export interface GenerateRequest {
   topicFacts: string[]
   count: number
   part: 'A' | 'B' | 'mixed'
+  /** id темы и уже полученные задания общего банка — чтобы сервер не прислал их снова. */
+  topicId?: string
+  seen?: string[]
 }
 
 interface RawTask {
+  id?: string
   q: string
   part: 'A' | 'B'
   level: number
@@ -184,6 +188,8 @@ interface RawTask {
   trap?: string
 }
 
+const BANK_ID = /^ai\.[a-z]{2,5}\.[a-z0-9]{6,20}$/
+
 /** Проверяем каждое задание от модели: битые отбрасываем, а не показываем. */
 export function sanitizeTasks(raw: unknown, subject: SubjectId, topicId: string): Task[] {
   const list = (raw as { tasks?: unknown })?.tasks
@@ -192,7 +198,8 @@ export function sanitizeTasks(raw: unknown, subject: SubjectId, topicId: string)
   for (const item of list as RawTask[]) {
     if (!item || typeof item.q !== 'string' || !item.q.trim() || typeof item.explain !== 'string') continue
     const level = Math.min(5, Math.max(1, Math.round(Number(item.level) || 2))) as Task['level']
-    const id = `ai_${subject}_${Date.now().toString(36)}_${out.length}_${Math.random().toString(36).slice(2, 6)}`
+    // Задание общего банка приходит со своим id — по нему отправляется жалоба «Ошибка в задании».
+    const id = typeof item.id === 'string' && BANK_ID.test(item.id) ? item.id : `ai_${subject}_${Date.now().toString(36)}_${out.length}_${Math.random().toString(36).slice(2, 6)}`
     if (Array.isArray(item.options) && item.options.length >= 3) {
       const options = item.options.filter((o) => typeof o === 'string' && o.trim()).slice(0, 5)
       const answer = Number(item.answer)
@@ -208,10 +215,17 @@ export function sanitizeTasks(raw: unknown, subject: SubjectId, topicId: string)
 }
 
 export async function generateTasks(req: GenerateRequest, topicId: string, signal?: AbortSignal): Promise<Task[]> {
-  const raw = await postJson<unknown>('/api/ai/generate', req, signal)
+  const raw = await postJson<unknown>('/api/ai/generate', { ...req, topicId }, signal)
   const tasks = sanitizeTasks(raw, req.subject, topicId)
   if (!tasks.length) throw new AiError('ИИ вернул задания в неверном формате. Попробуйте ещё раз.')
   return tasks
+}
+
+export type ReportReason = 'answer' | 'statement' | 'other'
+
+/** «Ошибка в задании»: сервер перепроверит задание общего банка и снимет его, если ключ неверный. */
+export async function reportTask(taskId: string, reason: ReportReason, note?: string): Promise<{ ok: boolean; hidden?: boolean }> {
+  return postJson<{ ok: boolean; hidden?: boolean }>('/api/tasks/report', { taskId, reason, note })
 }
 
 // ---------- Аналитика прогресса ----------

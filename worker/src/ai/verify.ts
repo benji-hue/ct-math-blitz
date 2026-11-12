@@ -59,8 +59,14 @@ function keyInSolution(t: DraftTask): boolean {
   return values.some((v) => found.some((f) => Math.abs(Math.abs(f) - Math.abs(v)) < 1e-6))
 }
 
-/** Первичный отсев: формат, «рассуждения вслух», ключ, которого нет в решении. */
-export function screenTask(raw: unknown): DraftTask | null {
+/** Ответ-соответствие в части B: «А1Б3В2». */
+const MATCHING = /^([А-ЯA-Z]\d)+$/
+
+/**
+ * Первичный отсев: формат, «рассуждения вслух», ключ, которого нет в решении.
+ * integerB — математика и физика: в части B ответ только целым числом, как в бланке ЦТ.
+ */
+export function screenTask(raw: unknown, integerB = false): DraftTask | null {
   const t = raw as Partial<DraftTask> | null
   if (!t || typeof t.q !== 'string' || !t.q.trim() || typeof t.explain !== 'string' || !t.explain.trim()) return null
   if (THINKING_ALOUD.test(t.explain)) return null
@@ -70,6 +76,12 @@ export function screenTask(raw: unknown): DraftTask | null {
   } else {
     const answers = (Array.isArray(t.answer) ? t.answer : [t.answer]).map((a) => String(a ?? '').trim())
     if (!answers.length || answers.some((a) => !a || a.length > 40)) return null
+    if (integerB) {
+      const values = answers.map((a) => (MATCHING.test(a.replace(/\s+/g, '')) ? a.replace(/\s+/g, '') : asNumber(a)))
+      if (values.some((v) => v === null || (typeof v === 'number' && !Number.isInteger(v)))) return null
+      // «400 мН» → «400»: в бланк пишется только число.
+      t.answer = values.map(String)
+    }
   }
   if (!keyInSolution(t as DraftTask)) return null
   return t as DraftTask

@@ -16,6 +16,7 @@ import { Button, Card, Chip, Counter, Empty, notify, ProgressRing, Skeleton, tap
 import { springSoft } from '../ui/motion'
 import { Markdown, Tex } from '../ui/Rich'
 import { HintButton, TaskBody, TaskMeta, type Verdict } from '../ui/TaskView'
+import { ReportTask } from '../ui/ReportTask'
 
 interface Props {
   /** Ключ записи в стеке навигации — по нему сессия переживает уход в ИИ-чат и обратно. */
@@ -314,6 +315,7 @@ function Session({ routeKey, subject, queue: initial, title }: { routeKey: strin
                 </p>
               )}
             </Card>
+            <ReportTask key={current.task.id} taskId={current.task.id} />
 
             {!verdict.correct && (
               <Card>

@@ -16,6 +16,7 @@ export default function GenerateScreen({ subject, topicId }: { subject: SubjectI
   const content = useSubject(subject)
   const topic = topicById(content, topicId)
   const addGenerated = useStore((s) => s.addGenerated)
+  const generated = useStore((s) => s.generated)
   const replace = useNav((s) => s.replace)
   const [part, setPart] = useState<'A' | 'B' | 'mixed'>('mixed')
   const [count, setCount] = useState<'5' | '8'>('5')
@@ -36,7 +37,7 @@ export default function GenerateScreen({ subject, topicId }: { subject: SubjectI
     abort.current = controller
     try {
       const result = await generateTasks(
-        { subject, subjectTitle: meta.title, topic: topic.title, topicFacts: topic.facts, count: Number(count), part },
+        { subject, subjectTitle: meta.title, topic: topic.title, topicFacts: topic.facts, count: Number(count), part, seen: Object.keys(generated).filter((id) => id.startsWith('ai.')).slice(-400) },
         topicId,
         controller.signal,
       )

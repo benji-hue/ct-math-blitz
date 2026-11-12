@@ -67,7 +67,7 @@ describe('база: D1 поверх SQLite', () => {
     const dir = mkdtempSync(join(tmpdir(), 'krok-db-'))
     openDatabase(join(dir, 'krok.sqlite'), migrations).close()
     const again = openDatabase(join(dir, 'krok.sqlite'), migrations)
-    // Каждая миграция — ровно один раз (сейчас их две: основа и аккаунты).
+    // Каждая миграция — ровно один раз (основа, аккаунты, общий банк заданий).
     const files = readdirSync(migrations).filter((f) => f.endsWith('.sql'))
     expect((await again.prepare('SELECT COUNT(*) AS n FROM _migrations').first()).n).toBe(files.length)
     expect(files).toContain('0002_accounts.sql')
@@ -388,5 +388,89 @@ describe('бот: подтверждение входа на сайте', () => 
     sent.length = 0
     await hook({ update_id: 3, message: { message_id: 2, chat: { id: 4242, type: 'private' }, from, text: `/start login_${nonce}` } })
     expect(sent.find((c) => c.method === 'sendMessage').body.text).toContain('устарела')
+  })
+})
+
+describe('общий банк заданий от ИИ и жалобы', async () => {
+  const { saveToBank, takeFromBank, reportTask, reportedTasks } = await import('../src/bank.ts')
+  const { trustedTopic } = await import('../src/syllabus.ts')
+  const { buildGeneratePrompt } = await import('../src/ai/prompts.ts')
+  const { screenTask } = await import('../src/ai/verify.ts')
+  const env = { DB: openDatabase(':memory:', migrations) }
+  const where = { subject: 'phys', topic: 'p.dc', subjectTitle: 'Физика' }
+  const draft = (n, part = 'B') => ({ q: `Задача ${n}`, part, level: 3, answer: [String(n)], explain: `Ответ ${n}.`, ...(part === 'A' ? { options: ['1', '2', '3', '4', '5'], answer: 0 } : {}) })
+
+  it('подтверждённые задания сохраняются и достаются другим ученикам — без повторов', async () => {
+    const saved = await saveToBank(env, where, [draft(1), draft(2), draft(3, 'A')])
+    expect(saved.map((t) => t.id).every((id) => /^ai\.phys\.[a-z0-9]{9}$/.test(id))).toBe(true)
+    const first = await takeFromBank(env, 'phys', 'p.dc', [], 5)
+    expect(first).toHaveLength(3)
+    // У ученика два задания уже есть — получает только третье; по другой теме банк пуст.
+    const rest = await takeFromBank(env, 'phys', 'p.dc', [saved[0].id, saved[1].id], 5)
+    expect(rest.map((t) => t.id)).toEqual([saved[2].id])
+    expect(await takeFromBank(env, 'phys', 'p.optics', [], 5)).toEqual([])
+    expect((await takeFromBank(env, 'phys', 'p.dc', [], 5, 'A')).map((t) => t.part)).toEqual(['A'])
+  })
+
+  it('жалобы: две от разных учеников снимают задание; повтор от того же — не считается', async () => {
+    const [task] = await saveToBank(env, where, [draft(10)])
+    const keep = async () => true
+    expect(await reportTask(env, task.id, 'tg:1', 'statement', 'опечатка', keep)).toEqual({ counted: true, hidden: false })
+    expect(await reportTask(env, task.id, 'tg:1', 'statement', undefined, keep)).toEqual({ counted: false, hidden: false })
+    expect(await reportTask(env, task.id, 'tg:2', 'other', undefined, keep)).toEqual({ counted: true, hidden: true })
+    expect((await takeFromBank(env, 'phys', 'p.dc', [], 50)).some((t) => t.id === task.id)).toBe(false)
+  })
+
+  it('жалоба на ответ: перепроверка не подтвердила ключ — задание снимается сразу', async () => {
+    const [bad, good] = await saveToBank(env, where, [draft(20), draft(21)])
+    expect(await reportTask(env, bad.id, 'tg:5', 'answer', undefined, async () => false)).toEqual({ counted: true, hidden: true })
+    expect(await reportTask(env, good.id, 'tg:5', 'answer', undefined, async () => true)).toEqual({ counted: true, hidden: false })
+    // Встроенное задание не снимается — жалоба копится для автора банка.
+    expect(await reportTask(env, 'phys.b.el4', 'tg:5', 'answer', undefined, async () => false)).toEqual({ counted: true, hidden: false })
+    expect((await reportedTasks(env)).map((r) => r.task_id)).toContain('phys.b.el4')
+  })
+
+  it('тему, факты и образцы реального уровня сервер берёт у себя, а не у клиента', () => {
+    const topic = trustedTopic('phys', 'p.dc', 'B')
+    expect(topic.title).toBe('Постоянный ток')
+    expect(topic.examples.length).toBeGreaterThan(0)
+    expect(topic.examples.every((e) => e.part === 'B')).toBe(true)
+    expect(trustedTopic('phys', 'p.nope', 'mixed')).toBeNull()
+    expect(trustedTopic('nope', 'p.dc', 'mixed')).toBeNull()
+    const prompt = buildGeneratePrompt({ subjectTitle: topic.subjectTitle, topic: topic.title, topicFacts: topic.facts, count: 5, part: 'B', subject: 'phys', examples: topic.examples })
+    expect(prompt).toContain('<examples>')
+    expect(prompt).toContain('ЦЕЛОЕ число')
+    expect(prompt).toContain('V — нестандартная задача')
+  })
+
+  it('математика и физика: в части B проходит только целый ответ, единицы убираются', () => {
+    const b = (answer, explain) => ({ q: 'Найдите силу (в мН).', part: 'B', level: 2, answer, explain })
+    expect(screenTask(b('400 мН', '$F=0{,}4$ Н $=400$ мН.'), true).answer).toEqual(['400'])
+    expect(screenTask(b('0,4', '$F=0{,}4$ Н.'), true)).toBeNull()
+    expect(screenTask(b('0,4', '$F=0{,}4$ Н.'))).not.toBeNull()
+    expect(screenTask(b('А1Б3В2', 'А — 1, Б — 3, В — 2.'), true).answer).toEqual(['А1Б3В2'])
+  })
+})
+
+describe('общий банк: запрос /api/ai/generate', () => {
+  it('в банке хватает заданий — отдаёт их без ИИ и без расхода лимита; жалоба принимается', async () => {
+    const { saveToBank } = await import('../src/bank.ts')
+    const env = { ...buildEnv({ ALLOW_ANONYMOUS: 'true' }, wrangler), DB: openDatabase(':memory:', migrations), ASSETS: { fetch: async () => new Response('') } }
+    const saved = await saveToBank(env, { subject: 'math', topic: 'm.trig', subjectTitle: 'Математика' }, [1, 2, 3].map((n) => ({ q: `Задача ${n}`, part: 'B', level: 3, answer: [String(n)], explain: `Ответ ${n}.` })))
+    const fetchSpy = vi.fn(async () => new Response('{}', { status: 500 }))
+    vi.stubGlobal('fetch', fetchSpy)
+    const ctx = { waitUntil() {}, passThroughOnException() {} }
+    const post = (path, body) => worker.fetch(new Request(`http://localhost${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '9.9.9.9' }, body: JSON.stringify(body) }), env, ctx)
+    const res = await post('/api/ai/generate', { subject: 'math', topicId: 'm.trig', subjectTitle: 'x', topic: 'x', count: 3, part: 'mixed' })
+    const data = await res.json()
+    expect(res.status).toBe(200)
+    expect(data.source).toBe('bank')
+    expect(data.tasks.map((t) => t.id).sort()).toEqual(saved.map((t) => t.id).sort())
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect((await usage(env, 'ip:9.9.9.9')).generate).toBeUndefined()
+    const reported = await post('/api/tasks/report', { taskId: saved[0].id, reason: 'statement' })
+    expect(await reported.json()).toEqual({ ok: true, hidden: false })
+    expect((await post('/api/tasks/report', { taskId: '../etc', reason: 'other' })).status).toBe(400)
+    vi.unstubAllGlobals()
   })
 })

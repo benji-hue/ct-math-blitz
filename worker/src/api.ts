@@ -5,6 +5,8 @@ import { screenTask, verifyTasks } from './ai/verify'
 import { minskDay, num, VERSION, type Env } from './env'
 import { consume, GUESTS_KEY, guestsTotal, limitFor, track, usage, type Kind } from './limits'
 import { deriveSecret, safeEqual, validateInitData, type TgUser } from './telegram'
+import { reportedTasks, reportTask, saveToBank, SUBJECT_ID, takeFromBank, TASK_ID, TOPIC_ID, type BankTask, type ReportReason } from './bank'
+import { trustedTopic } from './syllabus'
 import { endSession, linkLogin, loadState, MAX_STATE_CHARS, NONCE, pollLogin, saveState, sessionUser, startLogin, stateVersion } from './account'
 
 /**
@@ -254,26 +256,56 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
 
 // ---------- /api/ai/generate — новые задания ----------
 
+/** Задание в том виде, в каком его получает приложение. */
+function publicTask(t: Record<string, unknown>): Omit<BankTask, 'id'> {
+  const options = Array.isArray(t.options) ? t.options.map((o) => String(o).slice(0, 400)).slice(0, 5) : undefined
+  return {
+    q: String(t.q).slice(0, 3000),
+    part: options ? 'A' : 'B',
+    level: Math.min(5, Math.max(1, Math.round(Number(t.level) || 2))),
+    ...(options ? { options } : {}),
+    answer: t.answer,
+    explain: String(t.explain).slice(0, 4000),
+    ...(typeof t.hint === 'string' ? { hint: t.hint.slice(0, 600) } : {}),
+    ...(typeof t.trap === 'string' ? { trap: t.trap.slice(0, 600) } : {}),
+  }
+}
+
 async function generate(req: Request, env: Env, caller: Caller): Promise<Response> {
   const body = await readBody(req)
   if (body instanceof Response) return body
-  const subjectTitle = str(body.subjectTitle, 100)
-  const topic = str(body.topic, 160)
+  const count = Math.min(8, Math.max(3, Number(body.count) || 5))
+  const part = body.part === 'A' || body.part === 'B' ? body.part : 'mixed'
+  // Тему, факты и образцы реального уровня сервер берёт у себя (syllabus.ts) — такие задания
+  // идут в общий банк. Если тема серверу не известна — по данным клиента и без банка.
+  const subject = typeof body.subject === 'string' && SUBJECT_ID.test(body.subject) ? body.subject : undefined
+  const topicId = typeof body.topicId === 'string' && TOPIC_ID.test(body.topicId) ? body.topicId : undefined
+  const trusted = subject && topicId ? trustedTopic(subject, topicId, part) : null
+  const subjectTitle = trusted?.subjectTitle ?? str(body.subjectTitle, 100)
+  const topic = trusted?.title ?? str(body.topic, 160)
   if (!subjectTitle || !topic) return fail(400, 'Не указаны предмет и тема')
   const force = forcedModel(caller, body.model)
   if (force instanceof Response) return force
+
+  // Сначала общий банк: если в нём хватает заданий, которых у ученика ещё нет, — отдаём их
+  // сразу, без запроса к ИИ и без расхода дневного лимита.
+  const seen = Array.isArray(body.seen) ? body.seen.filter((x): x is string => typeof x === 'string' && TASK_ID.test(x)).slice(0, 400) : []
+  const banked = trusted && !caller.eval ? await takeFromBank(env, subject!, topicId!, seen, count, part) : []
+  if (banked.length >= count) {
+    await track(env, 'bank_served').catch(() => {})
+    return json({ tasks: banked.slice(0, count), source: 'bank' })
+  }
+
   const limited = await spend(env, caller, 'generate')
-  if (limited) return limited
-  const count = Math.min(8, Math.max(3, Number(body.count) || 5))
-  const part = body.part === 'A' || body.part === 'B' ? body.part : 'mixed'
-  const facts = Array.isArray(body.topicFacts) ? body.topicFacts.filter((f): f is string => typeof f === 'string').slice(0, 8) : []
+  if (limited) return banked.length ? json({ tasks: banked, source: 'bank' }) : limited
+  const facts = trusted?.facts ?? (Array.isArray(body.topicFacts) ? body.topicFacts.filter((f): f is string => typeof f === 'string').slice(0, 8) : [])
   try {
     const { text, provider, model, skipped } = await complete(
       env,
       {
-        system: buildGeneratePrompt({ subjectTitle, topic, topicFacts: facts, count, part }),
+        system: buildGeneratePrompt({ subjectTitle, topic, topicFacts: facts, count, part, subject: trusted ? subject : undefined, examples: trusted?.examples }),
         messages: [{ role: 'user', content: `Составь ${count} заданий по теме «${topic}».` }],
-        maxTokens: 3000,
+        maxTokens: 3500,
         temperature: 0.8,
         json: true,
         // Gemini составляет задания с короткими рассуждениями — так ключи точнее. Qwen
@@ -288,19 +320,46 @@ async function generate(req: Request, env: Env, caller: Caller): Promise<Respons
 
     // Ученику отдаём только задания, ключ которых независимо подтвердила вторая модель пары.
     const drafts = data.tasks.slice(0, count)
-    const screened = drafts.map(screenTask).filter((t): t is NonNullable<typeof t> => t !== null)
+    // Математика и физика: в части B ответ только целым числом, как в бланке ЦТ.
+    const integerB = Boolean(trusted) && (subject === 'math' || subject === 'phys')
+    const screened = drafts.map((d) => screenTask(d, integerB)).filter((t): t is NonNullable<typeof t> => t !== null)
     const verdict = screened.length ? await verifyTasks(env, screened, subjectTitle, { provider, model }) : null
-    const tasks = verdict ? screened.filter((_, i) => verdict.ok[i]) : []
-    const audit = caller.eval ? { skipped, drafts: drafts.length, screened: screened.length, verifier: verdict?.model ?? null, rejected: drafts.filter((d) => !tasks.includes(d as never)) } : {}
+    const verified = verdict ? screened.filter((_, i) => verdict.ok[i]) : []
+    const audit = caller.eval ? { skipped, drafts: drafts.length, screened: screened.length, verifier: verdict?.model ?? null, rejected: drafts.filter((d) => !verified.includes(d as never)) } : {}
+    if (!verified.length && banked.length) return json({ tasks: banked, source: 'bank', ...audit })
     if (!screened.length) return json({ error: 'ИИ составил задания с ошибками. Попробуйте ещё раз.', ...audit }, 502)
     if (!verdict) return json({ error: 'Не удалось перепроверить задания. Попробуйте ещё раз.', ...audit }, 503)
-    if (!tasks.length) return json({ error: 'Перепроверка не подтвердила ни одного задания. Попробуйте ещё раз.', ...audit }, 502)
-    return json({ tasks, provider, model, ...audit })
+    if (!verified.length) return json({ error: 'Перепроверка не подтвердила ни одного задания. Попробуйте ещё раз.', ...audit }, 502)
+    const clean = verified.map((t) => publicTask(t))
+    // Служебная проверка в общий банк не пишет: её задания — эксперименты с моделями.
+    const tasks = trusted && !caller.eval ? await saveToBank(env, { subject: subject!, topic: topicId!, subjectTitle }, clean) : clean
+    return json({ tasks: [...tasks, ...banked].slice(0, Math.max(count, tasks.length)), provider, model, ...audit })
   } catch (e) {
     console.error('generate failed', (e as Error).message)
+    if (banked.length) return json({ tasks: banked, source: 'bank' })
     const status = e instanceof ProviderError && e.status === 503 ? 503 : 502
     return json({ error: 'Не удалось сгенерировать задания. Попробуйте ещё раз.', ...(caller.eval ? { detail: (e as Error).message.slice(0, 1500) } : {}) }, status)
   }
+}
+
+// ---------- /api/tasks/report — «Ошибка в задании» ----------
+
+const REASONS: ReportReason[] = ['answer', 'statement', 'other']
+
+async function report(req: Request, env: Env, caller: Caller): Promise<Response> {
+  const body = await readBody(req)
+  if (body instanceof Response) return body
+  const taskId = typeof body.taskId === 'string' && TASK_ID.test(body.taskId) ? body.taskId : null
+  if (!taskId) return fail(400, 'Не указано задание')
+  const reason = REASONS.includes(body.reason as ReportReason) ? (body.reason as ReportReason) : 'other'
+  if ((await consume(env, caller.key, 'report')) > limitFor(env, 'report', false)) return fail(429, 'Слишком много жалоб за сегодня. Спасибо — остальные посмотрим завтра.')
+  const result = await reportTask(env, taskId, caller.key, reason, str(body.note, 300), async (task, subjectTitle) => {
+    // Жалоба на ответ: задание заново решает модель; не сошлось с ключом — снимаем сразу.
+    const verdict = await verifyTasks(env, [task as unknown as Parameters<typeof verifyTasks>[1][number]], subjectTitle)
+    return verdict ? verdict.ok[0] : null
+  })
+  if (result.counted) await track(env, result.hidden ? 'task_report_hidden' : 'task_report').catch(() => {})
+  return json({ ok: true, hidden: result.hidden })
 }
 
 // ---------- /api/ai/analyze — разбор прогресса ----------
@@ -459,6 +518,10 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, p
     const rows = await env.DB.prepare('SELECT day, name, count FROM events WHERE day >= ?1 ORDER BY day DESC, count DESC LIMIT 500').bind(since).all()
     return json({ events: rows.results ?? [] })
   }
+  if (path === '/api/admin/reports' && req.method === 'GET') {
+    if (caller instanceof Response || !caller.eval) return fail(403, 'Нет доступа')
+    return json({ reports: await reportedTasks(env) })
+  }
   if (caller instanceof Response) return caller
   if (path === '/api/state') return state(req, env, caller)
   if (req.method !== 'POST') return fail(405, 'Метод не поддерживается')
@@ -472,6 +535,8 @@ export async function handleApi(req: Request, env: Env, ctx: ExecutionContext, p
       return analyze(req, env, caller)
     case '/api/me':
       return me(req, env, caller)
+    case '/api/tasks/report':
+      return report(req, env, caller)
     default:
       return fail(404, 'Не найдено')
   }

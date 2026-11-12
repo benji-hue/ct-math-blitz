@@ -16,6 +16,7 @@ import { Button, Card, Counter, Empty, notify, ProgressRing, Skeleton } from '..
 import { springSoft } from '../ui/motion'
 import { Markdown, Tex } from '../ui/Rich'
 import { TaskBody, TaskMeta } from '../ui/TaskView'
+import { ReportTask } from '../ui/ReportTask'
 import { cx } from '../lib/cx'
 
 /**
@@ -213,6 +214,7 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
                 Верно: <b className="text-fg"><Tex>{answerText(results[review].p.task)}</Tex></b>
               </p>
               <Markdown className="text-[14px] leading-relaxed text-fg-2">{results[review].p.task.explain}</Markdown>
+              <ReportTask key={results[review].p.task.id} taskId={results[review].p.task.id} />
             </div>
           )}
         </Sheet>
