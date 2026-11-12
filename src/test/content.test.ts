@@ -136,9 +136,11 @@ describe('контент предметов', () => {
         expect(have, `${id}: ${key}`).toBeGreaterThanOrEqual(n)
       }
       // Позиции с несколькими верными вариантами есть чем заполнить.
-      for (const s of SPEC_BLUEPRINTS[id]!.filter((x) => x.multi)) {
-        const fit = content.tasks.filter((t) => t.source === 'original' && t.part === 'A' && blockOf(t) === s.block && Array.isArray(t.answer))
-        expect(fit.length, `${id} ${s.id}: несколько верных`).toBeGreaterThanOrEqual(1)
+      const multi = new Map<string, number>()
+      for (const s of SPEC_BLUEPRINTS[id]!.filter((x) => x.multi)) multi.set(`${s.block} ${s.level}`, (multi.get(`${s.block} ${s.level}`) ?? 0) + 1)
+      for (const [key, n] of multi) {
+        const fit = content.tasks.filter((t) => t.source === 'original' && t.part === 'A' && `${blockOf(t)} ${t.level}` === key && Array.isArray(t.answer))
+        expect(fit.length, `${id} ${key}: несколько верных`).toBeGreaterThanOrEqual(n)
       }
     }
   })
