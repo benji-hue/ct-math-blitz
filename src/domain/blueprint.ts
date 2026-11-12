@@ -282,7 +282,7 @@ export const SPECS: Partial<Record<SubjectId, Spec>> = {
       { block: 'ge.by', title: 'География Беларуси', count: 8, topics: ['g.belarus_nature', 'g.belarus_economy'] },
     ],
   },
-  eng: language('en', ['e.tenses', 'e.passive', 'e.conditionals', 'e.modals', 'e.articles', 'e.prepositions', 'e.word_formation', 'e.gerund_inf', 'e.reported'], 'e.culture', 'e.reading'),
+  eng: language('en', ['e.tenses', 'e.passive', 'e.conditionals', 'e.modals', 'e.articles', 'e.prepositions', 'e.word_formation', 'e.gerund_inf', 'e.reported', 'e.vocab', 'e.adjectives'], 'e.culture', 'e.reading'),
   deu: language('de', ['d.cases', 'd.verbs', 'd.word_order', 'd.adjectives'], 'd.culture', 'd.reading'),
   fra: language('fr', ['f.articles', 'f.tenses', 'f.pronouns', 'f.agreement'], 'f.culture', 'f.reading'),
   spa: language('es', ['sp.ser_estar', 'sp.past', 'sp.subjuntivo', 'sp.articles'], 'sp.culture', 'sp.reading'),
@@ -295,7 +295,7 @@ for (const spec of Object.values(SPECS)) for (const s of spec.sections) BLOCK_TI
  * Предметы с готовым банком на каждую позицию варианта — у них пробник собирается по
  * спецификации. Предмет добавляется сюда, когда его банк закрывает весь чертёж (тест).
  */
-export const BLUEPRINT_READY: SubjectId[] = ['math', 'phys', 'chem', 'bio', 'rus']
+export const BLUEPRINT_READY: SubjectId[] = ['math', 'phys', 'chem', 'bio', 'rus', 'eng']
 
 const ALL_BLUEPRINTS: Partial<Record<SubjectId, Slot[]>> = {
   math: MATH,

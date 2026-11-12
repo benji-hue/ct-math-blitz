@@ -87,7 +87,9 @@ describe('контент предметов', () => {
       for (const t of c.tasks) {
         if (t.source !== 'original') continue
         if (t.kind === 'choice') {
-          expect(t.options!.length, t.id).toBe(5)
+          // Иностранные языки: по спецификации в части A пять или четыре варианта.
+          if (SUBJECTS[id as keyof typeof SUBJECTS].group === 'foreign') expect([4, 5], t.id).toContain(t.options!.length)
+          else expect(t.options!.length, t.id).toBe(5)
           continue
         }
         if (id !== 'phys' && id !== 'math') continue

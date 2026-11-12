@@ -1,4 +1,5 @@
 import type { SubjectContent } from '../domain/types'
+import { engBank } from './eng-bank'
 import { kit } from './kit'
 
 const { topic, a, b } = kit('eng')
@@ -135,6 +136,65 @@ const topics = [
     traps: ['Сохраняют вопросительный порядок слов: «He asked where did I live».'],
     keywords: ['reported speech', 'косвенная речь', 'sequence of tenses'],
   }),
+  topic({
+    id: 'e.vocab',
+    title: 'Confusing Words and Structures',
+    section: 'Vocabulary',
+    weight: 3,
+    summary: 'Слова, которые легко перепутать: do/make, say/tell, few/little, -ing/-ed, союзные слова и парные конструкции.',
+    facts: [
+      'few / a few — с исчисляемыми; little / a little — с неисчисляемыми.',
+      'do a favour, do homework, do one’s best; make a mistake, make a decision, make progress.',
+      'tell somebody (that) …; say (to somebody) that …',
+      'boring / bored, exciting / excited: -ing — о том, что вызывает чувство, -ed — о том, кто чувствует.',
+      'no sooner … than; hardly … when; whose — «чей, которого».',
+    ],
+    traps: ['После say ставят дополнение без предлога: said me вместо told me.'],
+    keywords: ['few', 'little', 'do', 'make', 'say', 'tell', 'whose', 'than'],
+  }),
+  topic({
+    id: 'e.adjectives',
+    title: 'Adjectives and Adverbs',
+    section: 'Grammar',
+    weight: 2,
+    summary: 'Степени сравнения и различие прилагательных и наречий.',
+    facts: [
+      'Односложные: -er / the -est (bigger, the biggest); многосложные: more / the most.',
+      'Исключения: good — better — the best; bad — worse — the worst; far — farther/further.',
+      'hard (усердно) / hardly (едва); late (поздно) / lately (в последнее время).',
+    ],
+    traps: ['Двойное сравнение: more better.'],
+    keywords: ['comparative', 'superlative', 'than', 'hardly', 'lately'],
+  }),
+  topic({
+    id: 'e.culture',
+    title: 'Speech Etiquette: Responses',
+    section: 'Socio-cultural competence',
+    weight: 1,
+    summary: 'Реплики в типичных ситуациях общения: благодарность, просьба, извинение, предложение. На ЦТ — два задания.',
+    facts: [
+      'Thank you. — You’re welcome. / Don’t mention it. / My pleasure.',
+      'Do you mind if I…? — Not at all. / Go ahead. (согласие); I’d rather you didn’t. (отказ)',
+      'I’m sorry. — That’s all right. / Never mind.',
+      'Would you like some…? — Yes, please. / No, thank you.',
+    ],
+    traps: ['На «Do you mind…?» отвечают «Yes, of course», что означает «да, возражаю».'],
+    keywords: ['response', 'thank you', 'do you mind', 'sorry', 'etiquette'],
+  }),
+  topic({
+    id: 'e.reading',
+    title: 'Reading Comprehension',
+    section: 'Reading',
+    weight: 2,
+    summary: 'Понимание текста: главная мысль, детали, значение слова по контексту. На ЦТ — четыре задания.',
+    facts: [
+      'Главная мысль обычно заявлена в начале или в конце текста; остальное — доводы и примеры.',
+      'Верный ответ перефразирует текст другими словами, а не повторяет его дословно.',
+      'Значение незнакомого слова выводи из соседних предложений.',
+    ],
+    traps: ['Выбирают вариант со словами из текста, который искажает смысл (every day вместо twice a week).'],
+    keywords: ['text', 'main idea', 'true', 'false', 'context'],
+  }),
 ]
 
 const tasks = [
@@ -154,5 +214,5 @@ const tasks = [
   b('t4', 'e.tenses', 3, 'Put the verb in the correct form: By the time you come, I ___ (finish) my homework.', ['will have finished', "'ll have finished"], 'Действие завершится к моменту в будущем — Future Perfect: will have finished.'),
 ]
 
-const content: SubjectContent = { topics, tasks }
+const content: SubjectContent = { topics, tasks: [...tasks, ...engBank] }
 export default content
