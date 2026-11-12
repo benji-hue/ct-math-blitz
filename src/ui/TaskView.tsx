@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { Check, Lightbulb, RotateCcw, X } from 'lucide-react'
 import type { Task } from '../domain/types'
-import type { PreparedTask } from '../lib/practice'
+import { correctOptions, isMulti, type Given, type PreparedTask } from '../lib/practice'
 import { cx } from '../lib/cx'
 import { Badge, tap } from './kit'
 import { Tex } from './Rich'
@@ -13,10 +13,10 @@ export const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е']
 
 const LEVEL = ['', 'I', 'II', 'III', 'IV', 'V']
 
-export function TaskMeta({ task, isReview, topicTitle, color }: { task: Task; isReview?: boolean; topicTitle?: string; color: string }) {
+export function TaskMeta({ task, isReview, topicTitle, color, slot }: { task: Task; isReview?: boolean; topicTitle?: string; color: string; slot?: string }) {
   return (
     <div className="mb-3 flex flex-wrap items-center gap-1.5">
-      <Badge color={color}>Часть {task.part}</Badge>
+      <Badge color={color}>{slot ?? `Часть ${task.part}`}</Badge>
       <Badge color="var(--c-muted)">уровень {LEVEL[task.level]}</Badge>
       {topicTitle && <Badge color="var(--c-muted)">{topicTitle}</Badge>}
       {task.source === 'ai' && <Badge color="#ff7ad9">ИИ</Badge>}
@@ -29,7 +29,7 @@ export function TaskMeta({ task, isReview, topicTitle, color }: { task: Task; is
   )
 }
 
-export type Verdict = null | { correct: boolean; given: number | string }
+export type Verdict = null | { correct: boolean; given: Given }
 
 /**
  * Карточка задания: выбор варианта (часть A) или ввод краткого ответа (часть B).
@@ -47,9 +47,10 @@ export function TaskBody({
 }: {
   prepared: PreparedTask
   verdict: Verdict
-  onAnswer?: (given: number | string) => void
+  onAnswer?: (given: Given) => void
   reveal?: boolean
-  selected?: number | null
+  /** Режим экзамена: выбранный вариант (или несколько) хранит экран пробника. */
+  selected?: number | number[] | null
   onSelect?: (optionIndex: number) => void
   inputValue?: string
   onInput?: (v: string) => void
@@ -60,12 +61,29 @@ export function TaskBody({
   const setValue = onInput ?? setLocal
   const inputRef = useRef<HTMLInputElement>(null)
   const [shake, setShake] = useState(0)
+  const multi = isMulti(task)
+  const right = correctOptions(task)
+  // Отмеченные варианты задания с несколькими верными — до нажатия «Ответить».
+  const [marks, setMarks] = useState<number[]>([])
+  const pickedList = verdict
+    ? typeof verdict.given === 'number'
+      ? [verdict.given]
+      : Array.isArray(verdict.given)
+        ? verdict.given
+        : []
+    : selected === null || selected === undefined
+      ? multi && !onSelect
+        ? marks
+        : []
+      : typeof selected === 'number'
+        ? [selected]
+        : selected
 
   useEffect(() => {
     if (verdict && !verdict.correct) setShake((s) => s + 1)
   }, [verdict])
 
-  const numeric = task.kind === 'input' && Array.isArray(task.answer) && task.answer.every((a) => /^-?\d+([.,]\d+)?$/.test(a.trim()))
+  const numeric = task.kind === 'input' && Array.isArray(task.answer) && (task.answer as string[]).every((a) => /^-?\d+([.,]\d+)?$/.test(String(a).trim()))
 
   return (
     <div>
@@ -74,13 +92,17 @@ export function TaskBody({
         <Tex>{task.q}</Tex>
       </div>
 
+      {task.kind === 'choice' && task.options && multi && !verdict && (
+        <p className="mb-2.5 px-1 text-[12.5px] font-semibold text-accent">Верных вариантов несколько — отметь все</p>
+      )}
       {task.kind === 'choice' && task.options && (
         <ul className="flex flex-col gap-2.5">
           {order.map((optionIndex, pos) => {
-            const isCorrectOption = optionIndex === task.answer
-            const picked = verdict ? verdict.given === optionIndex : selected === optionIndex
+            const isCorrectOption = right.includes(optionIndex)
+            const picked = pickedList.includes(optionIndex)
             const showRight = reveal && verdict && isCorrectOption
-            const showWrong = reveal && verdict && picked && !verdict.correct
+            // Неверно отмеченный вариант; при нескольких верных — и пропущенный верный остаётся зелёным.
+            const showWrong = reveal && verdict && picked && !isCorrectOption
             return (
               <li key={optionIndex}>
                 <motion.button
@@ -91,6 +113,7 @@ export function TaskBody({
                   onClick={() => {
                     tap('light')
                     if (onSelect) onSelect(optionIndex)
+                    else if (multi) setMarks((m) => (m.includes(optionIndex) ? m.filter((x) => x !== optionIndex) : [...m, optionIndex]))
                     else onAnswer?.(optionIndex)
                   }}
                   key={showWrong ? `w${shake}` : 'n'}
@@ -104,11 +127,12 @@ export function TaskBody({
                 >
                   <span
                     className={cx(
-                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[13px] font-bold transition-colors',
+                      'flex h-8 w-8 shrink-0 items-center justify-center text-[13px] font-bold transition-colors',
+                      multi ? 'rounded-lg' : 'rounded-xl',
                       showRight ? 'bg-good text-white' : showWrong ? 'bg-bad text-white' : picked ? 'bg-accent-solid text-on-accent' : 'bg-surface-2 text-muted',
                     )}
                   >
-                    {showRight ? <Check size={16} /> : showWrong ? <X size={16} /> : LETTERS[pos]}
+                    {showRight ? <Check size={16} /> : showWrong ? <X size={16} /> : multi && picked ? <Check size={16} /> : LETTERS[pos]}
                   </span>
                   <span className={cx('flex-1 text-[15.5px] text-fg', showWrong && 'line-through decoration-bad/60')}>
                     <Tex>{task.options![optionIndex]}</Tex>
@@ -118,6 +142,17 @@ export function TaskBody({
             )
           })}
         </ul>
+      )}
+      {multi && !verdict && !onSelect && onAnswer && (
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.97 }}
+          disabled={!marks.length}
+          onClick={() => onAnswer(marks.slice().sort((x, y) => x - y))}
+          className="mt-3 h-13 w-full rounded-[18px] bg-accent-solid py-3.5 text-[15.5px] font-semibold text-on-accent disabled:opacity-40"
+        >
+          Ответить{marks.length ? ` · отмечено ${marks.length}` : ''}
+        </motion.button>
       )}
 
       {task.kind === 'input' && (

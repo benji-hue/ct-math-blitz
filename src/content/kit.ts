@@ -1,7 +1,7 @@
 import type { SubjectId, Task, Topic } from '../domain/types'
 
 type Level = Task['level']
-type Extra = Partial<Pick<Task, 'hint' | 'trap' | 'graph'>>
+type Extra = Partial<Pick<Task, 'hint' | 'trap' | 'graph' | 'block'>>
 
 /** LaTeX без двойного экранирования: r`$\frac{a}{b}$`. */
 export const r = String.raw
@@ -24,6 +24,21 @@ export function kit(subject: SubjectId) {
       q,
       options,
       answer: 0,
+      explain,
+      source: 'original',
+      ...extra,
+    }),
+    /** Часть A с несколькими верными вариантами: correct — их индексы. */
+    am: (id: string, topic: string, level: Level, q: string, options: string[], correct: number[], explain: string, extra: Extra = {}): Task => ({
+      id: `${subject}.${id}`,
+      subject,
+      topic,
+      part: 'A',
+      level,
+      kind: 'choice',
+      q,
+      options,
+      answer: correct.slice().sort((x, y) => x - y),
       explain,
       source: 'original',
       ...extra,

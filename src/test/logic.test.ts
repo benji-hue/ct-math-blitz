@@ -296,3 +296,39 @@ describe('поток ответа ИИ', () => {
     expect(acc).toBe('Давай разберём по шагам.')
   })
 })
+
+describe('формат ЦТ 2026: несколько верных в части A и вариант по спецификации', () => {
+  it('задание с несколькими верными засчитывается только при точном наборе', async () => {
+    const { isCorrect, givenText, answerText } = await import('../lib/practice')
+    const task = { id: 't', subject: 'phys', topic: 'p.dc', part: 'A', level: 2, kind: 'choice', q: '?', options: ['a', 'b', 'c', 'd', 'e'], answer: [0, 2], explain: '.' } as const
+    expect(isCorrect(task as never, [2, 0])).toBe(true)
+    expect(isCorrect(task as never, [0])).toBe(false)
+    expect(isCorrect(task as never, [0, 2, 3])).toBe(false)
+    expect(isCorrect(task as never, 0)).toBe(false)
+    expect(givenText(task as never, [0, 3])).toBe('a; d')
+    expect(answerText(task as never)).toBe('a; c')
+  })
+
+  it('пробник по спецификации: 30 позиций A1–B20, уровни и разделы на месте', async () => {
+    const { buildBlueprintMock } = await import('../lib/practice')
+    const { BLUEPRINTS, blockOf } = await import('../domain/blueprint')
+    const { loadSubject } = await import('../content')
+    for (const id of ['math', 'phys'] as const) {
+      const content = await loadSubject(id)
+      const bp = BLUEPRINTS[id]!
+      const full = buildBlueprintMock(content, bp, 30)
+      expect(full.map((p) => p.slot)).toEqual(bp.map((s) => s.id))
+      full.forEach((p, i) => {
+        expect(p.task.part, `${id} ${p.slot}`).toBe(bp[i].part)
+        expect(blockOf(p.task), `${id} ${p.slot}`).toBe(bp[i].block)
+        expect(p.task.level, `${id} ${p.slot}`).toBe(bp[i].level)
+        expect(p.task.source, `${id} ${p.slot}`).not.toBe('blitz')
+      })
+      expect(new Set(full.map((p) => p.task.id)).size).toBe(30)
+      const short = buildBlueprintMock(content, bp, 10)
+      expect(short).toHaveLength(10)
+      expect(short[0].slot).toBe('A1')
+      expect(short[9].slot).toBe('B20')
+    }
+  })
+})

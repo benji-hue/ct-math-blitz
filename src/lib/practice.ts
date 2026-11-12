@@ -1,3 +1,4 @@
+import { blockOf, type Slot } from '../domain/blueprint'
 import type { SubjectContent, Task } from '../domain/types'
 import { isDue, type SrsCard } from './srs'
 import type { Progress } from './store'
@@ -62,14 +63,40 @@ export function checkInput(given: string, accepted: string[]): boolean {
   return false
 }
 
-export function isCorrect(task: Task, given: number | string): boolean {
-  if (task.kind === 'choice') return typeof given === 'number' && given === task.answer
-  return typeof given === 'string' && Array.isArray(task.answer) && checkInput(given, task.answer)
+/** Ответ ученика: вариант, несколько вариантов (часть A с несколькими верными) или текст. */
+export type Given = number | number[] | string
+
+/** В части A несколько верных вариантов — нужно отметить все и только их. */
+export function isMulti(task: Task): boolean {
+  return task.kind === 'choice' && Array.isArray(task.answer)
+}
+
+/** Индексы верных вариантов задания части A. */
+export function correctOptions(task: Task): number[] {
+  if (task.kind !== 'choice') return []
+  return typeof task.answer === 'number' ? [task.answer] : (task.answer as number[])
+}
+
+export function isCorrect(task: Task, given: Given): boolean {
+  if (task.kind === 'choice') {
+    const right = correctOptions(task)
+    const picked = typeof given === 'number' ? [given] : Array.isArray(given) ? given : []
+    return picked.length === right.length && right.every((i) => picked.includes(i))
+  }
+  return typeof given === 'string' && Array.isArray(task.answer) && checkInput(given, task.answer as string[])
+}
+
+/** Текст ответа ученика — для истории и разбора ошибок. */
+export function givenText(task: Task, given: Given | null | undefined): string {
+  if (given === null || given === undefined) return ''
+  if (typeof given === 'string') return given
+  const list = typeof given === 'number' ? [given] : given
+  return list.map((i) => task.options?.[i] ?? '').join('; ')
 }
 
 export function answerText(task: Task): string {
-  if (task.kind === 'choice' && typeof task.answer === 'number') return task.options?.[task.answer] ?? ''
-  return Array.isArray(task.answer) ? task.answer[0] : ''
+  if (task.kind === 'choice') return correctOptions(task).map((i) => task.options?.[i] ?? '').join('; ')
+  return Array.isArray(task.answer) ? String(task.answer[0]) : ''
 }
 
 /** Ожидаемое время на задание (с) — для оценки «быстро/медленно» и темпа. */
@@ -97,6 +124,8 @@ export interface PreparedTask {
   /** позиция на экране → индекс варианта в task.options */
   order: number[]
   isReview: boolean
+  /** Позиция в варианте по спецификации — «A3», «B17» (только в пробнике). */
+  slot?: string
 }
 
 export function prepareTask(task: Task, isReview = false): PreparedTask {
@@ -182,6 +211,37 @@ export function interleave(tasks: Task[]): Task[] {
     if (!pick) break
     out.push(pick[1].shift()!)
     last = pick[0]
+  }
+  return out
+}
+
+/** Какие позиции варианта взять в укороченный пробник: равномерно от A1 до последней. */
+export function pickSlots(blueprint: Slot[], size: number): Slot[] {
+  if (size >= blueprint.length) return blueprint
+  if (size <= 1) return blueprint.slice(0, 1)
+  const idx = new Set(Array.from({ length: size }, (_, i) => Math.round((i * (blueprint.length - 1)) / (size - 1))))
+  return blueprint.filter((_, i) => idx.has(i))
+}
+
+/**
+ * Вариант по спецификации: на каждую позицию — задание того же раздела, части и уровня.
+ * Нет такого — того же раздела и части с ближайшим уровнем, затем той же части. Задания,
+ * которые ученик ещё не решал (seen), идут первыми.
+ */
+export function buildBlueprintMock(content: SubjectContent, blueprint: Slot[], size: number, seen: ReadonlySet<string> = new Set()): PreparedTask[] {
+  const pool = shuffle(content.tasks.filter((t) => t.source !== 'blitz'))
+  const used = new Set<string>()
+  const out: PreparedTask[] = []
+  const fresh = (t: Task) => (seen.has(t.id) ? 1 : 0)
+  for (const slot of pickSlots(blueprint, size)) {
+    const free = pool.filter((t) => !used.has(t.id) && t.part === slot.part)
+    const ranked = free
+      .map((t) => ({ t, score: (blockOf(t) === slot.block ? 0 : 100) + Math.abs(t.level - slot.level) * 10 + fresh(t) }))
+      .sort((x, y) => x.score - y.score)
+    const pick = ranked[0]?.t
+    if (!pick) continue
+    used.add(pick.id)
+    out.push({ ...prepareTask(pick), slot: slot.id })
   }
   return out
 }

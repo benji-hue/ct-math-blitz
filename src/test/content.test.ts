@@ -62,8 +62,10 @@ describe('контент предметов', () => {
           if (task.kind === 'choice') {
             expect(Array.isArray(task.options), task.id).toBe(true)
             expect(task.options!.length, task.id).toBeGreaterThanOrEqual(2)
-            expect(typeof task.answer, task.id).toBe('number')
-            expect(task.answer as number, task.id).toBeLessThan(task.options!.length)
+            const right = typeof task.answer === 'number' ? [task.answer] : (task.answer as number[])
+            expect(right.length, task.id).toBeGreaterThan(0)
+            for (const i of right) expect(Number.isInteger(i) && i >= 0 && i < task.options!.length, task.id).toBe(true)
+            expect(new Set(right).size, task.id).toBe(right.length)
             expect(new Set(task.options).size, `${task.id}: повторяющиеся варианты`).toBe(task.options!.length)
           } else {
             expect(Array.isArray(task.answer) && task.answer.length > 0, task.id).toBe(true)
@@ -74,7 +76,46 @@ describe('контент предметов', () => {
   }
 
   it('у собственных заданий части A верный вариант стоит первым (так проверяется банк)', () => {
-    for (const [, c] of all) for (const t of c.tasks) if (t.source === 'original' && t.kind === 'choice') expect(t.answer, t.id).toBe(0)
+    for (const [, c] of all) for (const t of c.tasks) if (t.source === 'original' && t.kind === 'choice' && !Array.isArray(t.answer)) expect(t.answer, t.id).toBe(0)
+  })
+
+  it('физика и математика — как на ЦТ: в части A пять вариантов, в части B — целое число', () => {
+    for (const [id, c] of all) {
+      if (id !== 'phys' && id !== 'math') continue
+      for (const t of c.tasks) {
+        if (t.source !== 'original') continue
+        if (t.kind === 'choice') expect(t.options!.length, t.id).toBe(5)
+        // Математика допускает ответы-соответствия «А1Б3В2»; физика — только целое число.
+        else expect((t.answer as string[]).some((x) => /^-?\d+$/.test(x) || (id === 'math' && /^([А-Я]\d)+$/.test(x))), `${t.id}: ${String(t.answer)}`).toBe(true)
+      }
+    }
+  })
+
+  it('чертёж варианта совпадает со спецификацией РИКЗ 2026', async () => {
+    const { BLUEPRINTS } = await import('../domain/blueprint')
+    const count = <T,>(xs: T[]) => xs.reduce<Record<string, number>>((m, x) => ({ ...m, [String(x)]: (m[String(x)] ?? 0) + 1 }), {})
+    const math = BLUEPRINTS.math!
+    expect(math).toHaveLength(30)
+    expect(count(math.map((s) => s.part))).toEqual({ A: 10, B: 20 })
+    expect(count(math.map((s) => s.block))).toEqual({ numbers: 4, expressions: 4, equations: 9, functions: 5, geometry: 8 })
+    expect(count(math.map((s) => s.level))).toEqual({ 1: 5, 2: 10, 3: 9, 4: 4, 5: 2 })
+    const phys = BLUEPRINTS.phys!
+    expect(phys).toHaveLength(30)
+    expect(count(phys.map((s) => s.part))).toEqual({ A: 10, B: 20 })
+    expect(count(phys.map((s) => s.block))).toEqual({ mech: 10, thermo: 7, electro: 9, optics: 2, quantum: 1, nuclear: 1 })
+    expect(count(phys.map((s) => s.level))).toEqual({ 1: 5, 2: 10, 3: 10, 4: 4, 5: 1 })
+  })
+
+  it('в банке физики и математики есть задания на каждую позицию варианта', async () => {
+    const { BLUEPRINTS, blockOf } = await import('../domain/blueprint')
+    for (const [id, c] of all) {
+      const bp = BLUEPRINTS[id as 'math' | 'phys']
+      if (!bp) continue
+      for (const slot of bp) {
+        const fit = c.tasks.filter((t) => t.source === 'original' && t.part === slot.part && blockOf(t) === slot.block && t.level === slot.level)
+        expect(fit.length, `${id} ${slot.id}: ${slot.block}, уровень ${slot.level}`).toBeGreaterThanOrEqual(1)
+      }
+    }
   })
 
   it('демо-профиль ссылается на существующие темы', async () => {

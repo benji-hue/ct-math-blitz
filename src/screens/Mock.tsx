@@ -4,7 +4,8 @@ import { ArrowLeft, ArrowRight, Check, Flag, Timer, X } from 'lucide-react'
 import { topicById, useSubject } from '../content'
 import { SUBJECTS } from '../domain/subjects'
 import type { SubjectId } from '../domain/types'
-import { answerText, buildMock, isCorrect, type PreparedTask } from '../lib/practice'
+import { BLOCK_TITLES, BLUEPRINTS, blockOf } from '../domain/blueprint'
+import { answerText, buildBlueprintMock, buildMock, givenText, isCorrect, isMulti, type Given, type PreparedTask } from '../lib/practice'
 import { formatDuration, pluralN } from '../lib/format'
 import { gradeFromAnswer } from '../lib/srs'
 import { useStore } from '../lib/store'
@@ -26,8 +27,11 @@ export default function MockScreen({ subject }: { subject: SubjectId }) {
   const content = useSubject(subject)
   const meta = SUBJECTS[subject]
   const [started, setStarted] = useState(false)
-
-  const size = Math.min(12, content?.tasks.filter((t) => t.source !== 'blitz').length ?? 0)
+  const blueprint = BLUEPRINTS[subject]
+  // По спецификации: полный вариант (30 заданий, 210 минут) или короткий — каждое третье задание.
+  const [full, setFull] = useState(false)
+  const examTasks = content?.tasks.filter((t) => t.source !== 'blitz').length ?? 0
+  const size = blueprint ? (full ? blueprint.length : 10) : Math.min(12, examTasks)
   const minutes = Math.max(10, Math.round((meta.format.minutes * size) / meta.format.tasks))
 
   if (!content) {
@@ -38,7 +42,7 @@ export default function MockScreen({ subject }: { subject: SubjectId }) {
       </div>
     )
   }
-  if (size < 4) {
+  if (blueprint ? examTasks < 10 : size < 4) {
     return (
       <div>
         <Header close title="Пробник" />
@@ -51,13 +55,30 @@ export default function MockScreen({ subject }: { subject: SubjectId }) {
     return (
       <div>
         <Header close title="Пробник" subtitle={meta.title} />
+        {blueprint && (
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            {[false, true].map((f) => (
+              <button
+                key={String(f)}
+                type="button"
+                onClick={() => setFull(f)}
+                className={cx('glass rounded-[18px] p-3 text-left', full === f && '!border-accent/70 !bg-accent-solid/12')}
+              >
+                <p className="text-[15px] font-bold text-fg">{f ? 'Полный вариант' : 'Короткий'}</p>
+                <p className="text-[12.5px] text-muted">{f ? `${blueprint.length} заданий · ${meta.format.minutes} мин` : `10 заданий · ${Math.round((meta.format.minutes * 10) / meta.format.tasks)} мин`}</p>
+              </button>
+            ))}
+          </div>
+        )}
         <Card glow={meta.color} className="mb-4">
           <p className="eyebrow mb-1">Формат</p>
           <p className="text-[28px] leading-tight font-extrabold text-fg">
             {pluralN(size, ['задание', 'задания', 'заданий'])} · {minutes} мин
           </p>
           <p className="mt-2 text-[14px] leading-relaxed text-fg-2">
-            Пропорция частей A и B и темп — как на ЦТ ({meta.format.tasks} заданий за {meta.format.minutes} минут). Ответы проверим в конце, к любому заданию можно вернуться.
+            {blueprint
+              ? `Как настоящий вариант по спецификации РИКЗ: часть A — ${meta.format.partA}, часть B — ${meta.format.partB}, разделы и уровни I–V в тех же долях, сложность растёт к концу. В части A бывает несколько верных вариантов. Ответы проверим в конце.`
+              : `Пропорция частей A и B и темп — как на ЦТ (${meta.format.tasks} заданий за ${meta.format.minutes} минут). Ответы проверим в конце, к любому заданию можно вернуться.`}
           </p>
         </Card>
         <Card className="mb-5 space-y-2 text-[14px] leading-relaxed text-fg-2">
@@ -82,9 +103,15 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
   const recordAttempt = useStore((s) => s.recordAttempt)
   const saveMock = useStore((s) => s.saveMock)
   const pop = useNav((s) => s.pop)
-  const tasks = useMemo<PreparedTask[]>(() => buildMock(content, size, meta.format.partA / meta.format.tasks), [content, size, meta])
+  const seen = useStore((s) => s.progress.srs)
+  const tasks = useMemo<PreparedTask[]>(() => {
+    const blueprint = BLUEPRINTS[subject]
+    return blueprint ? buildBlueprintMock(content, blueprint, size, new Set(Object.keys(seen))) : buildMock(content, size, meta.format.partA / meta.format.tasks)
+    // Вариант собирается один раз на запуск: прогресс меняется в конце и не должен его пересобрать.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, size, meta, subject])
   const [index, setIndex] = useState(0)
-  const [answers, setAnswers] = useState<(number | string | null)[]>(() => tasks.map(() => null))
+  const [answers, setAnswers] = useState<(Given | null)[]>(() => tasks.map(() => null))
   const [inputs, setInputs] = useState<string[]>(() => tasks.map(() => ''))
   const [finished, setFinished] = useState<null | { seconds: number }>(null)
   const [confirm, setConfirm] = useState(false)
@@ -121,7 +148,7 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
           sec: Math.round(seconds / tasks.length),
           lvl: p.task.level,
           mode: 'mock',
-          given: typeof given === 'number' ? p.task.options?.[given] : (given ?? ''),
+          given: givenText(p.task, given),
         },
         gradeFromAnswer({ correct: ok, usedHint: false, seconds: 60, expected: 60 }),
       )
@@ -155,6 +182,7 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
           </p>
           <p className="mt-1 max-w-xs text-[12.5px] text-muted">Пересчёт в тестовый балл РИКЗ нелинейный — ориентируйтесь на динамику от пробника к пробнику.</p>
         </motion.div>
+        {BLUEPRINTS[subject] && <BlockBreakdown results={results.map((r) => ({ block: blockOf(r.p.task), ok: r.ok }))} />}
         <div className="mb-4 grid grid-cols-6 gap-2">
           {results.map((r, i) => (
             <button
@@ -163,14 +191,14 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
               onClick={() => setReview(i)}
               className={cx('flex h-11 items-center justify-center rounded-xl text-[14px] font-bold', r.ok ? 'bg-good/15 text-good' : 'bg-bad/12 text-bad')}
             >
-              {i + 1}
+              {r.p.slot ?? i + 1}
             </button>
           ))}
         </div>
         <Button block size="lg" onClick={pop}>
           Готово
         </Button>
-        <Sheet open={review !== null} onClose={() => setReview(null)} title={review !== null ? `Задание ${review + 1}` : ''}>
+        <Sheet open={review !== null} onClose={() => setReview(null)} title={review !== null ? `Задание ${results[review].p.slot ?? review + 1}` : ''}>
           {review !== null && (
             <div className="space-y-3">
               <div className="text-[15px] leading-relaxed text-fg">
@@ -179,7 +207,7 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
               <p className="text-[14px] text-fg-2">
                 Твой ответ:{' '}
                 <span className={results[review].ok ? 'text-good' : 'text-bad'}>
-                  {results[review].given === null ? '—' : <Tex>{typeof results[review].given === 'number' ? (results[review].p.task.options?.[results[review].given as number] ?? '') : String(results[review].given)}</Tex>}
+                  {results[review].given === null ? '—' : <Tex>{givenText(results[review].p.task, results[review].given)}</Tex>}
                 </span>
                 <br />
                 Верно: <b className="text-fg"><Tex>{answerText(results[review].p.task)}</Tex></b>
@@ -202,7 +230,7 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
       <Header
         close
         onBack={() => setConfirm(true)}
-        title={`Задание ${index + 1}/${tasks.length}`}
+        title={`${current.slot ?? `Задание ${index + 1}`} · ${index + 1}/${tasks.length}`}
         right={
           <span className={cx('glass tabular flex h-9 items-center gap-1.5 rounded-full px-3 text-[14px] font-bold', low ? 'text-bad' : 'text-fg')}>
             <Timer size={15} /> {formatDuration(left)}
@@ -220,18 +248,28 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
               i === index ? 'bg-accent-solid text-on-accent' : answers[i] !== null ? 'bg-surface-2 text-fg' : 'glass text-muted',
             )}
           >
-            {i + 1}
+            {tasks[i].slot ?? i + 1}
           </button>
         ))}
       </div>
       <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={springSoft}>
-        <TaskMeta task={current.task} topicTitle={topic?.title} color={meta.color} />
+        <TaskMeta task={current.task} topicTitle={topic?.title} color={meta.color} slot={current.slot} />
         <TaskBody
           prepared={current}
           verdict={null}
           reveal={false}
-          selected={typeof answers[index] === 'number' ? (answers[index] as number) : null}
-          onSelect={(opt) => setAnswers((a) => a.map((v, i) => (i === index ? opt : v)))}
+          selected={typeof answers[index] === 'number' || Array.isArray(answers[index]) ? (answers[index] as number | number[]) : null}
+          onSelect={(opt) =>
+            setAnswers((a) =>
+              a.map((v, i) => {
+                if (i !== index) return v
+                if (!isMulti(current.task)) return opt
+                const marks = Array.isArray(v) ? v : []
+                const next = marks.includes(opt) ? marks.filter((x) => x !== opt) : [...marks, opt].sort((x, y) => x - y)
+                return next.length ? next : null
+              }),
+            )
+          }
           inputValue={inputs[index]}
           onInput={(v) => {
             setInputs((s) => s.map((x, i) => (i === index ? v : x)))
@@ -272,5 +310,35 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
         </div>
       </Sheet>
     </div>
+  )
+}
+
+/** Итог по разделам спецификации: где теряются баллы. */
+function BlockBreakdown({ results }: { results: { block: keyof typeof BLOCK_TITLES | undefined; ok: boolean }[] }) {
+  const rows = new Map<string, { ok: number; total: number }>()
+  for (const r of results) {
+    if (!r.block) continue
+    const row = rows.get(r.block) ?? { ok: 0, total: 0 }
+    row.total++
+    if (r.ok) row.ok++
+    rows.set(r.block, row)
+  }
+  return (
+    <Card className="mb-4 space-y-2.5">
+      <p className="eyebrow">По разделам</p>
+      {[...rows.entries()].map(([block, row]) => (
+        <div key={block}>
+          <div className="mb-1 flex justify-between text-[13.5px]">
+            <span className="text-fg-2">{BLOCK_TITLES[block as keyof typeof BLOCK_TITLES]}</span>
+            <span className="tabular font-semibold text-fg">
+              {row.ok}/{row.total}
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-line-strong">
+            <div className={cx('h-full rounded-full', row.ok / row.total >= 0.7 ? 'bg-good' : row.ok / row.total >= 0.4 ? 'bg-warn' : 'bg-bad')} style={{ width: `${(row.ok / row.total) * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </Card>
   )
 }

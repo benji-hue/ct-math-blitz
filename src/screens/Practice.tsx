@@ -5,7 +5,7 @@ import { topicById, useSubject } from '../content'
 import { SUBJECTS } from '../domain/subjects'
 import { ERROR_TYPES, type ErrorType, type SubjectId, type Task } from '../domain/types'
 import { ACHIEVEMENTS } from '../lib/analytics'
-import { answerText, buildQueue, expectedSeconds, isCorrect, prepareTask, type PreparedTask } from '../lib/practice'
+import { answerText, buildQueue, expectedSeconds, givenText as describeGiven, isCorrect, prepareTask, type Given, type PreparedTask } from '../lib/practice'
 import { formatDuration, pluralN } from '../lib/format'
 import { gradeFromAnswer } from '../lib/srs'
 import { useStore, xpFor } from '../lib/store'
@@ -147,14 +147,14 @@ function Session({ routeKey, subject, queue: initial, title }: { routeKey: strin
     return true
   })
 
-  function answer(given: number | string) {
+  function answer(given: Given) {
     if (!current || verdict) return
     const task = current.task
     const correct = isCorrect(task, given)
     const seconds = Math.round((Date.now() - startedAt.current) / 1000)
     const expected = expectedSeconds(task, meta.format.minutes, meta.format.tasks)
     const grade = gradeFromAnswer({ correct, usedHint, seconds, expected })
-    const givenText = typeof given === 'number' ? (task.options?.[given] ?? '') : given
+    const givenText = describeGiven(task, given)
     const newly = recordAttempt(
       { id: task.id, s: task.subject, t: task.topic, ok: correct, sec: seconds, lvl: task.level, hint: usedHint, mode: current.isReview ? 'review' : 'practice', given: givenText },
       grade,
@@ -349,13 +349,13 @@ function Session({ routeKey, subject, queue: initial, title }: { routeKey: strin
                         q: current.task.q,
                         options: current.task.options,
                         correct: answerText(current.task),
-                        given: typeof verdict.given === 'number' ? current.task.options?.[verdict.given] : verdict.given,
+                        given: describeGiven(current.task, verdict.given),
                         explain: current.task.explain,
                         trap: current.task.trap,
                       },
                       prompt: (() => {
                         const q = current.task.q.length > 220 ? `${current.task.q.slice(0, 220)}…` : current.task.q
-                        const given = typeof verdict.given === 'number' ? current.task.options?.[verdict.given] : verdict.given
+                        const given = describeGiven(current.task, verdict.given)
                         return `Разбери мою ошибку в задании: ${q}\nМой ответ: ${given || '—'}`
                       })(),
                     })
