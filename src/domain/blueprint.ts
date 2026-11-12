@@ -295,7 +295,7 @@ for (const spec of Object.values(SPECS)) for (const s of spec.sections) BLOCK_TI
  * Предметы с готовым банком на каждую позицию варианта — у них пробник собирается по
  * спецификации. Предмет добавляется сюда, когда его банк закрывает весь чертёж (тест).
  */
-export const BLUEPRINT_READY: SubjectId[] = ['math', 'phys', 'chem']
+export const BLUEPRINT_READY: SubjectId[] = ['math', 'phys', 'chem', 'bio']
 
 const ALL_BLUEPRINTS: Partial<Record<SubjectId, Slot[]>> = {
   math: MATH,
