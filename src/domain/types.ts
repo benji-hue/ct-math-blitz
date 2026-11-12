@@ -42,21 +42,10 @@ export type TaskKind = 'choice' | 'input'
 
 /**
  * Раздел спецификации РИКЗ — по нему пробник собирается так же, как настоящий вариант.
- * Математика: числа, выражения, уравнения и неравенства, функции, геометрия.
- * Физика: механика, МКТ и термодинамика, электродинамика, оптика и СТО, квантовая, ядро.
+ * Математика: numbers, expressions, equations, functions, geometry. Физика: mech, thermo,
+ * electro, optics, quantum, nuclear. Остальные предметы — id вида «ch.inorg» (domain/blueprint.ts).
  */
-export type Block =
-  | 'numbers'
-  | 'expressions'
-  | 'equations'
-  | 'functions'
-  | 'geometry'
-  | 'mech'
-  | 'thermo'
-  | 'electro'
-  | 'optics'
-  | 'quantum'
-  | 'nuclear'
+export type Block = string
 
 /**
  * Задание в формате ЦТ/ЦЭ.

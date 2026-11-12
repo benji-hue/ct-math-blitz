@@ -236,7 +236,8 @@ export function buildBlueprintMock(content: SubjectContent, blueprint: Slot[], s
   for (const slot of pickSlots(blueprint, size)) {
     const free = pool.filter((t) => !used.has(t.id) && t.part === slot.part)
     const ranked = free
-      .map((t) => ({ t, score: (blockOf(t) === slot.block ? 0 : 100) + Math.abs(t.level - slot.level) * 10 + fresh(t) }))
+      // Раздел важнее уровня, уровень — формата «несколько верных», формат — новизны.
+      .map((t) => ({ t, score: (blockOf(t) === slot.block ? 0 : 100) + Math.abs(t.level - slot.level) * 10 + (slot.multi && !isMulti(t) ? 4 : 0) + fresh(t) }))
       .sort((x, y) => x.score - y.score)
     const pick = ranked[0]?.t
     if (!pick) continue

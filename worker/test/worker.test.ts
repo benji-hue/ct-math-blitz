@@ -237,6 +237,9 @@ describe('перепроверка сгенерированных заданий
 
   it('отсеивает задания с «рассуждениями вслух» и битым форматом', () => {
     expect(screenTask(rambling)).toBeNull()
+    // Кириллическая «команда LaTeX» в решении — формула не отрисуется, задание отбрасывается.
+    expect(screenTask({ q: 'Найдите время (мин).', answer: '40', explain: String.raw`$Q = \frac{U^2}{R} t \приблизительно 40$ мин.` })).toBeNull()
+    expect(screenTask({ q: 'Найдите время (мин).', answer: '40', explain: String.raw`$Q = \frac{U^2}{R} t$, откуда $t = 40$ мин.` })).not.toBeNull()
     expect(screenTask(rewritten)).toBeNull()
     expect(screenTask({ ...good, answer: 7 })).toBeNull()
     expect(screenTask({ q: 'x', explain: 'y', answer: '' })).toBeNull()

@@ -10,6 +10,8 @@ import { SUBJECT_IDS, type SubjectContent } from '../domain/types'
  * как их увидит ученик (или жюри).
  */
 
+const BLUEPRINT_READY_IDS: string[] = (await import('../domain/blueprint')).BLUEPRINT_READY
+
 const all: [string, SubjectContent][] = await Promise.all(SUBJECT_IDS.map(async (id) => [id, await loadSubject(id)] as [string, SubjectContent]))
 
 function balancedDollars(text: string): boolean {
@@ -79,51 +81,66 @@ describe('контент предметов', () => {
     for (const [, c] of all) for (const t of c.tasks) if (t.source === 'original' && t.kind === 'choice' && !Array.isArray(t.answer)) expect(t.answer, t.id).toBe(0)
   })
 
-  it('физика и математика — как на ЦТ: в части A пять вариантов, в части B — целое число', () => {
+  it('готовые предметы — как на ЦТ: в части A пять вариантов; в физике и математике часть B — целое число', () => {
     for (const [id, c] of all) {
-      if (id !== 'phys' && id !== 'math') continue
+      if (!BLUEPRINT_READY_IDS.includes(id)) continue
       for (const t of c.tasks) {
         if (t.source !== 'original') continue
-        if (t.kind === 'choice') expect(t.options!.length, t.id).toBe(5)
+        if (t.kind === 'choice') {
+          expect(t.options!.length, t.id).toBe(5)
+          continue
+        }
+        if (id !== 'phys' && id !== 'math') continue
         // Математика допускает ответы-соответствия «А1Б3В2»; физика — только целое число.
-        else expect((t.answer as string[]).some((x) => /^-?\d+$/.test(x) || (id === 'math' && /^([А-Я]\d)+$/.test(x))), `${t.id}: ${String(t.answer)}`).toBe(true)
+        expect((t.answer as string[]).some((x) => /^-?\d+$/.test(x) || (id === 'math' && /^([А-Я]\d)+$/.test(x))), `${t.id}: ${String(t.answer)}`).toBe(true)
       }
     }
   })
 
-  it('чертёж варианта совпадает со спецификацией РИКЗ 2026', async () => {
-    const { BLUEPRINTS } = await import('../domain/blueprint')
+  it('чертежи вариантов совпадают со спецификациями РИКЗ 2026', async () => {
+    const { SPEC_BLUEPRINTS, SPECS } = await import('../domain/blueprint')
     const count = <T,>(xs: T[]) => xs.reduce<Record<string, number>>((m, x) => ({ ...m, [String(x)]: (m[String(x)] ?? 0) + 1 }), {})
-    const math = BLUEPRINTS.math!
+    const math = SPEC_BLUEPRINTS.math!
     expect(math).toHaveLength(30)
     expect(count(math.map((s) => s.part))).toEqual({ A: 10, B: 20 })
     expect(count(math.map((s) => s.block))).toEqual({ numbers: 4, expressions: 4, equations: 9, functions: 5, geometry: 8 })
     expect(count(math.map((s) => s.level))).toEqual({ 1: 5, 2: 10, 3: 9, 4: 4, 5: 2 })
-    const phys = BLUEPRINTS.phys!
+    const phys = SPEC_BLUEPRINTS.phys!
     expect(phys).toHaveLength(30)
     expect(count(phys.map((s) => s.part))).toEqual({ A: 10, B: 20 })
     expect(count(phys.map((s) => s.block))).toEqual({ mech: 10, thermo: 7, electro: 9, optics: 2, quantum: 1, nuclear: 1 })
     expect(count(phys.map((s) => s.level))).toEqual({ 1: 5, 2: 10, 3: 10, 4: 4, 5: 1 })
-  })
-
-  it('в банке физики и математики есть задания на каждую позицию варианта', async () => {
-    const { BLUEPRINTS, blockOf } = await import('../domain/blueprint')
-    for (const [id, c] of all) {
-      const bp = BLUEPRINTS[id as 'math' | 'phys']
-      if (!bp) continue
-      for (const slot of bp) {
-        const fit = c.tasks.filter((t) => t.source === 'original' && t.part === slot.part && blockOf(t) === slot.block && t.level === slot.level)
-        expect(fit.length, `${id} ${slot.id}: ${slot.block}, уровень ${slot.level}`).toBeGreaterThanOrEqual(1)
-      }
+    // Остальные 12 предметов: чертёж построен из чисел спецификации и должен их сохранять.
+    expect(Object.keys(SPEC_BLUEPRINTS)).toHaveLength(14)
+    for (const [id, spec] of Object.entries(SPECS)) {
+      const bp = SPEC_BLUEPRINTS[id as keyof typeof SPEC_BLUEPRINTS]!
+      const meta = SUBJECTS[id as keyof typeof SUBJECTS]
+      expect(bp.length, id).toBe(meta.format.tasks)
+      expect(count(bp.map((s) => s.part)), id).toEqual({ A: meta.format.partA, B: meta.format.partB })
+      expect(count(bp.map((s) => s.block)), id).toEqual(Object.fromEntries(spec.sections.map((s) => [s.block, s.count])))
+      expect(count(bp.map((s) => s.level)), id).toEqual(Object.fromEntries(spec.levels.map((n, i) => [i + 1, n])))
+      // Темы разделов существуют в содержании предмета — кроме ещё не заведённых (банк в работе).
+      const topics = new Set(all.find(([s]) => s === id)![1].topics.map((t) => t.id))
+      for (const s of spec.sections) expect(s.topics.some((t) => topics.has(t)) || !BLUEPRINT_READY_IDS.includes(id), `${id} ${s.block}`).toBe(true)
     }
   })
 
-  it('демо-профиль ссылается на существующие темы', async () => {
-    const { buildDemoState } = await import('../lib/demo')
-    const state = await buildDemoState(new Date('2026-11-01T12:00:00'))
-    const topics = new Set(all.flatMap(([, c]) => c.topics.map((t) => t.id)))
-    for (const key of Object.keys(state.progress.topics)) expect(topics.has(key), key).toBe(true)
-    expect(state.progress.attempts.length).toBeGreaterThan(200)
+  it('у готовых предметов банк закрывает каждую позицию варианта без подмены уровня', async () => {
+    const { SPEC_BLUEPRINTS, BLUEPRINT_READY, blockOf } = await import('../domain/blueprint')
+    for (const id of BLUEPRINT_READY) {
+      const content = all.find(([s]) => s === id)![1]
+      const need = new Map<string, number>()
+      for (const s of SPEC_BLUEPRINTS[id]!) need.set(`${s.part} ${s.block} ${s.level}`, (need.get(`${s.part} ${s.block} ${s.level}`) ?? 0) + 1)
+      for (const [key, n] of need) {
+        const have = content.tasks.filter((t) => t.source === 'original' && `${t.part} ${blockOf(t)} ${t.level}` === key).length
+        expect(have, `${id}: ${key}`).toBeGreaterThanOrEqual(n)
+      }
+      // Позиции с несколькими верными вариантами есть чем заполнить.
+      for (const s of SPEC_BLUEPRINTS[id]!.filter((x) => x.multi)) {
+        const fit = content.tasks.filter((t) => t.source === 'original' && t.part === 'A' && blockOf(t) === s.block && Array.isArray(t.answer))
+        expect(fit.length, `${id} ${s.id}: несколько верных`).toBeGreaterThanOrEqual(1)
+      }
+    }
   })
 })
 

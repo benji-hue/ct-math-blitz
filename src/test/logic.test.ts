@@ -309,14 +309,14 @@ describe('формат ЦТ 2026: несколько верных в части 
     expect(answerText(task as never)).toBe('a; c')
   })
 
-  it('пробник по спецификации: 30 позиций A1–B20, уровни и разделы на месте', async () => {
+  it('пробник по спецификации: все позиции варианта, уровни и разделы на месте', async () => {
     const { buildBlueprintMock } = await import('../lib/practice')
-    const { BLUEPRINTS, blockOf } = await import('../domain/blueprint')
+    const { BLUEPRINTS, BLUEPRINT_READY, blockOf } = await import('../domain/blueprint')
     const { loadSubject } = await import('../content')
-    for (const id of ['math', 'phys'] as const) {
+    for (const id of BLUEPRINT_READY) {
       const content = await loadSubject(id)
       const bp = BLUEPRINTS[id]!
-      const full = buildBlueprintMock(content, bp, 30)
+      const full = buildBlueprintMock(content, bp, bp.length)
       expect(full.map((p) => p.slot)).toEqual(bp.map((s) => s.id))
       full.forEach((p, i) => {
         expect(p.task.part, `${id} ${p.slot}`).toBe(bp[i].part)
@@ -324,11 +324,13 @@ describe('формат ЦТ 2026: несколько верных в части 
         expect(p.task.level, `${id} ${p.slot}`).toBe(bp[i].level)
         expect(p.task.source, `${id} ${p.slot}`).not.toBe('blitz')
       })
-      expect(new Set(full.map((p) => p.task.id)).size).toBe(30)
+      expect(new Set(full.map((p) => p.task.id)).size).toBe(bp.length)
+      // Позиции с несколькими верными вариантами получают именно такие задания.
+      full.forEach((p, i) => bp[i].multi && expect(Array.isArray(p.task.answer), `${id} ${p.slot}`).toBe(true))
       const short = buildBlueprintMock(content, bp, 10)
       expect(short).toHaveLength(10)
       expect(short[0].slot).toBe('A1')
-      expect(short[9].slot).toBe('B20')
+      expect(short[9].slot).toBe(bp[bp.length - 1].id)
     }
   })
 })

@@ -70,6 +70,8 @@ export function screenTask(raw: unknown, integerB = false): DraftTask | null {
   const t = raw as Partial<DraftTask> | null
   if (!t || typeof t.q !== 'string' || !t.q.trim() || typeof t.explain !== 'string' || !t.explain.trim()) return null
   if (THINKING_ALOUD.test(t.explain)) return null
+  // «\приблизительно», «\тогда» — модель перепутала текст с командой LaTeX: формула не отрисуется.
+  if ([t.q, t.explain, ...(Array.isArray(t.options) ? t.options.map(String) : [])].some((text) => /\\[а-яё]/i.test(text))) return null
   if (Array.isArray(t.options)) {
     const answer = Number(t.answer)
     if (t.options.length < 4 || !Number.isInteger(answer) || answer < 0 || answer >= t.options.length) return null
