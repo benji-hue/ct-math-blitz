@@ -18,14 +18,16 @@ import { SubjectIcon } from '../ui/SubjectIcon'
 import { cx } from '../lib/cx'
 
 const MODES: { id: AiMode; label: string; icon: typeof MessagesSquare; hint: string }[] = [
-  { id: 'tutor', label: 'Репетитор', icon: MessagesSquare, hint: 'Спроси что угодно по программе ЦЭ/ЦТ' },
-  { id: 'lesson', label: 'Объясни', icon: Lightbulb, hint: 'Тема по шагам: правило, пример как в ЦТ, ловушки' },
+  { id: 'tutor', label: 'Спросить', icon: MessagesSquare, hint: 'Спроси что угодно по программе ЦЭ/ЦТ' },
+  { id: 'lesson', label: 'Объясни тему', icon: Lightbulb, hint: 'Тема по шагам: правило, пример как в ЦТ, ловушки' },
   { id: 'socratic', label: 'Сократ', icon: MessageCircleQuestion, hint: 'Только наводящие вопросы — дойдёшь до ответа сам' },
   { id: 'check', label: 'Проверь решение', icon: ScanSearch, hint: 'Пришли решение текстом или фото — найду первую ошибку' },
   { id: 'mistake', label: 'Разбор ошибки', icon: BookOpen, hint: 'Почему ошибся и как не попасться снова' },
   { id: 'plan', label: 'План', icon: ListChecks, hint: 'Расписание подготовки под твою дату экзамена' },
   { id: 'calm', label: 'Антистресс', icon: HeartPulse, hint: 'Поддержка перед экзаменом, техники с доказанной пользой' },
 ]
+
+const PRIMARY_MODES: AiMode[] = ['tutor', 'lesson', 'check']
 
 /**
  * Быстрое объяснение уровня ЦТ — без своей кнопки: его открывают «Объясни тему» у слабой темы
@@ -214,7 +216,7 @@ export default function TutorScreen() {
           <MessagesSquare size={20} />
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="text-[20px] leading-tight font-bold tracking-[-0.02em] text-fg">ИИ-репетитор</h1>
+          <h1 className="text-[20px] leading-tight font-bold tracking-[-0.02em] text-fg">Репетитор</h1>
           <p className="truncate text-[12.5px] text-muted">{streamingId ? 'печатает…' : modeMeta.hint}</p>
         </div>
         {messages.length > 0 && (
@@ -245,7 +247,8 @@ export default function TutorScreen() {
       )}
 
       <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1">
-        {MODES.map((m) => (
+        {/* Три основных режима; остальные открываются из заданий и других экранов и видны, пока активны. */}
+        {MODES.filter((m) => PRIMARY_MODES.includes(m.id) || m.id === chat.mode).map((m) => (
           <Chip key={m.id} active={chat.mode === m.id || (m.id === 'lesson' && chat.mode === 'explain')} onClick={() => setChat({ mode: m.id })} icon={<m.icon size={14} />}>
             {m.label}
           </Chip>

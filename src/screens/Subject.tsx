@@ -103,7 +103,7 @@ export function SubjectScreen({ id }: { id: SubjectId }) {
           <ActionTile
             icon={<MessagesSquare size={20} />}
             color="#ff7ad9"
-            title="ИИ-репетитор"
+            title="Репетитор"
             text="Спросить по предмету"
             onClick={() => openTutor({ mode: 'tutor', subject: id })}
           />

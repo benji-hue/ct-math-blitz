@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { ChartColumn, House, LayoutGrid, MessagesSquare, UserRound, type LucideIcon } from 'lucide-react'
+import { ChartColumn, House, LayoutGrid, MessagesSquare, type LucideIcon } from 'lucide-react'
 import { cx } from '../lib/cx'
 import { tap } from '../ui/kit'
 import { springSnappy } from '../ui/motion'
@@ -10,7 +10,6 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'subjects', label: 'Предметы', icon: LayoutGrid },
   { id: 'tutor', label: 'Репетитор', icon: MessagesSquare },
   { id: 'progress', label: 'Прогресс', icon: ChartColumn },
-  { id: 'profile', label: 'Профиль', icon: UserRound },
 ]
 
 export function TabBar({ hidden }: { hidden: boolean }) {
