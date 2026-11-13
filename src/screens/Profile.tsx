@@ -1,23 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import {
-  Bell,
-  BookOpen,
-  CalendarDays,
-  Download,
-  Feather,
-  HeartPulse,
-  Info,
-  Moon,
-  Presentation,
-  RotateCcw,
-  Share2,
-  Smartphone,
-  Sun,
-  SunMoon,
-  Target,
-  Upload,
-  Vibrate,
-} from 'lucide-react'
+import { Bell, BookOpen, CalendarDays, Download, Feather, HeartPulse, Info, Presentation, RotateCcw, Share2, Smartphone, Target, Upload, Vibrate } from 'lucide-react'
 import { APP_NAME, APP_VERSION, BOT_USERNAME } from '../config'
 import { SUBJECT_LIST, SUBJECTS } from '../domain/subjects'
 import type { SubjectId } from '../domain/types'
@@ -32,6 +14,7 @@ import { AccountCard } from '../ui/Account'
 import { useAccount } from '../lib/account'
 import { SubjectIcon } from '../ui/SubjectIcon'
 import { cx } from '../lib/cx'
+import { SKINS } from '../lib/theme'
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -97,7 +80,7 @@ export default function ProfileScreen() {
         {user?.photo_url ? (
           <img src={user.photo_url} alt="" className="h-16 w-16 rounded-full object-cover" />
         ) : (
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6cff] to-[#3dd6f5] text-[26px] font-bold text-white">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent-solid text-[26px] font-bold text-on-accent">
             {(profile.name || 'Я').slice(0, 1).toUpperCase()}
           </span>
         )}
@@ -176,22 +159,43 @@ export default function ProfileScreen() {
       <StaggerItem>
         <SectionTitle>Оформление и поведение</SectionTitle>
         <Card className="space-y-4">
-          <Segmented
-            layoutId="theme"
-            value={settings.theme}
-            onChange={(theme) => updateSettings({ theme })}
-            options={[
-              { value: 'auto', label: <span className="inline-flex items-center gap-1"><SunMoon size={14} /> Авто</span> },
-              { value: 'light', label: <span className="inline-flex items-center gap-1"><Sun size={14} /> Светлая</span> },
-              { value: 'dark', label: <span className="inline-flex items-center gap-1"><Moon size={14} /> Тёмная</span> },
-            ]}
-          />
+          <div>
+            <div className="mb-2.5 flex items-center justify-between gap-3">
+              <p className="text-[15px] text-fg">Оформление</p>
+              <Chip active={settings.skin === 'auto'} onClick={() => updateSettings({ skin: 'auto' })}>
+                Как в Telegram
+              </Chip>
+            </div>
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Оформление">
+              {SKINS.map((s) => {
+                const active = settings.skin === s.id
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => updateSettings({ skin: s.id })}
+                    className={cx('skin-tile rounded-2xl border-2 p-2 text-left transition-colors', active ? 'border-accent' : 'border-line')}
+                  >
+                    {/* Миниатюра: фон, блок и кнопка оформления — в его собственных цветах. */}
+                    <span className="flex h-[58px] flex-col justify-between rounded-xl p-2" style={{ background: s.resolved.canvas, border: '1px solid rgb(128 128 128 / 0.25)' }} aria-hidden>
+                      <span className="block h-3.5 w-3/5" style={{ background: s.preview.surface, borderRadius: Math.min(s.preview.radius, 6), border: s.id === 'graphite' ? '1px solid #3a3a41' : undefined }} />
+                      <span className="block h-3.5 w-2/5 self-end" style={{ background: s.preview.accent, borderRadius: s.preview.radius }} />
+                    </span>
+                    <span className="mt-1.5 block px-0.5 text-[13.5px] leading-tight font-semibold text-fg">{s.title}</span>
+                    <span className="block px-0.5 text-[12px] text-muted">{s.hint}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
           <div>
             <div className="mb-2 flex items-start gap-3">
               <Feather size={19} className="mt-0.5 shrink-0 text-accent" />
               <div className="flex-1">
                 <p className="text-[15px] text-fg">Лёгкий режим</p>
-                <p className="text-[12.5px] leading-snug text-muted">Без размытия фона — для слабых телефонов. «Авто» включает его сам.</p>
+                <p className="text-[12.5px] leading-snug text-muted">Без анимаций — для слабых телефонов. «Авто» включает его сам.</p>
               </div>
             </div>
             <Segmented

@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { ArrowRight, Brain, CalendarDays, Check, Sparkles, Target } from 'lucide-react'
+import { ArrowRight, Brain, CalendarDays, Check, MessagesSquare, Target } from 'lucide-react'
 import { APP_NAME, APP_TAGLINE } from '../config'
 import { GROUP_LABEL, SUBJECT_LIST, SUBJECTS } from '../domain/subjects'
 import type { SubjectId } from '../domain/types'
@@ -109,8 +109,7 @@ export function Onboarding() {
                     transition={{ type: 'spring', stiffness: 200, damping: 16 }}
                     className="relative mb-6 h-20 w-20"
                   >
-                    <span className="orb absolute inset-0 rounded-[28px] opacity-80 blur-md" />
-                    <span className="absolute inset-0 flex items-center justify-center rounded-[28px] bg-solid text-accent shadow-xl">
+                    <span className="absolute inset-0 flex items-center justify-center rounded-[28px] bg-accent-solid text-on-accent">
                       <Steps />
                     </span>
                   </motion.div>
@@ -123,7 +122,7 @@ export function Onboarding() {
                   <div className="mt-7 space-y-2.5">
                     <Feature delay={0.1} icon={<Target size={20} />} title="Задания по спецификации РИКЗ" text="Части А и В, уровни сложности, разбор ловушек" />
                     <Feature delay={0.18} icon={<Brain size={20} />} title="Повторение по науке" text="Алгоритм FSRS напомнит тему ровно перед тем, как она забудется" />
-                    <Feature delay={0.26} icon={<Sparkles size={20} />} title="ИИ разбирает ошибки" text="Объясняет, почему ошибся, а не просто даёт ответ" />
+                    <Feature delay={0.26} icon={<MessagesSquare size={20} />} title="ИИ разбирает ошибки" text="Объясняет, почему ошибся, а не просто даёт ответ" />
                   </div>
                 </div>
                 <div className="space-y-2">

@@ -1,26 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ArrowRight,
-  BookOpen,
-  Check,
-  ChevronDown,
-  Eye,
-  Flame,
-  Lightbulb,
-  ListChecks,
-  Lock,
-  PencilRuler,
-  Play,
-  RotateCcw,
-  Search,
-  Sparkles,
-  Target,
-  Timer,
-  Trophy,
-  TriangleAlert,
-  X,
-} from 'lucide-react'
+import { ArrowRight, BookOpen, Check, ChevronDown, Eye, Flame, Lightbulb, ListChecks, Lock, PencilRuler, Play, RotateCcw, Search, MessagesSquare, Target, Timer, Trophy, TriangleAlert, X } from 'lucide-react'
 import { ALL_QUESTIONS, buildRound, comboMultiplier, prepare, scoreFor, secondsFor } from '../lib/questions'
 import {
   buildMistakeRound,
@@ -651,7 +631,7 @@ function FormulaBook({ progress, onBack }: { progress: Progress; onBack: () => v
                               block
                               size="sm"
                               variant="secondary"
-                              icon={<Sparkles size={14} />}
+                              icon={<MessagesSquare size={14} />}
                               onClick={() => {
                                 pop()
                                 openTutor({ mode: 'explain', subject: 'math', prompt: `Объясни формулу ${q.learning.rule} и дай 3 задания на неё по возрастанию сложности (ответы спрячь в конце).` })

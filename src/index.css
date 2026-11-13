@@ -32,68 +32,118 @@
   --color-info: var(--c-info);
 }
 
+/*
+ * Четыре оформления (lib/theme.ts ставит data-skin и data-theme на <html>):
+ *   «Воздух» светлая и тёмная — data-skin="air" + data-theme="light" | "dark";
+ *   «Графит» — data-skin="graphite" (всегда тёмная);
+ *   «Блоки»  — data-skin="blocks" (всегда светлая).
+ * Во всех — плоские поверхности: без стекла, градиентов и свечения. Цвет действий один
+ * (accent), зелёный и красный — только «верно» и «неверно», цвет предмета — как метка.
+ */
 :root,
 [data-theme='dark'] {
   color-scheme: dark;
-  --c-canvas: #05060b;
-  --c-surface: rgb(255 255 255 / 0.055);
-  --c-surface-2: rgb(255 255 255 / 0.09);
-  --c-solid: #10121b;
-  --c-fg: #f5f6fb;
-  --c-fg-2: #c9cbd8;
-  --c-muted: #8b8fa4;
-  --c-faint: #5d6175;
-  --c-line: rgb(255 255 255 / 0.08);
-  --c-line-strong: rgb(255 255 255 / 0.15);
-  --c-accent: #a497ff;
-  --c-accent-solid: #6a56ff;
+  --c-canvas: #0f1012;
+  --c-surface: #1a1b1f;
+  --c-surface-2: #26282d;
+  --c-solid: #1a1b1f;
+  --c-fg: #f1f2f4;
+  --c-fg-2: #c5c8cf;
+  --c-muted: #8b8f99;
+  --c-faint: #5f636c;
+  --c-line: #2a2c31;
+  --c-line-strong: #3a3d44;
+  --c-accent: #6aa3ff;
+  --c-accent-solid: #4b8eff;
   --c-on-accent: #ffffff;
-  --c-good: #3ee0a1;
-  --c-bad: #ff6b8a;
-  --c-warn: #ffc857;
-  --c-info: #6cb4ff;
+  --c-good: #3fcf8e;
+  --c-bad: #ff6b81;
+  --c-warn: #f2b84b;
+  --c-info: #6aa3ff;
 
-  --glass-blur: 22px;
-  --glass-highlight: rgb(255 255 255 / 0.07);
-  --shadow-card: 0 1px 0 rgb(0 0 0 / 0.25), 0 18px 40px -24px rgb(0 0 0 / 0.75);
-  --shadow-float: 0 24px 60px -18px rgb(0 0 0 / 0.8);
-
-  --blob-1: #5b45ff;
-  --blob-2: #00a6c9;
-  --blob-3: #b4239f;
-  --blob-opacity: 0.34;
-  --noise-opacity: 0.05;
+  /* Карточка: фон, рамка; радиусы кнопок и карточек — свои у каждого оформления. */
+  --card-bg: var(--c-surface);
+  --card-border: transparent;
+  /* Переключатель из сегментов: подложка и «бегунок». */
+  --seg-bg: var(--c-canvas);
+  --seg-border: var(--c-line);
+  --seg-pill: #2c2e34;
+  --shadow-float: 0 16px 40px -20px rgb(0 0 0 / 0.7);
 }
 
 [data-theme='light'] {
   color-scheme: light;
-  --c-canvas: #f2f3f8;
-  --c-surface: rgb(255 255 255 / 0.62);
-  --c-surface-2: rgb(255 255 255 / 0.88);
+  --c-canvas: #f4f5f7;
+  --c-surface: #ffffff;
+  --c-surface-2: #eef0f3;
   --c-solid: #ffffff;
-  --c-fg: #0c0e1a;
-  --c-fg-2: #343950;
-  --c-muted: #686d85;
-  --c-faint: #a1a5b7;
-  --c-line: rgb(16 18 48 / 0.08);
-  --c-line-strong: rgb(16 18 48 / 0.15);
-  --c-accent: #5b47f5;
-  --c-accent-solid: #5b47f5;
+  --c-fg: #0d0f12;
+  --c-fg-2: #3a3e47;
+  --c-muted: #747985;
+  --c-faint: #a9adb6;
+  --c-line: #e3e5e9;
+  --c-line-strong: #d3d6dc;
+  --c-accent: #2f7cf6;
+  --c-accent-solid: #2f7cf6;
   --c-on-accent: #ffffff;
-  --c-good: #0b9f62;
-  --c-bad: #e0335a;
-  --c-warn: #c27c00;
-  --c-info: #2563eb;
+  --c-good: #17a05e;
+  --c-bad: #e0344f;
+  --c-warn: #b87a00;
+  --c-info: #2f7cf6;
+  --shadow-float: 0 16px 40px -22px rgb(20 24 40 / 0.3);
+  --seg-bg: #e9ebef;
+  --seg-border: transparent;
+  --seg-pill: #ffffff;
+}
 
-  --glass-highlight: rgb(255 255 255 / 0.85);
-  --shadow-card: 0 1px 0 rgb(16 18 48 / 0.04), 0 16px 36px -22px rgb(30 30 80 / 0.28);
-  --shadow-float: 0 22px 50px -20px rgb(30 30 80 / 0.35);
+/* «Графит»: почти чёрный нейтральный фон, тонкие линии, цвета нет — главная кнопка белая. */
+[data-skin='graphite'] {
+  --c-canvas: #0e0e10;
+  --c-surface: #0e0e10;
+  --c-surface-2: #1e1e22;
+  --c-solid: #151517;
+  --c-fg: #f3f3f4;
+  --c-fg-2: #c4c4c9;
+  --c-muted: #85858d;
+  --c-faint: #5a5a61;
+  --c-line: #26262b;
+  --c-line-strong: #3a3a41;
+  --c-accent: #f3f3f4;
+  --c-accent-solid: #f3f3f4;
+  --c-on-accent: #0e0e10;
+  --c-good: #5fd08e;
+  --c-bad: #ff6b81;
+  --c-warn: #e9b949;
+  --c-info: #9db8e8;
+  --card-bg: transparent;
+  --card-border: var(--c-line);
+  --seg-bg: transparent;
+  --seg-border: var(--c-line);
+  --seg-pill: #2a2a30;
+}
 
-  --blob-1: #8d7dff;
-  --blob-2: #5fd8f3;
-  --blob-3: #f3a6f1;
-  --blob-opacity: 0.42;
-  --noise-opacity: 0.035;
+/* «Блоки»: белый фон, плоские цветные блоки, чёрные кнопки-таблетки. */
+[data-skin='blocks'] {
+  --c-canvas: #ffffff;
+  --c-surface: #f4f4f4;
+  --c-surface-2: #e9e9e9;
+  --c-solid: #ffffff;
+  --c-fg: #101010;
+  --c-fg-2: #3b3b3b;
+  --c-muted: #6f6f6f;
+  --c-faint: #a8a8a8;
+  --c-line: #ececec;
+  --c-line-strong: #dadada;
+  --c-accent: #101010;
+  --c-accent-solid: #101010;
+  --c-on-accent: #ffffff;
+  --c-good: #1e9e57;
+  --c-bad: #e5484d;
+  --c-warn: #b87a00;
+  --c-info: #2f7cf6;
+  --seg-bg: #e9e9e9;
+  --seg-border: transparent;
+  --seg-pill: #ffffff;
 }
 
 @layer base {
@@ -172,154 +222,50 @@
     min-height: 100dvh;
   }
 
-  /* ---- Стекло ---------------------------------------------------------- */
+  /* ---- Поверхности ------------------------------------------------------ */
 
+  /*
+   * Классы названы «glass» исторически: раньше это было размытое стекло. Теперь это плоская
+   * поверхность оформления — карточка, строка, кнопка второго плана.
+   */
   .glass {
-    background: var(--c-surface);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(165%);
-    backdrop-filter: blur(var(--glass-blur)) saturate(165%);
-    border: 1px solid var(--c-line);
-    box-shadow:
-      inset 0 1px 0 var(--glass-highlight),
-      var(--shadow-card);
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
   }
 
+  /* Шторки и всплывающие сообщения: непрозрачные, с рамкой и тенью — они поверх контента. */
   .glass-strong {
-    background: var(--c-surface-2);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    backdrop-filter: blur(28px) saturate(180%);
-    border: 1px solid var(--c-line-strong);
-    box-shadow:
-      inset 0 1px 0 var(--glass-highlight),
-      var(--shadow-float);
-  }
-
-  /* Таб-бар плотнее обычного стекла: подписи должны читаться поверх любого контента. */
-  .tabbar {
-    background: color-mix(in oklab, var(--c-solid) 78%, transparent);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid var(--c-line-strong);
-    box-shadow:
-      inset 0 1px 0 var(--glass-highlight),
-      var(--shadow-float);
-  }
-
-  /* Лёгкий режим: на слабых Android размытие фона — главный пожиратель кадров. */
-  [data-lite='true'] .glass,
-  [data-lite='true'] .glass-strong,
-  [data-lite='true'] .tabbar {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
     background: var(--c-solid);
+    border: 1px solid var(--c-line-strong);
+    box-shadow: var(--shadow-float);
+  }
+
+  .tabbar {
+    background: var(--c-solid);
+    border: 1px solid var(--c-line);
+    box-shadow: var(--shadow-float);
+  }
+
+  .seg {
+    background: var(--seg-bg);
+    border: 1px solid var(--seg-border);
+  }
+
+  .seg-pill {
+    background: var(--seg-pill);
+  }
+
+  /* Поверхность внутри карточки — на тон темнее, иначе чип сливается с фоном карточки. */
+  .card .glass {
+    background: var(--c-surface-2);
+  }
+
+  [data-skin='graphite'] .card .glass {
+    background: transparent;
   }
 
   .hairline {
     border-color: var(--c-line);
-  }
-
-  /* Мягкая «подсветка» цветом предмета позади карточки. */
-  .glow {
-    position: relative;
-    isolation: isolate;
-  }
-
-  .glow::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    z-index: -1;
-    border-radius: inherit;
-    background: radial-gradient(120% 90% at 0% 0%, var(--glow, var(--c-accent)) 0%, transparent 60%);
-    opacity: 0.22;
-    pointer-events: none;
-  }
-
-  [data-theme='light'] .glow::before {
-    opacity: 0.16;
-  }
-
-  /* ---- Фон: медленная «аврора» ----------------------------------------- */
-
-  .aurora {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    overflow: hidden;
-    pointer-events: none;
-    contain: strict;
-  }
-
-  .aurora i {
-    position: absolute;
-    width: 75vmax;
-    height: 75vmax;
-    border-radius: 9999px;
-    opacity: var(--blob-opacity);
-    will-change: transform;
-  }
-
-  .aurora i:nth-child(1) {
-    top: -38vmax;
-    left: -30vmax;
-    background: radial-gradient(closest-side, var(--blob-1), transparent 72%);
-    animation: drift-a 34s ease-in-out infinite alternate;
-  }
-
-  .aurora i:nth-child(2) {
-    top: -26vmax;
-    right: -40vmax;
-    background: radial-gradient(closest-side, var(--blob-2), transparent 72%);
-    animation: drift-b 41s ease-in-out infinite alternate;
-  }
-
-  .aurora i:nth-child(3) {
-    bottom: -46vmax;
-    left: -10vmax;
-    background: radial-gradient(closest-side, var(--blob-3), transparent 72%);
-    opacity: calc(var(--blob-opacity) * 0.7);
-    animation: drift-c 47s ease-in-out infinite alternate;
-  }
-
-  .aurora::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: var(--noise-opacity);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-
-  @keyframes drift-a {
-    to {
-      transform: translate3d(14vmax, 10vmax, 0) scale(1.12);
-    }
-  }
-
-  @keyframes drift-b {
-    to {
-      transform: translate3d(-12vmax, 14vmax, 0) scale(0.92);
-    }
-  }
-
-  @keyframes drift-c {
-    to {
-      transform: translate3d(10vmax, -12vmax, 0) scale(1.08);
-    }
-  }
-
-  [data-lite='true'] .aurora i {
-    animation: none;
-  }
-
-  /* Лёгкий режим: без зернистого слоя поверх всего экрана. */
-  [data-lite='true'] .aurora::after {
-    display: none;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .aurora i {
-      animation: none;
-    }
   }
 
   /* ---- Типографика ------------------------------------------------------ */
@@ -341,10 +287,7 @@
   }
 
   .gradient-text {
-    background: linear-gradient(100deg, var(--c-fg) 20%, var(--c-accent) 70%, var(--c-info) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: var(--c-accent);
   }
 
   /* ---- KaTeX ----------------------------------------------------------- */
@@ -552,9 +495,9 @@
     }
   }
 
+  /* Раньше — переливающийся шар ИИ; теперь просто кольцо цвета действий. */
   .orb {
-    background: conic-gradient(from 0deg, #7a5cff, #3dd6f5, #ff7ad9, #7a5cff);
-    animation: spin-slow 6s linear infinite;
+    background: var(--c-accent-solid);
   }
 
   .no-scrollbar {
@@ -566,8 +509,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .aurora i,
-    .orb,
     .skeleton,
     .pulse-ring::before,
     .anim-shake,
@@ -576,3 +517,57 @@
     }
   }
 }
+
+/* ---- Оформления: то, чего не выразить цветами ----------------------------
+ * Правила стоят вне слоёв, поэтому сильнее утилит Tailwind: так оформление меняет
+ * радиусы и шрифт, не трогая разметку экранов.
+ */
+
+[data-skin='graphite'] body {
+  font-family: 'Geologica Variable', 'Geologica', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: normal;
+}
+
+[data-skin='graphite'] .card {
+  border-radius: 14px;
+}
+
+[data-skin='graphite'] .btn {
+  border-radius: 10px;
+}
+
+[data-skin='graphite'] h1 {
+  font-weight: 500;
+}
+
+[data-skin='blocks'] body {
+  font-family: 'Manrope Variable', 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: normal;
+}
+
+[data-skin='blocks'] h1 {
+  font-family: 'Unbounded Variable', 'Unbounded', 'Manrope Variable', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+[data-skin='blocks'] .card {
+  border-radius: 24px;
+}
+
+[data-skin='blocks'] .btn {
+  border-radius: 9999px;
+}
+
+/* Карточка с цветом предмета — плоский цветной блок. */
+[data-skin='blocks'] .glow {
+  background: color-mix(in oklab, var(--glow) 34%, #ffffff);
+}
+
+[data-skin='blocks'] .tab-pill {
+  background: #101010;
+}
+
+[data-skin='blocks'] .tab-on {
+  color: #ffffff;
+}
+

@@ -8,18 +8,6 @@ import { useNav } from '../nav/nav'
 import { springSoft } from './motion'
 import { IconButton } from './kit'
 
-// ---------- Фон ----------
-
-export function Aurora() {
-  return (
-    <div className="aurora" aria-hidden>
-      <i />
-      <i />
-      <i />
-    </div>
-  )
-}
-
 // ---------- Экран ----------
 
 const scrollMemory = new Map<string, number>()

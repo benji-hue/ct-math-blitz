@@ -1,19 +1,6 @@
 import { motion } from 'motion/react'
 import { useMemo, type ReactNode } from 'react'
-import {
-  BookOpen,
-  Brain,
-  Camera,
-  ChevronRight,
-  Flame,
-  Lightbulb,
-  Play,
-  RotateCcw,
-  Sparkles,
-  Timer,
-  Wind,
-  Zap,
-} from 'lucide-react'
+import { BookOpen, Brain, Camera, ChevronRight, Flame, Lightbulb, Play, RotateCcw, MessagesSquare, Timer, Wind, Zap } from 'lucide-react'
 import { useSubjects } from '../content'
 import { EXAM_START_TIME, nextExam, upcomingEvents, isOngoing } from '../domain/calendar'
 import { SUBJECTS } from '../domain/subjects'
@@ -32,7 +19,7 @@ function Avatar({ name }: { name: string }) {
   const photo = telegramUser()?.photo_url
   if (photo) return <img src={photo} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-line-strong" />
   return (
-    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6cff] to-[#3dd6f5] text-[17px] font-bold text-white">
+    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-solid text-[17px] font-bold text-on-accent">
       {(name || 'Я').slice(0, 1).toUpperCase()}
     </span>
   )
@@ -229,7 +216,7 @@ export function TodayScreen() {
                   }}
                   className="mt-2 flex items-center gap-1 text-[13.5px] font-semibold text-accent"
                 >
-                  <Sparkles size={15} /> Разобрать с ИИ
+                  <MessagesSquare size={15} /> Разобрать с ИИ
                 </button>
               )}
             </div>
@@ -239,7 +226,7 @@ export function TodayScreen() {
 
       <StaggerItem>
         <div className="no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1">
-          <Quick icon={<Sparkles size={20} />} color="#a497ff" label="Спросить ИИ" onClick={() => openTutor({ mode: 'tutor' })} />
+          <Quick icon={<MessagesSquare size={20} />} color="#a497ff" label="Спросить ИИ" onClick={() => openTutor({ mode: 'tutor' })} />
           <Quick icon={<Camera size={20} />} color="#3dd6f5" label="Фото решения" onClick={() => openTutor({ mode: 'check', photo: true })} />
           <Quick icon={<Brain size={20} />} color="#ff7ad9" label="Блиц формул" onClick={() => push({ name: 'blitz' })} />
           <Quick icon={<Wind size={20} />} color="#3ee0a1" label="Антистресс" onClick={() => push({ name: 'calm' })} />

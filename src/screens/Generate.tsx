@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
-import { Play, RefreshCw, TriangleAlert, WandSparkles } from 'lucide-react'
+import { Play, RefreshCw, TriangleAlert, ListPlus } from 'lucide-react'
 import { topicById, useSubject } from '../content'
 import { SUBJECTS } from '../domain/subjects'
 import type { SubjectId, Task } from '../domain/types'
@@ -95,7 +95,7 @@ export default function GenerateScreen({ subject, topicId }: { subject: SubjectI
               <p className="text-[14px] text-fg-2">{error}</p>
             </Card>
           )}
-          <Button block size="lg" icon={<WandSparkles size={19} />} onClick={run} disabled={!topic}>
+          <Button block size="lg" icon={<ListPlus size={19} />} onClick={run} disabled={!topic}>
             Сгенерировать
           </Button>
           <p className="px-1 text-center text-[12px] leading-relaxed text-muted">ИИ может ошибаться. Если задание кажется неверным — спроси репетитора или сверься с конспектом.</p>

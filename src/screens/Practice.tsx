@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
-import { ArrowRight, Check, Flame, RotateCcw, Sparkles, Target, Timer, Trophy, X } from 'lucide-react'
+import { ArrowRight, Check, Flame, RotateCcw, MessagesSquare, Target, Timer, Trophy, X } from 'lucide-react'
 import { topicById, useSubject } from '../content'
 import { SUBJECTS } from '../domain/subjects'
 import { ERROR_TYPES, type ErrorType, type SubjectId, type Task } from '../domain/types'
@@ -341,7 +341,7 @@ function Session({ routeKey, subject, queue: initial, title }: { routeKey: strin
               {!verdict.correct && (
                 <Button
                   variant="secondary"
-                  icon={<Sparkles size={17} />}
+                  icon={<MessagesSquare size={17} />}
                   onClick={() =>
                     openTutor({
                       mode: 'mistake',

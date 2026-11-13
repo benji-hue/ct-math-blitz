@@ -21,8 +21,14 @@ export interface Profile {
   onboarded: boolean
 }
 
+/**
+ * Оформление: «Воздух» светлая и тёмная, «Графит» (тёмная), «Блоки» (светлая);
+ * auto — «Воздух» в той теме, что выбрана в Telegram или системе.
+ */
+export type Skin = 'auto' | 'air' | 'air-dark' | 'graphite' | 'blocks'
+
 export interface Settings {
-  theme: 'auto' | 'light' | 'dark'
+  skin: Skin
   lite: 'auto' | 'on' | 'off'
   haptics: boolean
   reminders: boolean
@@ -136,7 +142,7 @@ export const DEFAULT_PROFILE: Profile = {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: 'auto',
+  skin: 'auto',
   lite: 'auto',
   haptics: true,
   reminders: true,
@@ -176,6 +182,16 @@ const MAX_GENERATED = 300
 // ---------- Загрузка / сохранение ----------
 
 /** Приводит произвольный JSON (старая версия, ручная правка) к ожидаемой форме. */
+const SKINS: Skin[] = ['auto', 'air', 'air-dark', 'graphite', 'blocks']
+
+/** Настройки из старых версий: вместо оформления там была тема (auto / light / dark). */
+function normalizeSettings(base: Settings, raw: Partial<Settings> | undefined): Settings {
+  const { theme, ...rest } = (raw ?? {}) as Partial<Settings> & { theme?: string }
+  const settings = { ...base, ...rest }
+  if (!SKINS.includes(settings.skin)) settings.skin = theme === 'light' ? 'air' : theme === 'dark' ? 'air-dark' : 'auto'
+  return settings
+}
+
 export function normalizeState(raw: unknown): PersistedState {
   const base = emptyState()
   if (!raw || typeof raw !== 'object') return base
@@ -187,7 +203,7 @@ export function normalizeState(raw: unknown): PersistedState {
     version: 1,
     updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : 0,
     profile,
-    settings: { ...base.settings, ...(s.settings ?? {}) },
+    settings: normalizeSettings(base.settings, s.settings),
     progress: {
       ...base.progress,
       ...(s.progress ?? {}),

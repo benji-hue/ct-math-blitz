@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { useMemo, type ReactNode } from 'react'
-import { Award, Brain, ChevronRight, Flame, Sparkles, Target, TrendingUp, Zap } from 'lucide-react'
+import { Award, Brain, ChevronRight, Flame, MessagesSquare, Target, TrendingUp, Zap } from 'lucide-react'
 import { useSubjects } from '../content'
 import { SUBJECTS } from '../domain/subjects'
 import { ERROR_TYPES, type ErrorType, type SubjectId } from '../domain/types'
@@ -85,7 +85,7 @@ export default function ProgressScreen() {
               <span className="block text-[16px] font-bold text-fg">ИИ-разбор прогресса</span>
               <span className="block text-[13px] text-muted">Пробелы, причины ошибок и план на неделю</span>
             </span>
-            <Sparkles size={18} className="text-accent" />
+            <MessagesSquare size={18} className="text-accent" />
           </span>
         </motion.button>
       </StaggerItem>
@@ -112,7 +112,7 @@ export default function ProgressScreen() {
                   <div className="h-2.5 w-full overflow-hidden rounded-full bg-line-strong">
                     <motion.div
                       className="h-full rounded-full"
-                      style={{ marginLeft: `${fc.low}%`, background: `linear-gradient(90deg, color-mix(in oklab, ${SUBJECTS[id].color} 55%, transparent), ${SUBJECTS[id].color})` }}
+                      style={{ marginLeft: `${fc.low}%`, background: `color-mix(in oklab, ${SUBJECTS[id].color} 45%, transparent)` }}
                       initial={{ width: 0 }}
                       animate={{ width: `${fc.basis ? fc.high - fc.low : 0}%` }}
                       transition={{ type: 'spring', stiffness: 70, damping: 20 }}
@@ -166,7 +166,7 @@ export default function ProgressScreen() {
                 <span className="tabular text-[10.5px] text-muted">{w.accuracy === null ? '' : Math.round(w.accuracy * 100)}</span>
                 <motion.span
                   className="w-full rounded-t-lg rounded-b-sm"
-                  style={{ background: w.accuracy === null ? 'var(--c-line)' : 'linear-gradient(180deg, var(--c-accent), color-mix(in oklab, var(--c-accent) 35%, transparent))' }}
+                  style={{ background: w.accuracy === null ? 'var(--c-line)' : 'var(--c-accent)' }}
                   initial={{ height: 0 }}
                   animate={{ height: `${w.accuracy === null ? 4 : Math.max(6, w.accuracy * 100)}%` }}
                   transition={{ type: 'spring', stiffness: 80, damping: 16, delay: i * 0.04 }}

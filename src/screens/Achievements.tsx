@@ -36,7 +36,7 @@ export default function AchievementsScreen() {
               <Card className={cx('h-full text-center', !got && 'opacity-55')}>
                 <span
                   className={cx('mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl', got ? 'text-white' : 'bg-surface-2 text-faint')}
-                  style={got ? { background: 'linear-gradient(140deg, #ffc857, #ff7ad9 60%, #7c6cff)' } : undefined}
+                  style={got ? { background: 'var(--c-warn)' } : undefined}
                 >
                   {got ? <Award size={26} /> : <Lock size={22} />}
                 </span>

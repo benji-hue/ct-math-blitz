@@ -1,4 +1,4 @@
-import { ArrowUpRight, Brain, CalendarDays, Check, Info, Plus, RotateCcw, Sparkles, Timer, Trophy, Zap } from 'lucide-react'
+import { ArrowUpRight, Brain, CalendarDays, Check, Info, Plus, RotateCcw, MessagesSquare, Timer, Trophy, Zap } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useSubject } from '../content'
 import { SUBJECTS } from '../domain/subjects'
@@ -101,7 +101,7 @@ export function SubjectScreen({ id }: { id: SubjectId }) {
             onClick={() => push({ name: 'practice', subject: id, review: true, size: Math.min(15, due), title: 'Повторение' })}
           />
           <ActionTile
-            icon={<Sparkles size={20} />}
+            icon={<MessagesSquare size={20} />}
             color="#ff7ad9"
             title="ИИ-репетитор"
             text="Спросить по предмету"

@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
-import { Check, HeartHandshake, NotebookPen, Pause, Phone, Play, Sparkles, Wind } from 'lucide-react'
+import { Check, HeartHandshake, NotebookPen, Pause, Phone, Play, MessagesSquare, Wind } from 'lucide-react'
 import { haptic } from '../lib/telegram'
 import { useTutorBus } from '../nav/nav'
 import { Header } from '../ui/chrome'
@@ -193,7 +193,7 @@ export default function CalmScreen() {
         <StaggerItem>
           <Card glow="#a497ff">
             <p className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-fg">
-              <Sparkles size={17} className="text-accent" /> Волнение — это топливо
+              <MessagesSquare size={17} className="text-accent" /> Волнение — это топливо
             </p>
             <p className="text-[14px] leading-relaxed text-fg-2">
               Колотится сердце? Это организм мобилизуется. Скажи себе: <b className="text-fg">«Я взволнован, и это поможет мне собраться»</b>. В экспериментах такая переоценка повышала результаты на экзаменах — в отличие от попыток «успокоиться».

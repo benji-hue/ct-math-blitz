@@ -33,7 +33,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
       ref={ref}
       className={cx(
         strong ? 'glass-strong' : 'glass',
-        'relative rounded-[22px]',
+        'card relative rounded-[22px]',
         padded && 'p-4',
         glow && 'glow overflow-hidden',
         interactive && 'cursor-pointer select-none',
@@ -62,11 +62,11 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success'
 
 const BUTTON: Record<ButtonVariant, string> = {
-  primary: 'bg-accent-solid text-on-accent shadow-[0_10px_30px_-12px_var(--c-accent-solid)]',
+  primary: 'bg-accent-solid text-on-accent',
   secondary: 'glass text-fg',
   ghost: 'text-fg-2 hover:bg-surface',
   danger: 'bg-bad/12 text-bad border border-bad/25',
-  success: 'bg-good text-white shadow-[0_10px_30px_-12px_var(--c-good)]',
+  success: 'bg-good text-white',
 }
 
 type ButtonProps = Omit<HTMLMotionProps<'button'>, 'children'> & {
@@ -108,7 +108,7 @@ export function Button({
         onClick?.(e)
       }}
       className={cx(
-        'relative inline-flex items-center justify-center overflow-hidden font-semibold whitespace-nowrap transition-[opacity,background-color] duration-200',
+        'btn relative inline-flex items-center justify-center overflow-hidden font-semibold whitespace-nowrap transition-[opacity,background-color] duration-200',
         sizes[size],
         BUTTON[variant],
         block && 'w-full',
@@ -117,9 +117,6 @@ export function Button({
       )}
       {...rest}
     >
-      {variant === 'primary' && (
-        <span className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/18 to-transparent" />
-      )}
       {loading ? <Loader size={18} className="animate-spin" /> : icon}
       {children && <span className="relative">{children}</span>}
       {trailing}
@@ -195,10 +192,10 @@ export function Chip({
       aria-pressed={onClick ? Boolean(active) : undefined}
       className={cx(
         'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-200',
-        active ? 'text-white' : 'glass text-fg-2',
+        active ? (color ? 'text-white' : 'text-on-accent') : 'glass text-fg-2',
         className,
       )}
-      style={active ? { background: color ?? 'var(--c-accent-solid)', boxShadow: `0 8px 22px -12px ${color ?? 'var(--c-accent-solid)'}` } : undefined}
+      style={active ? { background: color ?? 'var(--c-accent-solid)' } : undefined}
     >
       {icon}
       {children}
@@ -235,7 +232,7 @@ export function Segmented<T extends string>({
   className?: string
 }) {
   return (
-    <div className={cx('glass flex rounded-2xl p-1', className)} role="tablist">
+    <div className={cx('seg flex rounded-2xl p-1', className)} role="tablist">
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -253,7 +250,7 @@ export function Segmented<T extends string>({
             {active && (
               <motion.span
                 layoutId={layoutId}
-                className="absolute inset-0 rounded-xl bg-surface-2 shadow-sm"
+                className="seg-pill absolute inset-0 rounded-xl"
                 transition={springSnappy}
               />
             )}

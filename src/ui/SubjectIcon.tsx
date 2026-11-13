@@ -26,8 +26,7 @@ export function SubjectIcon({ id, size = 44, className }: { id: SubjectId; size?
         width: size,
         height: size,
         borderRadius: size * 0.32,
-        background: `linear-gradient(140deg, color-mix(in oklab, ${meta.color} 82%, white) 0%, ${meta.color} 55%, color-mix(in oklab, ${meta.color} 70%, black) 100%)`,
-        boxShadow: `0 10px 24px -12px ${meta.color}, inset 0 1px 0 rgb(255 255 255 / 0.35)`,
+        background: meta.color,
       }}
     >
       {Icon ? (

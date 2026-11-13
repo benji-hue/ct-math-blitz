@@ -1,4 +1,4 @@
-import { AlertTriangle, BookMarked, MessageCircleQuestion, Sparkles, WandSparkles, Zap } from 'lucide-react'
+import { AlertTriangle, BookMarked, MessageCircleQuestion, MessagesSquare, ListPlus, Zap } from 'lucide-react'
 import { tasksOfTopic, topicById, useSubject } from '../content'
 import { SUBJECTS } from '../domain/subjects'
 import type { SubjectId } from '../domain/types'
@@ -125,7 +125,7 @@ export function TopicScreen({ subject, topicId }: { subject: SubjectId; topicId:
           <div className="grid grid-cols-2 gap-2.5">
             <Button
               variant="secondary"
-              icon={<Sparkles size={17} />}
+              icon={<MessagesSquare size={17} />}
               onClick={() => openTutor({ mode: 'lesson', subject, topicId, prompt: `Объясни тему «${topic.title}».` })}
             >
               Объясни
@@ -138,7 +138,7 @@ export function TopicScreen({ subject, topicId }: { subject: SubjectId; topicId:
               Проверь меня
             </Button>
           </div>
-          <Button block variant="secondary" icon={<WandSparkles size={17} />} onClick={() => push({ name: 'generate', subject, topicId })}>
+          <Button block variant="secondary" icon={<ListPlus size={17} />} onClick={() => push({ name: 'generate', subject, topicId })}>
             Новые задания ЦТ от ИИ
           </Button>
         </StaggerItem>

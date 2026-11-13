@@ -1,24 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import {
-  ArrowUp,
-  BookOpen,
-  Camera,
-  ChevronDown,
-  CircleStop,
-  Copy,
-  HeartPulse,
-  Lightbulb,
-  ListChecks,
-  MessageCircleQuestion,
-  RefreshCw,
-  ScanSearch,
-  Sparkles,
-  WandSparkles,
-  Trash2,
-  Undo2,
-  X,
-} from 'lucide-react'
+import { ArrowUp, BookOpen, Camera, ChevronDown, CircleStop, Copy, HeartPulse, Lightbulb, ListChecks, MessageCircleQuestion, RefreshCw, ScanSearch, MessagesSquare, ListPlus, Trash2, Undo2, X } from 'lucide-react'
 import { topicById, useSubject, loadSubject } from '../content'
 import { SUBJECT_LIST, SUBJECTS } from '../domain/subjects'
 import type { SubjectId } from '../domain/types'
@@ -35,8 +17,8 @@ import { Markdown, Tex } from '../ui/Rich'
 import { SubjectIcon } from '../ui/SubjectIcon'
 import { cx } from '../lib/cx'
 
-const MODES: { id: AiMode; label: string; icon: typeof Sparkles; hint: string }[] = [
-  { id: 'tutor', label: 'Репетитор', icon: Sparkles, hint: 'Спроси что угодно по программе ЦЭ/ЦТ' },
+const MODES: { id: AiMode; label: string; icon: typeof MessagesSquare; hint: string }[] = [
+  { id: 'tutor', label: 'Репетитор', icon: MessagesSquare, hint: 'Спроси что угодно по программе ЦЭ/ЦТ' },
   { id: 'lesson', label: 'Объясни', icon: Lightbulb, hint: 'Тема по шагам: правило, пример как в ЦТ, ловушки' },
   { id: 'socratic', label: 'Сократ', icon: MessageCircleQuestion, hint: 'Только наводящие вопросы — дойдёшь до ответа сам' },
   { id: 'check', label: 'Проверь решение', icon: ScanSearch, hint: 'Пришли решение текстом или фото — найду первую ошибку' },
@@ -228,10 +210,8 @@ export default function TutorScreen() {
   return (
     <div className="pt-1">
       <header className="mb-3 flex items-center gap-3">
-        <span className="relative flex h-11 w-11 items-center justify-center">
-          <span className={cx('orb absolute inset-0 rounded-full', streamingId ? 'opacity-100' : 'opacity-70')} />
-          <span className="absolute inset-[2.5px] rounded-full bg-solid" />
-          <Sparkles size={19} className="relative text-accent" />
+        <span className={cx('flex h-11 w-11 items-center justify-center rounded-2xl bg-surface-2 text-fg', streamingId && 'animate-pulse')}>
+          <MessagesSquare size={20} />
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="text-[20px] leading-tight font-bold tracking-[-0.02em] text-fg">ИИ-репетитор</h1>
@@ -355,7 +335,7 @@ export default function TutorScreen() {
                 }}
                 className="glass-strong mb-2 inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[13.5px] font-semibold text-accent"
               >
-                <WandSparkles size={16} /> Задания ЦТ по теме
+                <ListPlus size={16} /> Задания ЦТ по теме
               </motion.button>
             )}
             {image && (

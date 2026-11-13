@@ -9,7 +9,7 @@ import { isLite, useThemeSync } from './lib/theme'
 import { useReminderSync } from './lib/reminders'
 import { currentEntry, IMMERSIVE, useNav, type StackEntry } from './nav/nav'
 import { TabBar } from './nav/TabBar'
-import { Aurora, Screen, Toasts, useUi } from './ui/chrome'
+import { Screen, Toasts, useUi } from './ui/chrome'
 import { Skeleton } from './ui/kit'
 import { spring } from './ui/motion'
 import { TodayScreen } from './screens/Today'
@@ -164,7 +164,6 @@ export default function App() {
   return (
     // Лёгкий режим — без анимаций движения: на слабых телефонах каждая анимация списка стоит кадров.
     <MotionConfig reducedMotion={lite ? 'always' : 'user'}>
-      <Aurora />
       <AnimatePresence mode="wait" initial={false}>
         {onboarded ? (
           <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
