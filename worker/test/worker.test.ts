@@ -513,4 +513,14 @@ describe('скрытые рассуждения в чате', () => {
     expect(prompt).toContain('Твой ответ верный')
     expect(prompt).toContain('Структура выше — только для первого ответа')
   })
+  it('в продолжении разбора не показывает ключ исходного задания', () => {
+    const task = { q: 'Лампа 220 В, 880 Вт. Найдите R (в Ом).', correct: '55', given: '50', explain: 'R = 48400/880 = 55' }
+    const first = buildSystemPrompt({ mode: 'mistake', task })
+    expect(first).toContain('Правильный ответ: 55')
+    const next = buildSystemPrompt({ mode: 'mistake', task, followUp: true })
+    expect(next).toContain('Лампа 220 В')
+    expect(next).not.toContain('Правильный ответ')
+    expect(next).not.toContain('Ответ ученика')
+    expect(next).not.toContain('48400/880')
+  })
 })

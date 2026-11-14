@@ -206,6 +206,7 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
     refs: sanitizeRefs(body.refs),
     task: sanitizeTask(body.task),
     hasImage: Boolean(image),
+    followUp: messages.some((m) => m.role === 'assistant'),
   })
 
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
