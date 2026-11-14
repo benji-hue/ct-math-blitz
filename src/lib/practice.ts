@@ -47,14 +47,29 @@ function asNumber(s: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/**
+ * Число из ответа ученика, записанного «по-человечески»: «x=3», «40ом», «20м/с», «1/2», «+5».
+ * Единица — только кириллица, ° или % после числа, чтобы «3x» (выражение) не стало числом 3.
+ */
+function looseNumber(s: string): number | null {
+  const t = s.replace(/^(?:ответ:?)/, '').replace(/^[a-zа-я](?:_?\d+)?=/, '').replace(/^\+/, '')
+  const plain = asNumber(t)
+  if (plain !== null) return plain
+  const fraction = /^(-?\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/.exec(t)
+  if (fraction && Number(fraction[2]) !== 0) return Number(fraction[1]) / Number(fraction[2])
+  const withUnit = /^(-?\d+(?:\.\d+)?)[а-я°%][а-я°%/²³.\d]*$/.exec(t)
+  return withUnit ? Number(withUnit[1]) : null
+}
+
 export function checkInput(given: string, accepted: string[]): boolean {
   const g = normalizeAnswer(given)
   if (!g) return false
   for (const a of accepted) {
     const n = normalizeAnswer(a)
     if (g === n) return true
-    const gn = asNumber(g)
+    // Ключ — число, ответ ученика сравниваем как число в любой записи.
     const an = asNumber(n)
+    const gn = an === null ? null : looseNumber(g)
     if (gn !== null && an !== null && Math.abs(gn - an) < 1e-9) return true
     const gp = normalizePairs(g)
     const ap = normalizePairs(n)

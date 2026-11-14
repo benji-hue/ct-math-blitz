@@ -112,6 +112,18 @@ function sanitizeMessages(raw: unknown): ChatMessage[] {
   return out
 }
 
+/**
+ * Нужны ли модели скрытые рассуждения: при проверке решения и разборе ошибки — всегда, в
+ * остальных режимах — когда ученик прислал короткий ответ на мини-задание («15», «40 Ом»,
+ * «x = 3»): его надо сначала решить самой, а потом говорить «верно» или «неверно».
+ */
+export function needsReasoning(mode: string, messages: ChatMessage[]): boolean {
+  if (mode === 'check' || mode === 'mistake') return true
+  const last = messages[messages.length - 1]
+  const answering = messages.some((m) => m.role === 'assistant')
+  return Boolean(last && last.role === 'user' && answering && last.content.length <= 40 && /\d/.test(last.content))
+}
+
 function sanitizeRefs(raw: unknown): Reference[] {
   if (!Array.isArray(raw)) return []
   return raw
@@ -219,11 +231,11 @@ async function chat(req: Request, env: Env, ctx: ExecutionContext, caller: Calle
         maxTokens: mode === 'plan' || mode === 'explain' || mode === 'lesson' ? 1600 : 1000,
         // Низкая температура: меньше «творчества» — выдуманных фактов, опечаток и воды.
         temperature: mode === 'calm' ? 0.7 : mode === 'plan' ? 0.4 : 0.25,
-        // Скрытые рассуждения — только при проверке решения (текстом и по фото): там нет
-        // эталона. Без них Gemini однажды назвала верным решение с ошибкой в шаге 3 на фото;
-        // с ними ответ на пару секунд дольше. В разборе ошибки эталон уже в промпте.
-        // В служебной проверке уровень можно задать явно — для экспериментов.
-        reasoning: caller.eval && (body.reasoning === 'none' || body.reasoning === 'low') ? (body.reasoning as 'none' | 'low') : mode === 'check' ? ('low' as const) : ('none' as const),
+        // Скрытые рассуждения — когда надо судить, верен ли ответ ученика: проверка решения,
+        // разбор ошибки и короткий ответ на мини-задание в любом режиме. Без них Gemini пишет
+        // вывод раньше, чем посчитала: «Ответ 15 неверный… подожди-ка, 15·15 = 225, ты прав».
+        // С ними ответ на пару секунд дольше. В служебной проверке уровень задаётся явно.
+        reasoning: caller.eval && (body.reasoning === 'none' || body.reasoning === 'low') ? (body.reasoning as 'none' | 'low') : needsReasoning(mode, messages) ? ('low' as const) : ('none' as const),
       }
       // История диалога и системный промпт одни и те же для любой модели: если ответ перешёл
       // на запасную модель (кончился лимит, обрыв посреди ответа), она знает весь разговор.

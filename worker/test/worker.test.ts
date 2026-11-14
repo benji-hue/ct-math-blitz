@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { routeEvents } from '../src/api'
+import { needsReasoning, routeEvents } from '../src/api'
 import { buildSystemPrompt, buildGeneratePrompt } from '../src/ai/prompts'
 import { complete, DEFAULT_PROVIDERS, describeProviders, geminiQuota, geminiThinking, openStream, providerChain, streamWithFailover, type ChatInput, type StreamPart } from '../src/ai/providers'
 import { asNumber, numbersIn, sameAnswer, screenTask, VERIFY_CHUNK, verifiers, verifyTasks, type DraftTask } from '../src/ai/verify'
@@ -491,5 +491,26 @@ describe('смена модели на ходу: контекст разгово
     const two = { AI: ai, AI_PROVIDERS: 'workers-ai', WORKERS_AI_MODELS: 'a,b' } as unknown as Env
     const forced = await collect(streamWithFailover(two, input, undefined, { provider: 'workers-ai', model: 'a' })).catch((e) => e)
     expect(forced).toBeInstanceOf(Error)
+  })
+})
+
+describe('скрытые рассуждения в чате', () => {
+  const u = (content: string) => ({ role: 'user' as const, content })
+  const a = (content: string) => ({ role: 'assistant' as const, content })
+  it('включаются, когда надо судить об ответе ученика', () => {
+    expect(needsReasoning('check', [u('проверь')])).toBe(true)
+    expect(needsReasoning('mistake', [u('разбери')])).toBe(true)
+    // Ответ на «Проверь себя» в любом режиме.
+    expect(needsReasoning('lesson', [u('объясни закон Ома'), a('… Найди R при U = 220 В, P = 1210 Вт.'), u('40')])).toBe(true)
+    expect(needsReasoning('tutor', [u('что такое мощность'), a('…'), u('15 В')])).toBe(true)
+  })
+  it('не включаются в обычном вопросе', () => {
+    expect(needsReasoning('tutor', [u('как готовиться к ЦТ по физике?')])).toBe(false)
+    expect(needsReasoning('lesson', [u('объясни тему'), a('…'), u('дальше')])).toBe(false)
+  })
+  it('разбор ошибки сначала решает, а на «Проверь себя» не повторяет структуру', () => {
+    const prompt = buildSystemPrompt({ mode: 'mistake' })
+    expect(prompt).toContain('Твой ответ верный')
+    expect(prompt).toContain('Структура выше — только для первого ответа')
   })
 })

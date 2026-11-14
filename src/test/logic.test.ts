@@ -37,6 +37,17 @@ describe('проверка ответов', () => {
     expect(checkInput('146', ['145'])).toBe(false)
   })
 
+  it('принимает число с единицами, «x =» и дробью, но не выражение', () => {
+    expect(checkInput('40 Ом', ['40'])).toBe(true)
+    expect(checkInput('x = 3', ['3'])).toBe(true)
+    expect(checkInput('U=15 В', ['15'])).toBe(true)
+    expect(checkInput('1/2', ['0,5'])).toBe(true)
+    expect(checkInput('20 м/с', ['20'])).toBe(true)
+    expect(checkInput('3x', ['3'])).toBe(false)
+    expect(checkInput('41 Ом', ['40'])).toBe(false)
+    expect(checkInput('3', ['А1Б3В2'])).toBe(false)
+  })
+
   it('принимает соответствия в любом порядке и латиницу вместо кириллицы', () => {
     expect(checkInput('А1Б3В2', ['А1Б3В2'])).toBe(true)
     expect(checkInput('B2A1Б3', ['А1Б3В2'])).toBe(true)
