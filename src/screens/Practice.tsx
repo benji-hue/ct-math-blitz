@@ -348,7 +348,8 @@ function Session({ routeKey, subject, queue: initial, title }: { routeKey: strin
                       subject,
                       topicId: current.task.topic,
                       task: {
-                        q: current.task.q,
+                        // Рисунка ИИ не видит — передаём его описание словами.
+                        q: current.task.figure ? `${current.task.q}\nРисунок: ${current.task.figure.alt}` : current.task.q,
                         options: current.task.options,
                         correct: answerText(current.task),
                         given: describeGiven(current.task, verdict.given),

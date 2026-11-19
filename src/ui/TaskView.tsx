@@ -7,6 +7,7 @@ import { cx } from '../lib/cx'
 import { Badge, tap } from './kit'
 import { Tex } from './Rich'
 import { GraphRenderer } from './GraphRenderer'
+import { FigureView } from './FigureView'
 import { springSnappy, springSoft } from './motion'
 
 export const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е']
@@ -91,6 +92,7 @@ export function TaskBody({
       <div className="mb-5 text-[17px] leading-relaxed text-fg">
         <Tex>{task.q}</Tex>
       </div>
+      {task.figure && <FigureView figure={task.figure} className="mb-5" />}
 
       {task.kind === 'choice' && task.options && multi && !verdict && (
         <p className="mb-2.5 px-1 text-[12.5px] font-semibold text-accent">Верных вариантов несколько — отметь все</p>

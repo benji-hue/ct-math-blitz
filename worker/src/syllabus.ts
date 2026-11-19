@@ -45,7 +45,8 @@ export function trustedTopic(subject: string, topicId: string, part: 'A' | 'B' |
   const content = CONTENT[subject as SubjectId]
   const topic = content?.topics.find((t) => t.id === topicId)
   if (!content || !topic) return null
-  const pool = content.tasks.filter((t) => t.topic === topicId && t.source === 'original' && (part === 'mixed' || t.part === part))
+  // Образцы для ИИ — только задания без рисунка и графика: модель их не видит и не нарисует.
+  const pool = content.tasks.filter((t) => t.topic === topicId && t.source === 'original' && !t.figure && !t.graph && (part === 'mixed' || t.part === part))
   // Образцы — от трудных к простым: планку задают задания III–V, если они есть.
   const shuffled = pool
     .map((t) => ({ t, key: random() }))

@@ -40,6 +40,37 @@ export interface Topic {
 
 export type TaskKind = 'choice' | 'input'
 
+/** Точка чертежа [x, y]; y растёт вверх, как на координатной плоскости. */
+export type FigPoint = [number, number]
+
+/** Подпись ставится с этой стороны от точки: n — сверху, se — снизу справа, c — по центру. */
+export type FigPos = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | 'c'
+
+/** Элемент чертежа. */
+export type FigShape =
+  /** Отрезок; ticks — штрихи равных отрезков. */
+  | { line: [FigPoint, FigPoint]; dash?: boolean; bold?: boolean; ticks?: 1 | 2 }
+  /** Ломаная или многоугольник; fill — закрашенная (штрихованная на бумаге) фигура. */
+  | { poly: FigPoint[]; closed?: boolean; dash?: boolean; bold?: boolean; fill?: boolean }
+  | { circle: FigPoint; r: number }
+  | { dot: FigPoint }
+  | { text: string; at: FigPoint; pos?: FigPos }
+  /** Сектор круговой диаграммы: углы в градусах против часовой стрелки от оси x. */
+  | { sector: FigPoint; r: number; from: number; to: number; text?: string }
+  /** Ось или вектор со стрелкой на конце. */
+  | { arrow: [FigPoint, FigPoint] }
+
+/** Чертёж к заданию. Рисуется своим SVG-рендерером и подстраивается под тему оформления. */
+export interface Figure {
+  /** Видимая область: [xMin, yMin, xMax, yMax]. */
+  view: [number, number, number, number]
+  /** Клетчатый фон с шагом dx × dy (по умолчанию 1 × 1); area — где рисовать клетки (по умолчанию везде). */
+  grid?: { dx?: number; dy?: number; area?: [number, number, number, number] }
+  shapes: FigShape[]
+  /** Что изображено — словами: для экранного диктора и для ИИ-репетитора, который рисунка не видит. */
+  alt: string
+}
+
 /**
  * Раздел спецификации РИКЗ — по нему пробник собирается так же, как настоящий вариант.
  * Математика: numbers, expressions, equations, functions, geometry. Физика: mech, thermo,
@@ -77,6 +108,8 @@ export interface Task {
   trap?: string
   /** График к условию (рисуется своим SVG-рендерером). */
   graph?: GraphSpec | null
+  /** Чертёж к условию: пирамида, развёртка, параллельные прямые, клетчатая плоскость. */
+  figure?: Figure
   /** original — задания проекта, blitz — формулы из блица, ai — сгенерированы ИИ */
   source?: 'original' | 'blitz' | 'ai'
 }

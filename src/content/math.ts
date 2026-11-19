@@ -3,6 +3,7 @@ import type { SubjectContent, Task } from '../domain/types'
 import type { Category, Question } from '../types'
 import { kit, r } from './kit'
 import { mathBank } from './math-bank'
+import { mathCt } from './math-ct'
 
 const { topic, a, b } = kit('math')
 
@@ -261,5 +262,5 @@ const blitzTasks: Task[] = (blitz as unknown as Question[]).map((q) => ({
   source: 'blitz',
 }))
 
-const content: SubjectContent = { topics, tasks: [...tasks, ...mathBank, ...blitzTasks] }
+const content: SubjectContent = { topics, tasks: [...tasks, ...mathBank, ...mathCt, ...blitzTasks] }
 export default content

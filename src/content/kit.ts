@@ -1,7 +1,7 @@
 import type { SubjectId, Task, Topic } from '../domain/types'
 
 type Level = Task['level']
-type Extra = Partial<Pick<Task, 'hint' | 'trap' | 'graph' | 'block'>>
+type Extra = Partial<Pick<Task, 'hint' | 'trap' | 'graph' | 'figure' | 'block'>>
 
 /** LaTeX без двойного экранирования: r`$\frac{a}{b}$`. */
 export const r = String.raw

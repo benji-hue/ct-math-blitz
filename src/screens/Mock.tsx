@@ -16,6 +16,7 @@ import { Button, Card, Counter, Empty, notify, ProgressRing, Skeleton } from '..
 import { springSoft } from '../ui/motion'
 import { Markdown, Tex } from '../ui/Rich'
 import { TaskBody, TaskMeta } from '../ui/TaskView'
+import { FigureView } from '../ui/FigureView'
 import { ReportTask } from '../ui/ReportTask'
 import { cx } from '../lib/cx'
 
@@ -205,6 +206,7 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
               <div className="text-[15px] leading-relaxed text-fg">
                 <Tex>{results[review].p.task.q}</Tex>
               </div>
+              {results[review].p.task.figure && <FigureView figure={results[review].p.task.figure} />}
               <p className="text-[14px] text-fg-2">
                 Твой ответ:{' '}
                 <span className={results[review].ok ? 'text-good' : 'text-bad'}>

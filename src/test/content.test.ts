@@ -77,6 +77,31 @@ describe('контент предметов', () => {
     })
   }
 
+  it('чертежи: есть описание словами, все точки внутри области рисунка', () => {
+    let count = 0
+    for (const [, c] of all) {
+      for (const t of c.tasks) {
+        const f = t.figure
+        if (!f) continue
+        count++
+        const [x0, y0, x1, y1] = f.view
+        expect(x0 < x1 && y0 < y1, t.id).toBe(true)
+        expect(f.alt.trim().length, `${t.id}: описание рисунка`).toBeGreaterThan(20)
+        expect(f.shapes.length, t.id).toBeGreaterThan(0)
+        const inside = ([x, y]: [number, number]) => x >= x0 - 1e-9 && x <= x1 + 1e-9 && y >= y0 - 1e-9 && y <= y1 + 1e-9
+        for (const s of f.shapes) {
+          const pts: [number, number][] =
+            'line' in s ? s.line : 'poly' in s ? s.poly : 'arrow' in s ? s.arrow : 'dot' in s ? [s.dot] : 'sector' in s ? [[s.sector[0] - s.r, s.sector[1] - s.r], [s.sector[0] + s.r, s.sector[1] + s.r]] : 'circle' in s ? [[s.circle[0] - s.r, s.circle[1] - s.r], [s.circle[0] + s.r, s.circle[1] + s.r]] : [s.at]
+          for (const p of pts) expect(inside(p), `${t.id}: точка ${p} вне области ${f.view}`).toBe(true)
+        }
+        // «см. рис.» в условии без рисунка и рисунок без ссылки в условии — опечатка банка.
+        expect(/рис|рисун/i.test(t.q), `${t.id}: у задания есть рисунок, но условие на него не ссылается`).toBe(true)
+      }
+      for (const t of c.tasks) if (/см\. рис/.test(t.q)) expect(Boolean(t.figure || t.graph), `${t.id}: «см. рис.» без рисунка`).toBe(true)
+    }
+    expect(count).toBeGreaterThan(0)
+  })
+
   it('у собственных заданий части A верный вариант стоит первым (так проверяется банк)', () => {
     for (const [, c] of all) for (const t of c.tasks) if (t.source === 'original' && t.kind === 'choice' && !Array.isArray(t.answer)) expect(t.answer, t.id).toBe(0)
   })
