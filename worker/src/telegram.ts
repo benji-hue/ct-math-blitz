@@ -102,11 +102,12 @@ export class TelegramError extends Error {
   }
 }
 
-export async function botApi<T = unknown>(token: string, method: string, body: Record<string, unknown>): Promise<T> {
+export async function botApi<T = unknown>(token: string, method: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal,
   })
   const data = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: T; description?: string; error_code?: number }
   if (!data.ok) throw new TelegramError(data.description ?? `Telegram ${method} failed`, data.error_code ?? res.status)

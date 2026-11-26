@@ -124,10 +124,12 @@ try {
     // Адрес вебхука от деплоя к деплою тот же — сообщения, пришедшие во время выкладки, не выбрасываем.
     drop_pending_updates: false,
   })
-  await call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Открыть Крок', web_app: { url: miniApp } } })
+  await call('setChatMenuButton', { menu_button: { type: 'commands' } })
   await call('setMyCommands', {
     commands: [
-      { command: 'start', description: 'Крок — подготовка к ЦЭ и ЦТ' },
+      { command: 'start', description: 'Открыть Крок' },
+      { command: 'menu', description: 'Меню Крока' },
+      { command: 'upload', description: 'Скинуть вариант прошлых лет' },
       { command: 'site', description: 'Сайт в браузере с тем же прогрессом' },
       { command: 'remind', description: 'Напоминания: вкл/выкл' },
       { command: 'stats', description: 'Моя серия и повторения' },

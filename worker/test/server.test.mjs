@@ -427,6 +427,7 @@ describe('бот: ящик предложений', () => {
     expect(start.text).toContain('Я Крок')
     expect(start.reply_markup.inline_keyboard).toEqual([
       [{ text: 'Открыть Крок', web_app: { url: 'https://krok.example/app/' } }],
+      [{ text: '📎 Скинуть вариант', callback_data: 'upload' }],
       [{ text: '📮 Ящик предложений', callback_data: 'suggest' }],
     ])
     const prompt = await hook({
@@ -443,6 +444,115 @@ describe('бот: ящик предложений', () => {
 
     expect((await hook(message(4, '/inbox'))).text).not.toContain(suggestion.message.text)
     expect((await hook(message(5, '/inbox', { from: { id: 42 }, chat: chat(42) }))).text).toContain(suggestion.message.text)
+  })
+})
+
+describe('бот: приём вариантов', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('принимает PDF, объединяет фото, фильтрует и выдаёт архив только владельцу', async () => {
+    const db = openDatabase(':memory:', migrations)
+    const env = {
+      ...buildEnv({ BOT_TOKEN: '10:test', WEBHOOK_SECRET: 'hook', BOT_FEEDBACK_ADMIN_ID: '42', GEMINI_API_KEY: 'test' }, wrangler),
+      DB: db,
+    }
+    const fileBytes = {
+      'test.pdf': new TextEncoder().encode('%PDF-1.4\n%%EOF'),
+      'other.pdf': new TextEncoder().encode('%PDF-1.6\n%%EOF'),
+      'p1.jpg': Uint8Array.of(255, 216, 255, 224, 0, 1, 2, 3),
+      'p2.jpg': Uint8Array.of(255, 216, 255, 224, 0, 1, 2, 4),
+      'fake.pdf': new TextEncoder().encode('this is not a PDF'),
+    }
+    const seen = []
+    const calls = []
+    let check = { verdict: 'accept', exam: 'ct', subject: 'math', year: 2024 }
+    let failGemini = false
+    vi.stubGlobal('fetch', async (input, init) => {
+      const url = new URL(input)
+      const path = url.pathname.split('/').at(-1)
+      const ok = (result) => Response.json({ ok: true, result })
+      if (url.host === 'generativelanguage.googleapis.com') {
+        seen.push(JSON.parse(init.body).contents[0].parts.slice(1).map((part) => part.inlineData))
+        if (failGemini) return new Response(null, { status: 503 })
+        return Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(check) }] } }] })
+      }
+      if (url.pathname.startsWith('/file/')) return new Response(fileBytes[path])
+      const body = JSON.parse(init.body)
+      calls.push({ path, body })
+      if (path === 'getFile') return ok({ file_path: 'uploads/' + body.file_id, file_size: fileBytes[body.file_id].length })
+      return ok({})
+    })
+    const background = []
+    const ctx = { waitUntil: (p) => background.push(p), passThroughOnException() {} }
+    const chat = (id) => ({ id, type: 'private' })
+    let counter = 0
+    const hook = async (payload) => {
+      const req = new Request('https://krok.example/bot/webhook', {
+        method: 'POST',
+        headers: { 'X-Telegram-Bot-Api-Secret-Token': 'hook', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ update_id: ++counter, ...payload }),
+      })
+      expect((await worker.fetch(req, env, ctx)).status).toBe(200)
+      await Promise.all(background.splice(0))
+      return calls.at(-1).body
+    }
+    const message = (payload, id = 7) => hook({ message: { message_id: counter + 1, chat: chat(id), from: { id }, ...payload } })
+    const tap = (data) => hook({ callback_query: { id: 'q' + counter, from: { id: 7 }, message: { message_id: 1, chat: chat(7) }, data } })
+    const pdf = (name) => message({ document: { file_id: name, file_unique_id: name, mime_type: 'application/pdf' } })
+    const photo = (name) => message({ photo: [{ file_id: name, file_unique_id: name }] })
+    const archive = async () => (await db.prepare('SELECT subject, exam, exam_year FROM bot_variant_archive ORDER BY id').all()).results
+
+    const menu = await message({ text: '/menu' })
+    expect(menu.reply_markup.inline_keyboard.flat().map(({ callback_data }) => callback_data)).toContain('suggest')
+    expect(menu.reply_markup.inline_keyboard.flat().map(({ callback_data }) => callback_data)).toContain('upload')
+    const picker = await tap('upload')
+    expect(picker.reply_markup.inline_keyboard.flat()).toHaveLength(14)
+
+    await tap('variant:subject:math')
+    const accepted = await pdf('test.pdf')
+    expect(accepted.text).toContain('Сохранил')
+    expect(seen[0][0]).toMatchObject({ mimeType: 'application/pdf' })
+    expect(await archive()).toEqual([{ subject: 'math', exam: 'ct', exam_year: 2024 }])
+
+    await tap('variant:subject:math')
+    expect((await pdf('test.pdf')).text).toContain('уже есть')
+    expect(seen).toHaveLength(1)
+
+    await tap('variant:subject:rus')
+    expect((await pdf('other.pdf')).text).toContain('не совпадает')
+    expect(await archive()).toHaveLength(1)
+
+    const selected = await tap('variant:subject:math')
+    const checkPhotos = selected.reply_markup.inline_keyboard[0][0].callback_data
+    await photo('p1.jpg')
+    await photo('p2.jpg')
+    expect(seen).toHaveLength(2)
+    expect((await tap(checkPhotos)).text).toContain('Сохранил')
+    expect(seen[2].map(({ mimeType }) => mimeType)).toEqual(['image/jpeg', 'image/jpeg'])
+    expect(await archive()).toHaveLength(2)
+
+    expect((await message({ text: '/variants' })).text).toContain('доступна владельцу')
+    expect((await message({ text: '/variants' }, 42)).text).toContain('ЦТ 2024')
+    const file = await message({ text: '/variant_file 1' }, 42)
+    expect(file).toEqual({ chat_id: 42, document: 'test.pdf' })
+
+    await db.prepare('DELETE FROM usage WHERE kind = ?1').bind('variant').run()
+    await tap('variant:subject:math')
+    expect((await pdf('fake.pdf')).text).toContain('Файл не открылся')
+    expect(seen).toHaveLength(3)
+    expect(await archive()).toHaveLength(2)
+
+    // Ошибка Gemini оставляет PDF в черновике и позволяет повторить без загрузки заново.
+    await db.prepare('DELETE FROM usage WHERE kind = ?1').bind('variant').run()
+    await tap('variant:subject:math')
+    failGemini = true
+    const retry = await pdf('other.pdf')
+    expect(retry.text).toContain('Материалы остались')
+    failGemini = false
+    check = { verdict: 'unreadable', exam: 'unknown', subject: 'unknown', year: null }
+    expect((await tap(retry.reply_markup.inline_keyboard[0][0].callback_data)).text).toContain('Не хватает разборчивых страниц')
+    expect(await archive()).toHaveLength(2)
+    expect((await usage(env, 'tg:7')).chat).toBeUndefined()
   })
 })
 

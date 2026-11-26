@@ -1,6 +1,7 @@
 import { confirmLogin, linkLogin, pendingLogin, siteLoginUrl } from './account'
 import { complete } from './ai/providers'
 import { buildSystemPrompt } from './ai/prompts'
+import { receiveVariantFile, sendArchivedVariant, showSubjectPicker, showVariantArchive, variantCallback, type VariantMessage } from './bot-variants'
 import { minskDay, type Env } from './env'
 import { consume, limitFor, track } from './limits'
 import { botApi, openAppKeyboard, TelegramError } from './telegram'
@@ -14,8 +15,7 @@ import { botApi, openAppKeyboard, TelegramError } from './telegram'
 
 interface Update {
   update_id: number
-  message?: {
-    message_id: number
+  message?: VariantMessage & {
     chat: { id: number; type: string }
     from?: { id: number; first_name?: string; username?: string; is_bot?: boolean }
     text?: string
@@ -38,13 +38,15 @@ const WELCOME = `👋 <b>Привет! Я Крок.</b>
 • Выбери предмет и пройди короткую тренировку.
 • После пробника открой разбор ошибок или попроси ИИ объяснить трудный шаг.
 
-Короткий вопрос по учёбе можно задать прямо здесь. Если есть идея для Крока, нажми «Ящик предложений».`
+Короткий вопрос по учёбе можно задать прямо здесь. Если есть идея или вариант экзамена прошлых лет, выбери нужную кнопку ниже.`
 
 const SUGGESTION_PROMPT = `📮 Ящик предложений
 
 Чего не хватает в Кроке или что стоит улучшить? Ответь на это сообщение текстом до 800 символов.`
 
 const HELP = `Команды:
+/menu — кнопки Крока
+/upload — отправить вариант РТ, ЦТ или ЦЭ
 /start — приветствие и вход в Крок
 /site — открыть сайт с тем же прогрессом
 /remind — включить или выключить напоминания
@@ -82,7 +84,11 @@ async function showBotMenu(env: Env, chatId: number, text: string) {
     text,
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: [...(app?.inline_keyboard ?? []), [{ text: '📮 Ящик предложений', callback_data: 'suggest' }]],
+      inline_keyboard: [
+        ...(app?.inline_keyboard ?? []),
+        [{ text: '📎 Скинуть вариант', callback_data: 'upload' }],
+        [{ text: '📮 Ящик предложений', callback_data: 'suggest' }],
+      ],
     },
   })
 }
@@ -154,6 +160,10 @@ async function handleCallback(env: Env, query: NonNullable<Update['callback_quer
     await askSuggestion(env, chatId)
     return
   }
+  if ((data === 'upload' || data.startsWith('variant:')) && chatId && query.message?.chat.type === 'private') {
+    await botApi(env.BOT_TOKEN!, 'answerCallbackQuery', { callback_query_id: query.id })
+    return data === 'upload' ? showSubjectPicker(env, chatId) : variantCallback(env, chatId, data)
+  }
   if (data === 'login_cancel') {
     await botApi(env.BOT_TOKEN!, 'answerCallbackQuery', { callback_query_id: query.id, text: 'Вход отменён' })
     await edit('Вход на сайт отменён.')
@@ -181,13 +191,20 @@ async function handleUpdate(env: Env, update: Update): Promise<void> {
     message.reply_to_message.from?.id === Number(env.BOT_TOKEN!.split(':')[0])
 
   if (command === '/suggest') return askSuggestion(env, chatId)
+  if (command === '/upload') return showSubjectPicker(env, chatId)
+  if (command === '/variants' || command === '/variant_file') {
+    if (!message.from || String(message.from.id) !== env.BOT_FEEDBACK_ADMIN_ID) return reply(env, chatId, 'Эта команда доступна владельцу Крока.')
+    return command === '/variants' ? showVariantArchive(env, chatId, payload) : sendArchivedVariant(env, chatId, payload)
+  }
   if (command === '/inbox') {
     if (message.from && String(message.from.id) === env.BOT_FEEDBACK_ADMIN_ID) return showInbox(env, chatId, payload)
     return reply(env, chatId, 'Чтобы оставить предложение, нажми /suggest.')
   }
   if (suggestionReply && !text.startsWith('/')) return storeSuggestion(env, chatId, update.update_id, text)
+  if (message.document || message.photo?.length) return receiveVariantFile(env, chatId, message)
   if (!text) return
 
+  if (command === '/menu') return showBotMenu(env, chatId, '<b>Меню Крока</b>')
   if (command === '/start' && payload?.startsWith('login_')) {
     await upsertUser(env, message.from)
     await askLogin(env, chatId, payload.slice(6))
