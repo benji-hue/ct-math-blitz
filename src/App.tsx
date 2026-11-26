@@ -69,7 +69,7 @@ function renderRoute(entry: StackEntry): ReactNode {
     case 'calm':
       return <CalmScreen />
     case 'blitz':
-      return <BlitzScreen />
+      return <BlitzScreen key={r.subject} subject={r.subject} />
     case 'generate':
       return <GenerateScreen subject={r.subject} topicId={r.topicId} />
     case 'analysis':

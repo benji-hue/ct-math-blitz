@@ -1,7 +1,10 @@
 import { ALL_QUESTIONS, prepare, shuffle } from './questions'
-import type { RuntimeQuestion } from '../types'
+import type { BlitzSubject, Question, RuntimeQuestion } from '../types'
 
-const KEY = 'ct-math-blitz:progress:v1'
+const KEYS: Record<BlitzSubject, string> = {
+  math: 'ct-math-blitz:progress:v1',
+  rus: 'krok:rus-blitz:progress:v1',
+}
 
 export interface Progress {
   version: 1
@@ -33,9 +36,9 @@ export const EMPTY_PROGRESS: Progress = {
 /** Two clean first-try answers promote a formula to «Освоено». */
 export const MASTERY_THRESHOLD = 2
 
-export function loadProgress(): Progress {
+export function loadProgress(subject: BlitzSubject = 'math'): Progress {
   try {
-    const stored = localStorage.getItem(KEY)
+    const stored = localStorage.getItem(KEYS[subject])
     if (!stored) return EMPTY_PROGRESS
     const parsed = JSON.parse(stored) as Partial<Progress>
     if (parsed.version !== 1) return EMPTY_PROGRESS
@@ -46,9 +49,9 @@ export function loadProgress(): Progress {
   }
 }
 
-export function saveProgress(progress: Progress): void {
+export function saveProgress(progress: Progress, subject: BlitzSubject = 'math'): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(progress))
+    localStorage.setItem(KEYS[subject], JSON.stringify(progress))
   } catch {
     // Nothing to do: progress simply will not survive a reload.
   }
@@ -82,8 +85,8 @@ export function isMastered(progress: Progress, id: string): boolean {
   return (progress.firstTry[id] ?? 0) >= MASTERY_THRESHOLD
 }
 
-export function masteredCount(progress: Progress): number {
-  return ALL_QUESTIONS.filter((q) => isMastered(progress, q.id)).length
+export function masteredCount(progress: Progress, questions: readonly Question[] = ALL_QUESTIONS): number {
+  return questions.filter((q) => isMastered(progress, q.id)).length
 }
 
 /** Ids the player keeps getting wrong, worst first. */
@@ -95,10 +98,10 @@ export function mistakeBankIds(progress: Progress): string[] {
 }
 
 /** A round assembled purely from the player's own mistake bank. */
-export function buildMistakeRound(progress: Progress, size: number): RuntimeQuestion[] {
+export function buildMistakeRound(progress: Progress, size: number, questions: readonly Question[] = ALL_QUESTIONS): RuntimeQuestion[] {
   const ranked = mistakeBankIds(progress)
   const picked = ranked
-    .map((id) => ALL_QUESTIONS.find((q) => q.id === id))
+    .map((id) => questions.find((q) => q.id === id))
     .filter((q): q is NonNullable<typeof q> => Boolean(q))
     .slice(0, size)
   return shuffle(picked).map((q) => prepare(q))

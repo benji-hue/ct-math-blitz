@@ -1,7 +1,7 @@
 import raw from '../data/ct_questions.json'
-import type { Category, Question, RuntimeQuestion } from '../types'
+import type { Category, MathQuestion, Question, RuntimeQuestion } from '../types'
 
-export const ALL_QUESTIONS = raw as unknown as Question[]
+export const ALL_QUESTIONS = raw as unknown as MathQuestion[]
 
 /** Fisher–Yates, non-mutating. */
 export function shuffle<T>(items: readonly T[]): T[] {
@@ -39,10 +39,10 @@ export interface RoundOptions {
  * Builds a blitz round: questions are drawn evenly across the selected
  * categories, and items the player has not yet mastered come first.
  */
-export function buildRound({ size, categories, mastered = {} }: RoundOptions): RuntimeQuestion[] {
+export function buildRound({ size, categories, mastered = {} }: RoundOptions, questions: readonly Question[] = ALL_QUESTIONS): RuntimeQuestion[] {
   const pool = categories?.length
-    ? ALL_QUESTIONS.filter((q) => categories.includes(q.category))
-    : ALL_QUESTIONS
+    ? questions.filter((q) => categories.includes(q.category))
+    : questions
 
   const fresh = shuffle(pool.filter((q) => (mastered[q.id] ?? 0) < 2))
   const known = shuffle(pool.filter((q) => (mastered[q.id] ?? 0) >= 2))
@@ -78,7 +78,7 @@ export function buildRound({ size, categories, mastered = {} }: RoundOptions): R
 /** Seconds on the clock for a given question. */
 export function secondsFor(q: Question): number {
   if (q.type === 'true_false') return 15
-  if (q.type === 'graph_id') return 20
+  if (q.type === 'graph_id' || q.type === 'grammar') return 20
   return 18
 }
 

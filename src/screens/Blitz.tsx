@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, BookOpen, Check, ChevronDown, Eye, Flame, Lightbulb, ListChecks, Lock, PencilRuler, Play, RotateCcw, Search, MessagesSquare, Target, Timer, Trophy, TriangleAlert, X } from 'lucide-react'
+import { RUSSIAN_CATEGORIES, RUSSIAN_QUESTIONS } from '../data/rus-blitz'
 import { ALL_QUESTIONS, buildRound, comboMultiplier, prepare, scoreFor, secondsFor } from '../lib/questions'
 import {
   buildMistakeRound,
@@ -13,7 +14,7 @@ import {
   saveProgress,
   type Progress,
 } from '../lib/storage'
-import { CATEGORIES, CATEGORY_META, TYPE_LABEL, type Category, type Example, type Question, type RuntimeQuestion } from '../types'
+import { CATEGORIES, CATEGORY_META, TYPE_LABEL, type BlitzSubject, type Category, type Example, type Question, type RuntimeQuestion } from '../types'
 import { setClosingConfirmation } from '../lib/telegram'
 import { useBackGuard, useNav, useTutorBus } from '../nav/nav'
 import { burstConfetti, Header, Sheet } from '../ui/chrome'
@@ -22,12 +23,6 @@ import { springSoft } from '../ui/motion'
 import { Tex } from '../ui/Rich'
 import { GraphRenderer } from '../ui/GraphRenderer'
 import { cx } from '../lib/cx'
-
-/**
- * Блиц по формулам и ловушкам РИКЗ — первый модуль проекта, перенесённый
- * в общий дизайн. Логика раундов и прогресс (localStorage) не менялись,
- * поэтому у старых пользователей всё сохранилось.
- */
 
 type View = { name: 'hub' } | { name: 'game'; queue: RuntimeQuestion[]; title: string; nonce: number } | { name: 'result'; summary: RoundSummary; record: boolean } | { name: 'book' }
 
@@ -39,13 +34,17 @@ interface RoundSummary {
   mistakes: Question[]
 }
 
-export default function BlitzScreen() {
-  const [progress, setProgress] = useState<Progress>(loadProgress)
+export default function BlitzScreen({ subject }: { subject: BlitzSubject }) {
+  const russian = subject === 'rus'
+  const questions = russian ? RUSSIAN_QUESTIONS : ALL_QUESTIONS
+  const categories = russian ? RUSSIAN_CATEGORIES : CATEGORIES
+  const title = russian ? 'Блиц частей речи' : 'Блиц формул'
+  const [progress, setProgress] = useState<Progress>(() => loadProgress(subject))
   const [view, setView] = useState<View>({ name: 'hub' })
   const [size, setSize] = useState<'10' | '12' | '15'>('12')
   const [selected, setSelected] = useState<Category[]>([])
 
-  useEffect(() => saveProgress(progress), [progress])
+  useEffect(() => saveProgress(progress, subject), [progress, subject])
 
   // «Назад» внутри блица возвращает в его меню, а не закрывает экран.
   useBackGuard(() => {
@@ -58,6 +57,8 @@ export default function BlitzScreen() {
     if (!queue.length) return
     setView({ name: 'game', queue, title, nonce: Date.now() })
   }
+
+  const startRound = () => start(buildRound({ size: Number(size), categories: selected, mastered: progress.firstTry }, questions), russian ? title : 'Скоростной блиц')
 
   if (view.name === 'game') {
     return (
@@ -81,7 +82,7 @@ export default function BlitzScreen() {
       <Result
         summary={view.summary}
         record={view.record}
-        onRestart={() => start(buildRound({ size: Number(size), categories: selected.length ? selected : null, mastered: progress.firstTry }), 'Скоростной блиц')}
+        onRestart={startRound}
         onMistakes={() => start(view.summary.mistakes.map((q) => prepare(q)), 'Работа над ошибками')}
         onHub={() => setView({ name: 'hub' })}
       />
@@ -90,17 +91,17 @@ export default function BlitzScreen() {
 
   if (view.name === 'book') return <FormulaBook progress={progress} onBack={() => setView({ name: 'hub' })} />
 
-  const mastered = masteredCount(progress)
+  const mastered = masteredCount(progress, questions)
   const mistakes = mistakeBankIds(progress).length
 
   return (
     <div>
-      <Header close title="Блиц формул" subtitle="Математика · ловушки РИКЗ" />
+      <Header close title={title} subtitle={russian ? 'Русский язык' : 'Математика · ловушки РИКЗ'} />
       <div className="mb-4 grid grid-cols-3 gap-2.5">
         <Card className="!p-3">
           <Target size={16} className="text-accent" />
           <p className="tabular mt-1.5 text-[18px] font-bold text-fg">
-            {mastered}/{ALL_QUESTIONS.length}
+            {mastered}/{questions.length}
           </p>
           <p className="text-[11px] text-muted">освоено</p>
         </Card>
@@ -118,7 +119,7 @@ export default function BlitzScreen() {
 
       <p className="mb-2 px-1 text-[13px] text-muted">Темы · ничего не выбрано — все</p>
       <div className="mb-4 flex flex-wrap gap-2">
-        {CATEGORIES.map((c) => (
+        {categories.map((c) => (
           <Chip
             key={c}
             color={CATEGORY_META[c].accent}
@@ -148,19 +149,23 @@ export default function BlitzScreen() {
           block
           size="lg"
           icon={<Play size={18} fill="currentColor" />}
-          onClick={() => start(buildRound({ size: Number(size), categories: selected.length ? selected : null, mastered: progress.firstTry }), 'Скоростной блиц')}
+          onClick={startRound}
         >
           Начать блиц
         </Button>
-        <Button block variant="secondary" icon={<ListChecks size={18} />} disabled={!mistakes} onClick={() => start(buildMistakeRound(progress, 12), 'Работа над ошибками')}>
+        <Button block variant="secondary" icon={<ListChecks size={18} />} disabled={!mistakes} onClick={() => start(buildMistakeRound(progress, 12, questions), 'Работа над ошибками')}>
           Работа над ошибками {mistakes ? `· ${mistakes}` : ''}
         </Button>
-        <Button block variant="secondary" icon={<BookOpen size={18} />} onClick={() => setView({ name: 'book' })}>
-          Формульник
-        </Button>
+        {!russian && (
+          <Button block variant="secondary" icon={<BookOpen size={18} />} onClick={() => setView({ name: 'book' })}>
+            Формульник
+          </Button>
+        )}
       </div>
       <p className="mt-4 px-1 text-[12.5px] leading-relaxed text-muted">
-        15–20 секунд на вопрос, комбо до ×3. Ошибся — разбираем ловушку и выбираем верный вариант заново: активное припоминание закрепляет правило.
+        {russian
+          ? '20 секунд на вопрос. Если ошибёшься, увидишь правило и сможешь ответить ещё раз.'
+          : '15–20 секунд на вопрос, комбо до ×3. Ошибся — разбираем ловушку и выбираем верный вариант заново: активное припоминание закрепляет правило.'}
       </p>
     </div>
   )
@@ -365,7 +370,7 @@ function Game({
       <motion.section key={key} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={springSoft}>
         <div className="mb-3 flex flex-wrap gap-1.5">
           <Badge color={meta.accent}>{meta.label}</Badge>
-          <Badge color="var(--c-muted)">{TYPE_LABEL[current.q.type]}</Badge>
+          {current.q.type !== 'grammar' && <Badge color="var(--c-muted)">{TYPE_LABEL[current.q.type]}</Badge>}
           {current.isReview && (
             <Badge color="var(--c-warn)">
               <RotateCcw size={11} /> повтор
@@ -421,7 +426,7 @@ function Game({
         }}
         title={
           <span className="flex items-center gap-2 text-bad">
-            {timedOut ? <Timer size={20} /> : <TriangleAlert size={20} />} {timedOut ? 'Время вышло' : 'Попались в ловушку'}
+            {timedOut ? <Timer size={20} /> : <TriangleAlert size={20} />} {timedOut ? 'Время вышло' : current.q.type === 'grammar' ? 'Разберём ответ' : 'Попались в ловушку'}
           </span>
         }
       >
@@ -467,12 +472,14 @@ function Explanation({ item, chosen }: { item: RuntimeQuestion; chosen: string |
           </p>
         </Card>
       )}
-      <Card className="!border-warn/30">
-        <p className="eyebrow mb-1 !text-warn">Ловушка РИКЗ</p>
-        <p className="text-[14px] leading-relaxed text-fg-2">
-          <Tex>{common_trap}</Tex>
-        </p>
-      </Card>
+      {common_trap && (
+        <Card className="!border-warn/30">
+          <p className="eyebrow mb-1 !text-warn">Ловушка РИКЗ</p>
+          <p className="text-[14px] leading-relaxed text-fg-2">
+            <Tex>{common_trap}</Tex>
+          </p>
+        </Card>
+      )}
       {mnemonic && (
         <Card className="flex gap-2.5">
           <Lightbulb size={17} className="mt-0.5 shrink-0 text-accent" />
@@ -481,7 +488,7 @@ function Explanation({ item, chosen }: { item: RuntimeQuestion; chosen: string |
           </p>
         </Card>
       )}
-      <WorkedExample example={item.q.example} defaultOpen />
+      {item.q.type !== 'grammar' && <WorkedExample example={item.q.example} defaultOpen />}
     </div>
   )
 }

@@ -107,8 +107,11 @@ export function SubjectScreen({ id }: { id: SubjectId }) {
             text="Спросить по предмету"
             onClick={() => openTutor({ mode: 'tutor', subject: id })}
           />
+          {id === 'rus' && (
+            <ActionTile icon={<Brain size={20} />} color="#3ee0a1" title="Блиц частей речи" text="Части речи и обороты · на время" onClick={() => push({ name: 'blitz', subject: 'rus' })} wide />
+          )}
           {id === 'math' && (
-            <ActionTile icon={<Brain size={20} />} color="#3ee0a1" title="Блиц формул" text="119 формул и ловушек" onClick={() => push({ name: 'blitz' })} wide />
+            <ActionTile icon={<Brain size={20} />} color="#3ee0a1" title="Блиц формул" text="119 формул и ловушек" onClick={() => push({ name: 'blitz', subject: 'math' })} wide />
           )}
         </StaggerItem>
 

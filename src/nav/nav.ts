@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { create } from 'zustand'
 import type { SubjectId } from '../domain/types'
+import type { BlitzSubject } from '../types'
 import type { AiMode } from '../lib/store'
 import type { TaskContext } from '../lib/ai'
 
@@ -19,7 +20,7 @@ export type Route =
   | { name: 'library'; subject?: SubjectId }
   | { name: 'calendar' }
   | { name: 'calm' }
-  | { name: 'blitz' }
+  | { name: 'blitz'; subject: BlitzSubject }
   | { name: 'generate'; subject: SubjectId; topicId: string }
   | { name: 'analysis' }
   | { name: 'achievements' }

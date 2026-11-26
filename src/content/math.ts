@@ -1,6 +1,6 @@
 import blitz from '../data/ct_questions.json'
 import type { SubjectContent, Task } from '../domain/types'
-import type { Category, Question } from '../types'
+import type { MathCategory, MathQuestion } from '../types'
 import { kit, r } from './kit'
 import { mathBank } from './math-bank'
 import { mathCt } from './math-ct'
@@ -238,7 +238,7 @@ const tasks: Task[] = [
 
 // ---------- Блиц: 119 формул и ловушек тоже становятся заданиями банка ----------
 
-const CATEGORY_TOPIC: Record<Category, string> = {
+const CATEGORY_TOPIC: Record<MathCategory, string> = {
   trigonometry: 'm.trig',
   stereometry: 'm.stereometry',
   planimetry: 'm.planimetry',
@@ -247,7 +247,7 @@ const CATEGORY_TOPIC: Record<Category, string> = {
   progressions: 'm.progressions',
 }
 
-const blitzTasks: Task[] = (blitz as unknown as Question[]).map((q) => ({
+const blitzTasks: Task[] = (blitz as unknown as MathQuestion[]).map((q) => ({
   id: `blitz_${q.id}`,
   subject: 'math',
   topic: CATEGORY_TOPIC[q.category],

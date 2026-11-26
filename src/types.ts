@@ -7,9 +7,12 @@ export const CATEGORIES = [
   'progressions',
 ] as const
 
-export type Category = (typeof CATEGORIES)[number]
+export type MathCategory = (typeof CATEGORIES)[number]
+export type GrammarCategory = 'parts_of_speech' | 'words_in_context' | 'phrase_types'
+export type Category = MathCategory | GrammarCategory
+export type BlitzSubject = 'math' | 'rus'
 
-export type QuestionType = 'formula_choice' | 'graph_id' | 'true_false'
+type MathQuestionType = 'formula_choice' | 'graph_id' | 'true_false'
 
 export type GraphType = 'parabola' | 'hyperbola' | 'linear' | 'trig'
 
@@ -55,17 +58,27 @@ export interface Example {
   answer: string
 }
 
-export interface Question {
+interface QuestionData {
   id: string
-  category: Category
-  type: QuestionType
   question: string
   options: string[]
   correct_index: number
   graph_spec: GraphSpec | null
   learning: Learning
+}
+
+export interface MathQuestion extends QuestionData {
+  category: MathCategory
+  type: MathQuestionType
   example: Example
 }
+
+export interface GrammarQuestion extends QuestionData {
+  category: GrammarCategory
+  type: 'grammar'
+}
+
+export type Question = MathQuestion | GrammarQuestion
 
 /** A question with its options shuffled for this particular round. */
 export interface RuntimeQuestion {
@@ -85,9 +98,12 @@ export const CATEGORY_META: Record<Category, { label: string; short: string; acc
   functions_graphs: { label: 'Функции и графики', short: 'Графики', accent: '#fbbf24' },
   powers_and_logs: { label: 'Степени и логарифмы', short: 'Логарифмы', accent: '#a78bfa' },
   progressions: { label: 'Прогрессии', short: 'Прогрессии', accent: '#fb923c' },
+  parts_of_speech: { label: 'Части речи', short: 'Части речи', accent: '#38bdf8' },
+  words_in_context: { label: 'Слова в контексте', short: 'Слова в контексте', accent: '#a78bfa' },
+  phrase_types: { label: 'Обороты', short: 'Обороты', accent: '#34d399' },
 }
 
-export const TYPE_LABEL: Record<QuestionType, string> = {
+export const TYPE_LABEL: Record<MathQuestionType, string> = {
   formula_choice: 'Формула',
   graph_id: 'График',
   true_false: 'Верно / Неверно',
