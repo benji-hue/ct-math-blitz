@@ -12,6 +12,8 @@ export interface Env {
 
   BOT_TOKEN?: string
   WEBHOOK_SECRET?: string
+  /** Telegram ID владельца с доступом к /inbox в личном чате. */
+  BOT_FEEDBACK_ADMIN_ID?: string
   GEMINI_API_KEY?: string
   OPENAI_API_KEY?: string
 

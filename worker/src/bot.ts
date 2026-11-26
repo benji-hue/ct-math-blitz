@@ -1,7 +1,7 @@
 import { confirmLogin, linkLogin, pendingLogin, siteLoginUrl } from './account'
 import { complete } from './ai/providers'
 import { buildSystemPrompt } from './ai/prompts'
-import type { Env } from './env'
+import { minskDay, type Env } from './env'
 import { consume, limitFor, track } from './limits'
 import { botApi, openAppKeyboard, TelegramError } from './telegram'
 
@@ -19,6 +19,7 @@ interface Update {
     chat: { id: number; type: string }
     from?: { id: number; first_name?: string; username?: string; is_bot?: boolean }
     text?: string
+    reply_to_message?: { from?: { id: number }; text?: string }
   }
   /** Нажатие инлайн-кнопки — подтверждение входа на сайте. */
   callback_query?: {
@@ -29,25 +30,29 @@ interface Update {
   }
 }
 
-const WELCOME = (name: string) =>
-  `Привет, ${name || 'абитуриент'}! Я «Крок» — ИИ-репетитор для выпускников: готовлю к ЦЭ и ЦТ.
+const WELCOME = `👋 <b>Привет! Я Крок.</b>
 
-Что умею:
-• задания по всем 14 предметам в формате РИКЗ;
-• повторение по алгоритму FSRS — ровно тогда, когда тема начинает забываться;
-• разбор ошибок и проверка решений по фото;
-• прогноз балла и план подготовки.
+Помогаю готовиться к ЦЭ и ЦТ в Беларуси. В приложении есть задания по 14 предметам, пробники на время и блицы по математике и русскому языку.
 
-Открой приложение кнопкой ниже. А короткий вопрос можно задать прямо здесь, в чате.`
+<b>С чего начать?</b>
+• Выбери предмет и пройди короткую тренировку.
+• После пробника открой разбор ошибок или попроси ИИ объяснить трудный шаг.
+
+Короткий вопрос по учёбе можно задать прямо здесь. Если есть идея для Крока, нажми «Ящик предложений».`
+
+const SUGGESTION_PROMPT = `📮 Ящик предложений
+
+Чего не хватает в Кроке или что стоит улучшить? Ответь на это сообщение текстом до 800 символов.`
 
 const HELP = `Команды:
-/start — открыть приложение
-/site — открыть сайт в браузере с тем же прогрессом
+/start — приветствие и вход в Крок
+/site — открыть сайт с тем же прогрессом
 /remind — включить или выключить напоминания
-/stats — моя серия и повторения
-/help — эта справка
+/stats — серия занятий и повторения
+/suggest — ящик предложений
+/help — справка
 
-Просто напиши вопрос — например «как найти вершину параболы» — и я коротко отвечу.`
+Короткий вопрос по учёбе можно написать прямо в этот чат.`
 
 async function upsertUser(env: Env, from: { id: number; first_name?: string; username?: string } | undefined): Promise<void> {
   if (!env.DB || !from) return
@@ -68,6 +73,52 @@ async function reply(env: Env, chatId: number, text: string, withButton = false)
     link_preview_options: { is_disabled: true },
     ...(withButton ? { reply_markup: openAppKeyboard(env.MINI_APP_URL, 'Открыть Крок') } : {}),
   })
+}
+
+async function showBotMenu(env: Env, chatId: number, text: string) {
+  const app = openAppKeyboard(env.MINI_APP_URL, 'Открыть Крок')
+  await botApi(env.BOT_TOKEN!, 'sendMessage', {
+    chat_id: chatId,
+    text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [...(app?.inline_keyboard ?? []), [{ text: '📮 Ящик предложений', callback_data: 'suggest' }]],
+    },
+  })
+}
+
+async function askSuggestion(env: Env, chatId: number) {
+  if (!env.DB) return reply(env, chatId, 'Ящик предложений пока недоступен.')
+  await botApi(env.BOT_TOKEN!, 'sendMessage', {
+    chat_id: chatId,
+    text: SUGGESTION_PROMPT,
+    reply_markup: { force_reply: true, input_field_placeholder: 'Например, добавить блиц по пунктуации' },
+  })
+}
+
+async function storeSuggestion(env: Env, chatId: number, updateId: number, text: string) {
+  if (!env.DB) return reply(env, chatId, 'Ящик предложений пока недоступен.')
+  if (!text || text.length > 800) return reply(env, chatId, 'Ответь на сообщение ящика текстом до 800 символов.')
+  const used = await consume(env, `tg:${chatId}`, 'feedback')
+  if (used > limitFor(env, 'feedback', false)) return reply(env, chatId, 'На сегодня ящик принял все твои предложения. Можно отправить ещё завтра.')
+  const saved = await env.DB.prepare(
+    'INSERT INTO bot_feedback (update_id, body, created_at) VALUES (?1, ?2, ?3) ON CONFLICT(update_id) DO NOTHING',
+  ).bind(updateId, text, Date.now()).run().catch(() => null)
+  return reply(env, chatId, saved?.success ? 'Спасибо! Твоё предложение сохранено.' : 'Предложение не сохранилось. Попробуй отправить его ещё раз немного позже.')
+}
+
+async function showInbox(env: Env, chatId: number, before: string | undefined) {
+  if (!env.DB) return reply(env, chatId, 'Ящик предложений пока недоступен.')
+  const cursor = before ? Number(before) : Number.MAX_SAFE_INTEGER
+  if (!Number.isSafeInteger(cursor) || cursor < 1) return reply(env, chatId, 'Открой ящик командой /inbox.')
+  const { results } = await env.DB.prepare(
+    'SELECT id, body, created_at FROM bot_feedback WHERE id < ?1 ORDER BY id DESC LIMIT 5',
+  ).bind(cursor).all<{ id: number; body: string; created_at: number }>()
+  if (!results.length) return reply(env, chatId, 'Здесь пока нет предложений.')
+  const page = results.slice(0, 4)
+  const entries = page.map((item) => `№${item.id} · ${minskDay(item.created_at)}\n${item.body}`)
+  const next = results.length > 4 ? `\n\nБолее ранние предложения — /inbox ${page[3].id}` : ''
+  return reply(env, chatId, `📮 Ящик предложений\n\n${entries.join('\n\n')}${next}`)
 }
 
 // ---------- Вход на сайте через бота (account.ts) ----------
@@ -98,6 +149,11 @@ async function handleCallback(env: Env, query: NonNullable<Update['callback_quer
     await botApi(env.BOT_TOKEN!, 'answerCallbackQuery', { callback_query_id: query.id })
     return
   }
+  if (data === 'suggest' && chatId && query.message?.chat.type === 'private') {
+    await botApi(env.BOT_TOKEN!, 'answerCallbackQuery', { callback_query_id: query.id })
+    await askSuggestion(env, chatId)
+    return
+  }
   if (data === 'login_cancel') {
     await botApi(env.BOT_TOKEN!, 'answerCallbackQuery', { callback_query_id: query.id, text: 'Вход отменён' })
     await edit('Вход на сайт отменён.')
@@ -117,10 +173,20 @@ async function handleCallback(env: Env, query: NonNullable<Update['callback_quer
 async function handleUpdate(env: Env, update: Update): Promise<void> {
   if (update.callback_query) return handleCallback(env, update.callback_query)
   const message = update.message
-  if (!message?.text || message.chat.type !== 'private' || message.from?.is_bot) return
+  if (!message || message.chat.type !== 'private' || message.from?.is_bot) return
   const chatId = message.chat.id
-  const text = message.text.trim()
+  const text = message.text?.trim() ?? ''
   const [command, payload] = text.split(/\s+/)
+  const suggestionReply = message.reply_to_message?.text === SUGGESTION_PROMPT &&
+    message.reply_to_message.from?.id === Number(env.BOT_TOKEN!.split(':')[0])
+
+  if (command === '/suggest') return askSuggestion(env, chatId)
+  if (command === '/inbox') {
+    if (message.from && String(message.from.id) === env.BOT_FEEDBACK_ADMIN_ID) return showInbox(env, chatId, payload)
+    return reply(env, chatId, 'Чтобы оставить предложение, нажми /suggest.')
+  }
+  if (suggestionReply && !text.startsWith('/')) return storeSuggestion(env, chatId, update.update_id, text)
+  if (!text) return
 
   if (command === '/start' && payload?.startsWith('login_')) {
     await upsertUser(env, message.from)
@@ -130,7 +196,7 @@ async function handleUpdate(env: Env, update: Update): Promise<void> {
   if (command === '/start') {
     await upsertUser(env, message.from)
     await track(env, 'bot_start').catch(() => {})
-    await reply(env, chatId, WELCOME(message.from?.first_name ?? ''), true)
+    await showBotMenu(env, chatId, WELCOME)
     return
   }
   if (command === '/site') {
@@ -145,7 +211,7 @@ async function handleUpdate(env: Env, update: Update): Promise<void> {
     return
   }
   if (command === '/help') {
-    await reply(env, chatId, HELP, true)
+    await showBotMenu(env, chatId, HELP)
     return
   }
   if (command === '/remind') {

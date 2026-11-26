@@ -193,7 +193,7 @@ export function createAssets(root) {
 // ---------- Окружение ----------
 
 /** Секреты и настройки, которых нет среди vars в wrangler.jsonc. */
-const EXTRA_KEYS = ['BOT_TOKEN', 'WEBHOOK_SECRET', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'INIT_DATA_TTL']
+const EXTRA_KEYS = ['BOT_TOKEN', 'WEBHOOK_SECRET', 'BOT_FEEDBACK_ADMIN_ID', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'INIT_DATA_TTL']
 
 /**
  * Переменные воркера: значения по умолчанию — из vars в wrangler.jsonc (один источник

@@ -16,7 +16,7 @@ if (!target || !botToken) {
 }
 
 const secrets = { BOT_TOKEN: botToken, WEBHOOK_SECRET: webhookSecret(botToken) }
-// Ключи внешних моделей — только если заданы в секретах репозитория.
-for (const name of ['GEMINI_API_KEY', 'OPENAI_API_KEY']) if (process.env[name]) secrets[name] = process.env[name]
+// Необязательные секреты репозитория.
+for (const name of ['GEMINI_API_KEY', 'OPENAI_API_KEY', 'BOT_FEEDBACK_ADMIN_ID']) if (process.env[name]) secrets[name] = process.env[name]
 writeFileSync(target, JSON.stringify(secrets), { mode: 0o600 })
 console.log(`Секреты воркера подготовлены (${Object.keys(secrets).join(', ')})`)

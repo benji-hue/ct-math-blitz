@@ -49,6 +49,7 @@ process.stdout.write(
     KROK_DOMAIN: domain,
     KROK_IMAGE: e.KROK_IMAGE,
     BOT_TOKEN: e.BOT_TOKEN,
+    BOT_FEEDBACK_ADMIN_ID: e.BOT_FEEDBACK_ADMIN_ID,
     GEMINI_API_KEY: e.GEMINI_API_KEY,
     OPENAI_API_KEY: e.OPENAI_API_KEY,
     CLOUDFLARE_ACCOUNT_ID: hasQwen ? accountId : '',

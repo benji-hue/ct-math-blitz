@@ -391,6 +391,61 @@ describe('бот: подтверждение входа на сайте', () => 
   })
 })
 
+describe('бот: ящик предложений', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('показывает меню, сохраняет ответ один раз и даёт читать ящик только владельцу', async () => {
+    const db = openDatabase(':memory:', migrations)
+    const env = {
+      ...buildEnv({ BOT_TOKEN: '10:test', WEBHOOK_SECRET: 'hook', BOT_FEEDBACK_ADMIN_ID: '42', MINI_APP_URL: 'https://krok.example/app/' }, wrangler),
+      DB: db,
+    }
+    const background = []
+    const calls = []
+    const ctx = { waitUntil: (p) => background.push(p), passThroughOnException() {} }
+    vi.stubGlobal('fetch', async (url, init) => {
+      calls.push({ method: String(url).split('/').pop(), body: JSON.parse(init.body) })
+      return new Response(JSON.stringify({ ok: true, result: {} }))
+    })
+    async function hook(update) {
+      const req = new Request('https://krok.example/bot/webhook', {
+        method: 'POST',
+        headers: { 'X-Telegram-Bot-Api-Secret-Token': 'hook', 'Content-Type': 'application/json' },
+        body: JSON.stringify(update),
+      })
+      expect((await worker.fetch(req, env, ctx)).status).toBe(200)
+      await Promise.all(background.splice(0))
+      return calls.at(-1).body
+    }
+    const chat = (id) => ({ id, type: 'private' })
+    const from = { id: 7, first_name: 'Ника' }
+    const message = (update_id, text, extra = {}) => ({
+      update_id,
+      message: { message_id: update_id, from, chat: chat(from.id), text, ...extra },
+    })
+    const start = await hook(message(1, '/start'))
+    expect(start.text).toContain('Я Крок')
+    expect(start.reply_markup.inline_keyboard).toEqual([
+      [{ text: 'Открыть Крок', web_app: { url: 'https://krok.example/app/' } }],
+      [{ text: '📮 Ящик предложений', callback_data: 'suggest' }],
+    ])
+    const prompt = await hook({
+      update_id: 2,
+      callback_query: { id: 'idea', from, data: 'suggest', message: { message_id: 1, chat: chat(from.id) } },
+    })
+    expect(calls.at(-2).method).toBe('answerCallbackQuery')
+    expect(prompt.reply_markup.force_reply).toBe(true)
+    const suggestion = message(3, 'Добавить блиц по пунктуации.', { reply_to_message: { from: { id: 10 }, text: prompt.text } })
+    expect((await hook(suggestion)).text).toContain('сохранено')
+    await hook(suggestion)
+    expect((await db.prepare('SELECT body FROM bot_feedback').all()).results).toEqual([{ body: suggestion.message.text }])
+    expect((await usage(env, 'tg:7')).chat).toBeUndefined()
+
+    expect((await hook(message(4, '/inbox'))).text).not.toContain(suggestion.message.text)
+    expect((await hook(message(5, '/inbox', { from: { id: 42 }, chat: chat(42) }))).text).toContain(suggestion.message.text)
+  })
+})
+
 describe('общий банк заданий от ИИ и жалобы', async () => {
   const { saveToBank, takeFromBank, reportTask, reportedTasks } = await import('../src/bank.ts')
   const { trustedTopic } = await import('../src/syllabus.ts')
