@@ -19,6 +19,7 @@ export interface Source {
   /** Пусто — источник общий для всех предметов. */
   subjects?: SubjectId[]
   free: boolean
+  mockArchive?: boolean
 }
 
 export const SOURCES: Source[] = [
@@ -144,6 +145,66 @@ export const SOURCES: Source[] = [
     kind: 'tests',
     subjects: ['rus'],
     free: true,
+  },
+  {
+    id: 'rus-drt-demo',
+    title: 'ДРТ · русский язык',
+    description: 'Официальный демонстрационный вариант РИКЗ, апрель 2026 года.',
+    url: 'https://result.rikc.by/ru/free/test/rus.pdf?v.04.2026=',
+    kind: 'official',
+    subjects: ['rus'],
+    free: true,
+    mockArchive: true,
+  },
+  {
+    id: 'rus-rt-1-2026',
+    title: 'РТ 2025/26 · этап I, вариант 2',
+    description: 'Тематическое консультирование с условиями, ответами и объяснениями.',
+    url: 'https://ru.scribd.com/document/974450750/01-1-2r-akdhfg-1',
+    kind: 'tests',
+    subjects: ['rus'],
+    free: true,
+    mockArchive: true,
+  },
+  {
+    id: 'rus-rt-3-2026',
+    title: 'РТ 2025/26 · этап III, вариант 1',
+    description: 'Тематическое консультирование с условиями, ответами и объяснениями.',
+    url: 'https://ru.scribd.com/document/1058629336/01-3-1r-akdgfr',
+    kind: 'tests',
+    subjects: ['rus'],
+    free: true,
+    mockArchive: true,
+  },
+  {
+    id: 'rus-ce-archive',
+    title: 'Архив ЦЭ · 2023–2025',
+    description: 'Экзаменационные варианты с решениями.',
+    url: 'https://rus_ce.sdamgia.ru/methodist',
+    kind: 'tests',
+    subjects: ['rus'],
+    free: true,
+    mockArchive: true,
+  },
+  {
+    id: 'rus-ct-archive',
+    title: 'Архив ЦТ · 2011–2025',
+    description: 'Экзаменационные работы и демонстрационные варианты прошлых лет.',
+    url: 'https://rus_ct.sdamgia.ru/methodist',
+    kind: 'tests',
+    subjects: ['rus'],
+    free: true,
+    mockArchive: true,
+  },
+  {
+    id: 'rus-ct-2026',
+    title: 'ЦТ 2026 · вариант 2',
+    description: 'Экзаменационный вариант по русскому языку.',
+    url: 'https://rus-ct.sdamgia.ru/pdf/f727355fedd6ebea49a67eb1dae4eb49.pdf',
+    kind: 'tests',
+    subjects: ['rus'],
+    free: true,
+    mockArchive: true,
   },
   {
     id: 'reshu-hist',

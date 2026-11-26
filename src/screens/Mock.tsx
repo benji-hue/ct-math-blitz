@@ -1,15 +1,16 @@
 import { motion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Flag, MessagesSquare, Timer, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ArrowUpRight, Flag, MessagesSquare, Timer, X } from 'lucide-react'
 import { topicById, useSubject } from '../content'
 import { SUBJECTS } from '../domain/subjects'
+import { sourcesFor } from '../domain/sources'
 import type { SubjectId, Task } from '../domain/types'
 import { BLOCK_TITLES, BLUEPRINTS, blockOf } from '../domain/blueprint'
 import { answerText, buildBlueprintMock, buildMock, givenText, isCorrect, isMulti, prepareTask, type Given, type PreparedTask } from '../lib/practice'
 import { formatDuration, pluralN } from '../lib/format'
 import { gradeFromAnswer } from '../lib/srs'
 import { useStore } from '../lib/store'
-import { setClosingConfirmation } from '../lib/telegram'
+import { openExternal, setClosingConfirmation } from '../lib/telegram'
 import { useBackGuard, useNav, useTutorBus } from '../nav/nav'
 import { burstConfetti, Header, Sheet, useNow } from '../ui/chrome'
 import { Button, Card, Counter, Empty, notify, ProgressRing, Skeleton } from '../ui/kit'
@@ -34,6 +35,7 @@ export default function MockScreen({ subject }: { subject: SubjectId }) {
   const [full, setFull] = useState(false)
   const [variant, setVariant] = useState('')
   const fixedVariant = content?.mockVariants?.find((entry) => entry.title === variant)
+  const archives = sourcesFor(subject).filter((source) => source.mockArchive)
   const examTasks = content?.tasks.filter((t) => t.source !== 'blitz').length ?? 0
   const size = fixedVariant?.tasks.length ?? (blueprint ? (full ? blueprint.length : 10) : Math.min(12, examTasks))
   const minutes = Math.max(10, Math.round((meta.format.minutes * size) / meta.format.tasks))
@@ -94,7 +96,7 @@ export default function MockScreen({ subject }: { subject: SubjectId }) {
           </p>
           <p className="mt-2 text-[14px] leading-relaxed text-fg-2">
             {fixedVariant
-              ? 'Часть A — 10 заданий. В A6 и A10 выбери все верные ответы. Часть B — 20 заданий. Ответы и решения откроются после завершения.'
+              ? `Часть A — ${meta.format.partA} заданий. ${subject === 'math' ? 'В A6 и A10 выбери все верные ответы.' : 'В каждом задании выбери все верные ответы.'} Часть B — ${meta.format.partB} заданий. Ответы и решения откроются после завершения.`
               : blueprint
               ? `Как настоящий вариант по спецификации РИКЗ: часть A — ${meta.format.partA}, часть B — ${meta.format.partB}, разделы и уровни I–V в тех же долях, сложность растёт к концу. В части A бывает несколько верных вариантов. Ответы проверим в конце.`
               : `Пропорция частей A и B и темп — как на ЦТ (${meta.format.tasks} заданий за ${meta.format.minutes} минут). Ответы проверим в конце, к любому заданию можно вернуться.`}
@@ -109,6 +111,21 @@ export default function MockScreen({ subject }: { subject: SubjectId }) {
         <Button block size="lg" icon={<Timer size={19} />} onClick={() => setStarted(true)}>
           Начать — время пошло
         </Button>
+        {archives.length > 0 && (
+          <details className="glass mt-4 rounded-[18px] px-4 py-3">
+            <summary className="cursor-pointer text-sm font-semibold text-fg">Варианты прошлых лет</summary>
+            <ul className="mt-2 divide-y divide-line">
+              {archives.map((source) => (
+                <li key={source.id}>
+                  <button type="button" onClick={() => openExternal(source.url)} className="flex w-full items-center justify-between gap-3 py-2.5 text-left text-sm text-fg">
+                    {source.title}
+                    <ArrowUpRight size={16} className="shrink-0 text-muted" aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
     )
   }

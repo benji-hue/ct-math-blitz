@@ -36,6 +36,47 @@ describe('контент предметов', () => {
     }
   })
 
+  it('пробники по русскому покрывают разделы РИКЗ и сохраняют порядок A1–B22', async () => {
+    const { blockOf } = await import('../domain/blueprint')
+    const { isCorrect } = await import('../lib/practice')
+    const content = await loadSubject('rus')
+    const variants = content.mockVariants!
+    expect(variants).toHaveLength(3)
+    const tasks = variants.flatMap((variant) => variant.tasks)
+    expect(new Set(tasks.map((task) => task.id)).size).toBe(120)
+    const bank = new Set(content.tasks)
+
+    for (const { tasks } of variants) {
+      expect(tasks.map((task) => task.part).join('')).toBe('A'.repeat(18) + 'B'.repeat(22))
+      expect(tasks.every((task) => bank.has(task))).toBe(true)
+      for (const task of tasks.slice(0, 18)) {
+        const correct = task.answer as number[]
+        expect(correct.length, task.id).toBeGreaterThanOrEqual(2)
+        expect(isCorrect(task, correct), task.id).toBe(true)
+        expect(isCorrect(task, correct.slice(0, -1)), task.id).toBe(false)
+      }
+      for (const task of tasks.slice(36)) {
+        const answer = (task.answer as string[])[0]
+        expect(answer, task.id).toMatch(/^А\dБ\dВ\dГ\d$/)
+        expect(isCorrect(task, answer.toLowerCase()), task.id).toBe(true)
+      }
+      const sections = Object.fromEntries([...new Set(tasks.map(blockOf))].map(
+        (block) => [block, tasks.filter((task) => blockOf(task) === block).length],
+      ))
+      expect(sections).toEqual({
+        'ru.orth': 13,
+        'ru.punct': 9,
+        'ru.lexis': 2,
+        'ru.norms': 3,
+        'ru.phon': 1,
+        'ru.wordform': 2,
+        'ru.morph': 4,
+        'ru.syntax': 3,
+        'ru.text': 3,
+      })
+    }
+  })
+
   it('у каждого из 14 предметов есть темы и задания', () => {
     expect(all).toHaveLength(14)
     for (const [id, c] of all) {

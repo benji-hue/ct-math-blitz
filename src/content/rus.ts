@@ -1,6 +1,7 @@
 import type { SubjectContent } from '../domain/types'
 import { kit } from './kit'
 import { rusBank } from './rus-bank'
+import { rusMockVariants } from './rus-mocks'
 
 const { topic, a, b } = kit('rus')
 
@@ -261,5 +262,9 @@ const tasks = [
   b('ne2', 'r.ne', 4, 'Выпишите слово, которое пишется с НЕ слитно: (не)навидеть, (не)был, (не)смотрел, (не)спеша.', ['ненавидеть'], '«Ненавидеть» без НЕ не употребляется — пишется слитно. «Не был», «не смотрел» (глаголы) и «не спеша» (деепричастие) — раздельно.'),
 ]
 
-const content: SubjectContent = { topics, tasks: [...tasks, ...rusBank] }
+const content: SubjectContent = {
+  topics,
+  tasks: [...tasks, ...rusBank, ...rusMockVariants.flatMap((variant) => variant.tasks)],
+  mockVariants: rusMockVariants,
+}
 export default content
