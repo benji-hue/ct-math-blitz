@@ -117,6 +117,7 @@ export interface Task {
 export interface SubjectContent {
   topics: Topic[]
   tasks: Task[]
+  mockVariants?: { title: string; tasks: Task[] }[]
 }
 
 export type ErrorType = 'knowledge' | 'misapplied' | 'calc' | 'careless' | 'misread' | 'time'

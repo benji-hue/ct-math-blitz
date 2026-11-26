@@ -19,6 +19,23 @@ function balancedDollars(text: string): boolean {
 }
 
 describe('контент предметов', () => {
+  it('полные варианты РТ-1 имеют собственные задания и сохраняют формат бланка', async () => {
+    const content = await loadSubject('math')
+    const variants = content.mockVariants!
+    expect(variants).toHaveLength(2)
+    const tasks = variants.flatMap((variant) => variant.tasks)
+    expect(new Set(tasks.map((task) => task.id)).size).toBe(60)
+    const bank = new Set(content.tasks.map((task) => task.id))
+
+    for (const { tasks } of variants) {
+      expect(tasks.map((task) => task.part).join('')).toBe('A'.repeat(10) + 'B'.repeat(20))
+      expect(tasks.every((task) => bank.has(task.id))).toBe(true)
+      expect(tasks.slice(0, 10).flatMap((task, index) => Array.isArray(task.answer) ? [index + 1] : [])).toEqual([6, 10])
+      for (const task of tasks.slice(10, 12)) expect((task.answer as string[])[0]).toMatch(/^А\dБ\dВ\d$/)
+      for (const task of tasks.slice(12)) expect((task.answer as string[])[0]).toMatch(/^-?\d+$/)
+    }
+  })
+
   it('у каждого из 14 предметов есть темы и задания', () => {
     expect(all).toHaveLength(14)
     for (const [id, c] of all) {

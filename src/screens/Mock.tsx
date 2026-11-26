@@ -1,16 +1,16 @@
 import { motion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Flag, Timer, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Flag, MessagesSquare, Timer, X } from 'lucide-react'
 import { topicById, useSubject } from '../content'
 import { SUBJECTS } from '../domain/subjects'
-import type { SubjectId } from '../domain/types'
+import type { SubjectId, Task } from '../domain/types'
 import { BLOCK_TITLES, BLUEPRINTS, blockOf } from '../domain/blueprint'
-import { answerText, buildBlueprintMock, buildMock, givenText, isCorrect, isMulti, type Given, type PreparedTask } from '../lib/practice'
+import { answerText, buildBlueprintMock, buildMock, givenText, isCorrect, isMulti, prepareTask, type Given, type PreparedTask } from '../lib/practice'
 import { formatDuration, pluralN } from '../lib/format'
 import { gradeFromAnswer } from '../lib/srs'
 import { useStore } from '../lib/store'
 import { setClosingConfirmation } from '../lib/telegram'
-import { useBackGuard, useNav } from '../nav/nav'
+import { useBackGuard, useNav, useTutorBus } from '../nav/nav'
 import { burstConfetti, Header, Sheet, useNow } from '../ui/chrome'
 import { Button, Card, Counter, Empty, notify, ProgressRing, Skeleton } from '../ui/kit'
 import { springSoft } from '../ui/motion'
@@ -32,8 +32,10 @@ export default function MockScreen({ subject }: { subject: SubjectId }) {
   const blueprint = BLUEPRINTS[subject]
   // По спецификации: полный вариант (30 заданий, 210 минут) или короткий — каждое третье задание.
   const [full, setFull] = useState(false)
+  const [variant, setVariant] = useState('')
+  const fixedVariant = content?.mockVariants?.find((entry) => entry.title === variant)
   const examTasks = content?.tasks.filter((t) => t.source !== 'blitz').length ?? 0
-  const size = blueprint ? (full ? blueprint.length : 10) : Math.min(12, examTasks)
+  const size = fixedVariant?.tasks.length ?? (blueprint ? (full ? blueprint.length : 10) : Math.min(12, examTasks))
   const minutes = Math.max(10, Math.round((meta.format.minutes * size) / meta.format.tasks))
 
   if (!content) {
@@ -57,7 +59,20 @@ export default function MockScreen({ subject }: { subject: SubjectId }) {
     return (
       <div>
         <Header close title="Пробник" subtitle={meta.title} />
-        {blueprint && (
+        {!!content.mockVariants?.length && (
+          <label className="mb-3 block text-sm font-semibold text-fg">
+            Вариант
+            <select
+              className="glass mt-1 block w-full rounded-[18px] bg-surface p-3 text-fg"
+              value={variant}
+              onChange={(event) => setVariant(event.target.value)}
+            >
+              <option value="">Случайный по спецификации</option>
+              {content.mockVariants.map(({ title }) => <option key={title}>{title}</option>)}
+            </select>
+          </label>
+        )}
+        {blueprint && !fixedVariant && (
           <div className="mb-3 grid grid-cols-2 gap-2">
             {[false, true].map((f) => (
               <button
@@ -78,7 +93,9 @@ export default function MockScreen({ subject }: { subject: SubjectId }) {
             {pluralN(size, ['задание', 'задания', 'заданий'])} · {minutes} мин
           </p>
           <p className="mt-2 text-[14px] leading-relaxed text-fg-2">
-            {blueprint
+            {fixedVariant
+              ? 'Часть A — 10 заданий. В A6 и A10 выбери все верные ответы. Часть B — 20 заданий. Ответы и решения откроются после завершения.'
+              : blueprint
               ? `Как настоящий вариант по спецификации РИКЗ: часть A — ${meta.format.partA}, часть B — ${meta.format.partB}, разделы и уровни I–V в тех же долях, сложность растёт к концу. В части A бывает несколько верных вариантов. Ответы проверим в конце.`
               : `Пропорция частей A и B и темп — как на ЦТ (${meta.format.tasks} заданий за ${meta.format.minutes} минут). Ответы проверим в конце, к любому заданию можно вернуться.`}
           </p>
@@ -96,22 +113,29 @@ export default function MockScreen({ subject }: { subject: SubjectId }) {
     )
   }
 
-  return <MockRun subject={subject} size={size} minutes={minutes} />
+  return <MockRun subject={subject} size={size} minutes={minutes} fixedTasks={fixedVariant?.tasks} />
 }
 
-function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number; minutes: number }) {
+function MockRun({ subject, size, minutes, fixedTasks }: { subject: SubjectId; size: number; minutes: number; fixedTasks?: Task[] }) {
   const meta = SUBJECTS[subject]
   const content = useSubject(subject)!
   const recordAttempt = useStore((s) => s.recordAttempt)
   const saveMock = useStore((s) => s.saveMock)
   const pop = useNav((s) => s.pop)
+  const openTutor = useTutorBus((s) => s.open)
   const seen = useStore((s) => s.progress.srs)
   const tasks = useMemo<PreparedTask[]>(() => {
+    if (fixedTasks) {
+      return fixedTasks.map((task, index) => ({
+        ...prepareTask(task),
+        slot: task.part === 'A' ? 'A' + (index + 1) : 'B' + (index - meta.format.partA + 1),
+      }))
+    }
     const blueprint = BLUEPRINTS[subject]
     return blueprint ? buildBlueprintMock(content, blueprint, size, new Set(Object.keys(seen))) : buildMock(content, size, meta.format.partA / meta.format.tasks)
     // Вариант собирается один раз на запуск: прогресс меняется в конце и не должен его пересобрать.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [content, size, meta, subject])
+  }, [content, size, meta, subject, fixedTasks])
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<(Given | null)[]>(() => tasks.map(() => null))
   const [inputs, setInputs] = useState<string[]>(() => tasks.map(() => ''))
@@ -169,6 +193,7 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
   if (finished) {
     const results = tasks.map((p, i) => ({ p, given: answers[i], ok: answers[i] !== null && isCorrect(p.task, answers[i]!) }))
     const correct = results.filter((r) => r.ok).length
+    const reviewed = review === null ? null : results[review]
     return (
       <div>
         <Header close title="Результат пробника" />
@@ -217,6 +242,33 @@ function MockRun({ subject, size, minutes }: { subject: SubjectId; size: number;
               </p>
               <Markdown className="text-[14px] leading-relaxed text-fg-2">{results[review].p.task.explain}</Markdown>
               <ReportTask key={results[review].p.task.id} taskId={results[review].p.task.id} />
+              {fixedTasks && reviewed && !reviewed.ok && reviewed.given !== null && (
+                <Button
+                  block
+                  variant="secondary"
+                  icon={<MessagesSquare size={17} />}
+                  onClick={() => {
+                    const task = reviewed.p.task
+                    setReview(null)
+                    openTutor({
+                      mode: 'mistake',
+                      subject,
+                      topicId: task.topic,
+                      task: {
+                        q: task.figure ? task.q + '\nРисунок: ' + task.figure.alt : task.q,
+                        options: task.options,
+                        correct: answerText(task),
+                        given: givenText(task, reviewed.given),
+                        explain: task.explain,
+                        trap: task.trap,
+                      },
+                      prompt: 'Разбери мой ответ на задание ' + reviewed.p.slot + '.',
+                    })
+                  }}
+                >
+                  Разбор ИИ
+                </Button>
+              )}
             </div>
           )}
         </Sheet>

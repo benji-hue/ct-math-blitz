@@ -5,6 +5,7 @@ import { kit, r } from './kit'
 import { mathBank } from './math-bank'
 import { mathCt } from './math-ct'
 import { mathRt } from './math-rt'
+import { mathRtPractice } from './math-rt-practice'
 
 const { topic, a, b } = kit('math')
 
@@ -263,5 +264,12 @@ const blitzTasks: Task[] = (blitz as unknown as Question[]).map((q) => ({
   source: 'blitz',
 }))
 
-const content: SubjectContent = { topics, tasks: [...tasks, ...mathBank, ...mathCt, ...mathRt, ...blitzTasks] }
+const content: SubjectContent = {
+  topics,
+  tasks: [...tasks, ...mathBank, ...mathCt, ...mathRt, ...mathRtPractice, ...blitzTasks],
+  mockVariants: [
+    { title: 'РТ-1 · Вариант 1', tasks: mathRt },
+    { title: 'РТ-1 · Вариант 2', tasks: mathRtPractice },
+  ],
+}
 export default content
