@@ -12,17 +12,19 @@
  *
  * WEBHOOK_SECRET по желанию: если не задан, он выводится из токена бота — так же,
  * как при деплое через GitHub Actions (scripts/write-secrets.mjs).
- * BOT_USERNAME — ожидаемое имя бота: если токен от другого бота, будет предупреждение.
+ * BOT_USERNAME — ожидаемый @username. Для --profile-only он обязателен, APP_URL не нужен.
  */
+import { readFile } from 'node:fs/promises'
 import { webhookSecret } from './lib.mjs'
 
 const { BOT_TOKEN, APP_URL, BOT_USERNAME } = process.env
-if (!BOT_TOKEN || !APP_URL) {
-  console.error('Нужны переменные BOT_TOKEN и APP_URL (WEBHOOK_SECRET — по желанию)')
+const profileOnly = process.argv.includes('--profile-only')
+if (!BOT_TOKEN || (profileOnly ? !BOT_USERNAME : !APP_URL)) {
+  console.error(profileOnly ? 'Для обновления профиля нужны BOT_TOKEN и BOT_USERNAME' : 'Нужны переменные BOT_TOKEN и APP_URL (WEBHOOK_SECRET — по желанию)')
   process.exit(1)
 }
 const secret = process.env.WEBHOOK_SECRET || webhookSecret(BOT_TOKEN)
-const app = APP_URL.replace(/\/+$/, '')
+const app = (APP_URL ?? '').replace(/\/+$/, '')
 const miniApp = process.env.MINI_APP_URL || `${app}/`
 const telegram = process.env.TELEGRAM_API_BASE || 'https://api.telegram.org'
 
@@ -32,8 +34,10 @@ async function post(method, body) {
     try {
       return await fetch(`${telegram}/bot${BOT_TOKEN}/${method}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        ...(body instanceof FormData ? { body } : {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
       })
     } catch (e) {
       if (attempt >= 3) throw new Error(`${method}: ${e.message} (после ${attempt} попыток)`)
@@ -65,12 +69,51 @@ async function call(method, body = {}) {
   }
 }
 
+const profile = {
+  name: 'Крок · ЦЭ и ЦТ',
+  shortDescription: 'Подготовка к ЦЭ и ЦТ в Беларуси. 14 предметов, пробники на время и разбор ошибок.',
+  description: 'Готовься к ЦЭ и ЦТ в своём темпе. Выбери предмет, начни с короткой тренировки или пройди пробник на время.\n\nВ Кроке есть блицы по математике и русскому, повторение сложных тем и ИИ-репетитор для разбора ошибок.\n\nНажми «Открыть Крок», чтобы выбрать первую тренировку.',
+}
+
+async function updateProfile(botId) {
+  const avatar = profileOnly ? await readFile(new URL('../assets/bot-avatar.jpg', import.meta.url)) : null
+  for (const language_code of ['', 'ru']) {
+    await call('setMyName', { name: profile.name, language_code })
+    await call('setMyShortDescription', { short_description: profile.shortDescription, language_code })
+    await call('setMyDescription', { description: profile.description, language_code })
+  }
+  if (!avatar) return
+
+  const body = new FormData()
+  body.set('photo', JSON.stringify({ type: 'static', photo: 'attach://avatar' }))
+  body.set('avatar', new Blob([avatar], { type: 'image/jpeg' }), 'krok.jpg')
+  await call('setMyProfilePhoto', body)
+
+  for (const language_code of ['', 'ru']) {
+    const name = await call('getMyName', { language_code })
+    const bio = await call('getMyShortDescription', { language_code })
+    const intro = await call('getMyDescription', { language_code })
+    if (name.name !== profile.name || bio.short_description !== profile.shortDescription || intro.description !== profile.description) {
+      throw new Error('Telegram не подтвердил имя или описание профиля')
+    }
+  }
+  const photos = await call('getUserProfilePhotos', { user_id: botId, limit: 1 })
+  if (!photos.photos?.[0]?.length) throw new Error('Telegram не подтвердил фото профиля')
+}
+
 try {
   const me = await call('getMe')
   console.log(`  бот: @${me.username}`)
   const expected = (BOT_USERNAME ?? '').replace(/^@/, '').toLowerCase()
   if (expected && me.username.toLowerCase() !== expected) {
+    if (profileOnly) throw new Error(`Токен принадлежит @${me.username}, ожидался @${expected}`)
     console.log(`::warning title=Другой бот::Токен принадлежит @${me.username}, а в настройках указан @${expected}`)
+  }
+
+  if (profileOnly) {
+    await updateProfile(me.id)
+    console.log('Имя, описания и аватар подтверждены Telegram.')
+    process.exit(0)
   }
 
   await call('setWebhook', {
@@ -92,11 +135,7 @@ try {
       { command: 'help', description: 'Справка' },
     ],
   })
-  await call('setMyShortDescription', { short_description: 'Крок · подготовка к ЦЭ и ЦТ в Беларуси. Тренировки по 14 предметам, пробники и разбор ошибок.' })
-  await call('setMyDescription', {
-    description:
-      'Крок — подготовка выпускников к ЦЭ и ЦТ в Беларуси: 11 класс и абитуриенты прошлых лет.\n\n• Тренировки по 14 предметам, блицы и пробники на время.\n• Разбор ошибок, проверка решений по фото и повторение сложных тем.\n\nНажми «Открыть Крок», чтобы начать. Идеи для приложения можно оставить в чате командой /suggest.',
-  })
+  await updateProfile(me.id)
   console.log(`\nГотово. Откройте бота и нажмите «Открыть Крок». Мини-апп: ${miniApp}, сервер: ${app}`)
 } catch (e) {
   console.error(`::error title=Настройка бота::${String(e.message ?? e)}`)
