@@ -376,10 +376,10 @@ describe('бот: подтверждение входа на сайте', () => 
     const poll = await pollLogin(env, nonce)
     expect(poll).toMatchObject({ status: 'ok', user: { id: 4242, first_name: 'Ваня', username: 'vanya' } })
 
-    // /site — ссылка на сайт сразу с аккаунтом (кнопка-ссылка, не мини-апп).
+    // Кнопка сайта выдаёт ссылку с аккаунтом.
     sent.length = 0
     env.MINI_APP_URL = 'https://krok.example/app/'
-    await hook({ update_id: 4, message: { message_id: 3, chat: { id: 4242, type: 'private' }, from, text: '/site' } })
+    await hook({ update_id: 4, message: { message_id: 3, chat: { id: 4242, type: 'private' }, from, text: '🌐 Открыть сайт' } })
     const site = sent.find((c) => c.method === 'sendMessage').body.reply_markup.inline_keyboard[0][0].url
     expect(site).toMatch(/^https:\/\/krok\.example\/app\/#login=[A-Za-z0-9_-]{16,}$/)
     expect(await pollLogin(env, site.split('#login=')[1])).toMatchObject({ status: 'ok', user: { id: 4242 } })
@@ -426,9 +426,14 @@ describe('бот: ящик предложений', () => {
     const start = await hook(message(1, '/start'))
     expect(start.text).toContain('Я Крок')
     expect(start.reply_markup).toEqual({
-      keyboard: [[{ text: '📎 Скинуть вариант' }, { text: '📮 Ящик предложений' }]],
+      keyboard: [
+        [{ text: '📎 Скинуть вариант' }, { text: '📮 Ящик предложений' }],
+        [{ text: '📊 Мой прогресс' }, { text: '🔔 Напоминания' }],
+        [{ text: '🌐 Открыть сайт' }, { text: '❔ Помощь' }],
+      ],
       resize_keyboard: true,
-      one_time_keyboard: true,
+      is_persistent: true,
+      input_field_placeholder: 'Напиши сообщение или выбери кнопку внизу',
     })
     const prompt = await hook(message(2, start.reply_markup.keyboard[0][1].text))
     expect(prompt.reply_markup.force_reply).toBe(true)
@@ -440,6 +445,9 @@ describe('бот: ящик предложений', () => {
 
     expect((await hook(message(4, '/inbox'))).text).not.toContain(suggestion.message.text)
     expect((await hook(message(5, '/inbox', { from: { id: 42 }, chat: chat(42) }))).text).toContain(suggestion.message.text)
+    expect((await hook(message(6, '📊 Мой прогресс'))).text).toContain('Серия')
+    expect((await hook(message(7, '🔔 Напоминания'))).text).toContain('Напоминания выключены')
+    expect((await hook(message(8, '❔ Помощь'))).reply_markup).toEqual(start.reply_markup)
   })
 })
 
@@ -500,7 +508,7 @@ describe('бот: приём вариантов', () => {
 
     const menu = await message({ text: '/menu' })
     const labels = menu.reply_markup.keyboard.flat().map(({ text }) => text)
-    expect(labels).toEqual(['📎 Скинуть вариант', '📮 Ящик предложений'])
+    expect(labels).toEqual(['📎 Скинуть вариант', '📮 Ящик предложений', '📊 Мой прогресс', '🔔 Напоминания', '🌐 Открыть сайт', '❔ Помощь'])
     const picker = await message({ text: labels[0] })
     expect(picker.reply_markup.inline_keyboard.flat()).toHaveLength(14)
 

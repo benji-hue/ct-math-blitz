@@ -38,7 +38,7 @@ const WELCOME = `👋 <b>Привет! Я Крок.</b>
 • Выбери предмет и пройди короткую тренировку.
 • После пробника открой разбор ошибок или попроси ИИ объяснить трудный шаг.
 
-Короткий вопрос по учёбе можно задать прямо здесь. Меню рядом со строкой ввода поможет отправить вариант прошлых лет или предложить идею.`
+Короткий вопрос по учёбе можно задать прямо здесь. В меню под строкой ввода можно отправить вариант прошлых лет или предложить идею.`
 
 const SUGGESTION_PROMPT = `📮 Ящик предложений
 
@@ -77,8 +77,13 @@ async function reply(env: Env, chatId: number, text: string, withButton = false)
   })
 }
 
-const MENU_UPLOAD = '📎 Скинуть вариант'
-const MENU_SUGGEST = '📮 Ящик предложений'
+const CHAT_MENU = [
+  [{ text: '📎 Скинуть вариант', command: '/upload' }, { text: '📮 Ящик предложений', command: '/suggest' }],
+  [{ text: '📊 Мой прогресс', command: '/stats' }, { text: '🔔 Напоминания', command: '/remind' }],
+  [{ text: '🌐 Открыть сайт', command: '/site' }, { text: '❔ Помощь', command: '/help' }],
+] as const
+
+const MENU_COMMANDS = new Map<string, string>(CHAT_MENU.flat().map(({ text, command }) => [text, command]))
 
 async function showBotMenu(env: Env, chatId: number, text: string) {
   await botApi(env.BOT_TOKEN!, 'sendMessage', {
@@ -86,9 +91,10 @@ async function showBotMenu(env: Env, chatId: number, text: string) {
     text,
     parse_mode: 'HTML',
     reply_markup: {
-      keyboard: [[{ text: MENU_UPLOAD }, { text: MENU_SUGGEST }]],
+      keyboard: CHAT_MENU.map((row) => row.map(({ text }) => ({ text }))),
       resize_keyboard: true,
-      one_time_keyboard: true,
+      is_persistent: true,
+      input_field_placeholder: 'Напиши сообщение или выбери кнопку внизу',
     },
   })
 }
@@ -186,12 +192,13 @@ async function handleUpdate(env: Env, update: Update): Promise<void> {
   if (!message || message.chat.type !== 'private' || message.from?.is_bot) return
   const chatId = message.chat.id
   const text = message.text?.trim() ?? ''
-  const [command, payload] = text.split(/\s+/)
+  const [firstWord, payload] = text.split(/\s+/)
+  const command = MENU_COMMANDS.get(text) ?? firstWord
   const suggestionReply = message.reply_to_message?.text === SUGGESTION_PROMPT &&
     message.reply_to_message.from?.id === Number(env.BOT_TOKEN!.split(':')[0])
 
-  if (command === '/suggest' || text === MENU_SUGGEST) return askSuggestion(env, chatId)
-  if (command === '/upload' || text === MENU_UPLOAD) return showSubjectPicker(env, chatId)
+  if (command === '/suggest') return askSuggestion(env, chatId)
+  if (command === '/upload') return showSubjectPicker(env, chatId)
   if (command === '/variants' || command === '/variant_file') {
     if (!message.from || String(message.from.id) !== env.BOT_FEEDBACK_ADMIN_ID) return reply(env, chatId, 'Эта команда доступна владельцу Крока.')
     return command === '/variants' ? showVariantArchive(env, chatId, payload) : sendArchivedVariant(env, chatId, payload)
