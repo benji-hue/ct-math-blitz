@@ -5,12 +5,24 @@
 # если nginx его не принимает — свой файл убираем, и nginx остаётся как был.
 #
 #   KROK_DOMAIN=krok.example.by KROK_PORT=8090 bash nginx-site.sh   (от root)
+# Если внешний порт 443 занят маршрутизацией по SNI (nginx stream), укажите
+# KROK_NGINX_TLS_PORT — порт на 127.0.0.1, куда SNI уже направляет домен Крока.
 set -euo pipefail
 
 domain="${KROK_DOMAIN:-}"
 port="${KROK_PORT:-}"
+tls_port="${KROK_NGINX_TLS_PORT:-}"
+tls_listen=443
 [[ "$domain" =~ ^[a-z0-9-]+(\.[a-z0-9-]+)+$ ]] || { echo "::error title=nginx::Некорректный домен"; exit 1; }
 [[ "$port" =~ ^[0-9]+$ ]] || { echo "::error title=nginx::Некорректный порт"; exit 1; }
+
+if [ -n "$tls_port" ]; then
+  if ! [[ "$tls_port" =~ ^[1-9][0-9]{0,4}$ ]] || ((tls_port > 65535)); then
+    echo "::error title=nginx::KROK_NGINX_TLS_PORT должен быть портом от 1 до 65535"
+    exit 1
+  fi
+  tls_listen="127.0.0.1:$tls_port"
+fi
 
 reload() { systemctl reload nginx 2>/dev/null || nginx -s reload; }
 
@@ -77,9 +89,8 @@ live() {
 apply() {
   if [ -n "$link" ]; then ln -sfn "$conf" "$link"; fi
   if ! nginx -t; then rollback; fi
-  reload
-  if ! live; then
-    echo "::error title=nginx не отдаёт сайт «Крока»::Другой сайт на этом сервере перехватывает домен $domain"
+  if ! reload || ! live; then
+    echo "::error title=nginx не отдаёт сайт «Крока»::Новая конфигурация для $domain не отвечает. Проверьте журнал nginx, в том числе ошибки привязки порта."
     rollback
   fi
 }
@@ -159,7 +170,7 @@ version="$(date +%s%N)"
   echo "}"
   echo
   echo "server {"
-  echo "    listen 443 ssl;"
+  echo "    listen $tls_listen ssl;"
   echo "    server_name $domain;"
   echo "    ssl_certificate $cert/fullchain.pem;"
   echo "    ssl_certificate_key $cert/privkey.pem;"
