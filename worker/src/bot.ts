@@ -38,7 +38,7 @@ const WELCOME = `👋 <b>Привет! Я Крок.</b>
 • Выбери предмет и пройди короткую тренировку.
 • После пробника открой разбор ошибок или попроси ИИ объяснить трудный шаг.
 
-Короткий вопрос по учёбе можно задать прямо здесь. Если есть идея или вариант экзамена прошлых лет, выбери нужную кнопку ниже.`
+Короткий вопрос по учёбе можно задать прямо здесь. Меню рядом со строкой ввода поможет отправить вариант прошлых лет или предложить идею.`
 
 const SUGGESTION_PROMPT = `📮 Ящик предложений
 
@@ -77,18 +77,18 @@ async function reply(env: Env, chatId: number, text: string, withButton = false)
   })
 }
 
+const MENU_UPLOAD = '📎 Скинуть вариант'
+const MENU_SUGGEST = '📮 Ящик предложений'
+
 async function showBotMenu(env: Env, chatId: number, text: string) {
-  const app = openAppKeyboard(env.MINI_APP_URL, 'Открыть Крок')
   await botApi(env.BOT_TOKEN!, 'sendMessage', {
     chat_id: chatId,
     text,
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: [
-        ...(app?.inline_keyboard ?? []),
-        [{ text: '📎 Скинуть вариант', callback_data: 'upload' }],
-        [{ text: '📮 Ящик предложений', callback_data: 'suggest' }],
-      ],
+      keyboard: [[{ text: MENU_UPLOAD }, { text: MENU_SUGGEST }]],
+      resize_keyboard: true,
+      one_time_keyboard: true,
     },
   })
 }
@@ -190,8 +190,8 @@ async function handleUpdate(env: Env, update: Update): Promise<void> {
   const suggestionReply = message.reply_to_message?.text === SUGGESTION_PROMPT &&
     message.reply_to_message.from?.id === Number(env.BOT_TOKEN!.split(':')[0])
 
-  if (command === '/suggest') return askSuggestion(env, chatId)
-  if (command === '/upload') return showSubjectPicker(env, chatId)
+  if (command === '/suggest' || text === MENU_SUGGEST) return askSuggestion(env, chatId)
+  if (command === '/upload' || text === MENU_UPLOAD) return showSubjectPicker(env, chatId)
   if (command === '/variants' || command === '/variant_file') {
     if (!message.from || String(message.from.id) !== env.BOT_FEEDBACK_ADMIN_ID) return reply(env, chatId, 'Эта команда доступна владельцу Крока.')
     return command === '/variants' ? showVariantArchive(env, chatId, payload) : sendArchivedVariant(env, chatId, payload)
@@ -204,7 +204,7 @@ async function handleUpdate(env: Env, update: Update): Promise<void> {
   if (message.document || message.photo?.length) return receiveVariantFile(env, chatId, message)
   if (!text) return
 
-  if (command === '/menu') return showBotMenu(env, chatId, '<b>Меню Крока</b>')
+  if (command === '/menu') return showBotMenu(env, chatId, '<b>Меню Крока</b>\n\nВыбери действие на панели под строкой ввода.')
   if (command === '/start' && payload?.startsWith('login_')) {
     await upsertUser(env, message.from)
     await askLogin(env, chatId, payload.slice(6))

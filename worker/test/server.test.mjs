@@ -425,16 +425,12 @@ describe('бот: ящик предложений', () => {
     })
     const start = await hook(message(1, '/start'))
     expect(start.text).toContain('Я Крок')
-    expect(start.reply_markup.inline_keyboard).toEqual([
-      [{ text: 'Открыть Крок', web_app: { url: 'https://krok.example/app/' } }],
-      [{ text: '📎 Скинуть вариант', callback_data: 'upload' }],
-      [{ text: '📮 Ящик предложений', callback_data: 'suggest' }],
-    ])
-    const prompt = await hook({
-      update_id: 2,
-      callback_query: { id: 'idea', from, data: 'suggest', message: { message_id: 1, chat: chat(from.id) } },
+    expect(start.reply_markup).toEqual({
+      keyboard: [[{ text: '📎 Скинуть вариант' }, { text: '📮 Ящик предложений' }]],
+      resize_keyboard: true,
+      one_time_keyboard: true,
     })
-    expect(calls.at(-2).method).toBe('answerCallbackQuery')
+    const prompt = await hook(message(2, start.reply_markup.keyboard[0][1].text))
     expect(prompt.reply_markup.force_reply).toBe(true)
     const suggestion = message(3, 'Добавить блиц по пунктуации.', { reply_to_message: { from: { id: 10 }, text: prompt.text } })
     expect((await hook(suggestion)).text).toContain('сохранено')
@@ -503,9 +499,9 @@ describe('бот: приём вариантов', () => {
     const archive = async () => (await db.prepare('SELECT subject, exam, exam_year FROM bot_variant_archive ORDER BY id').all()).results
 
     const menu = await message({ text: '/menu' })
-    expect(menu.reply_markup.inline_keyboard.flat().map(({ callback_data }) => callback_data)).toContain('suggest')
-    expect(menu.reply_markup.inline_keyboard.flat().map(({ callback_data }) => callback_data)).toContain('upload')
-    const picker = await tap('upload')
+    const labels = menu.reply_markup.keyboard.flat().map(({ text }) => text)
+    expect(labels).toEqual(['📎 Скинуть вариант', '📮 Ящик предложений'])
+    const picker = await message({ text: labels[0] })
     expect(picker.reply_markup.inline_keyboard.flat()).toHaveLength(14)
 
     await tap('variant:subject:math')
